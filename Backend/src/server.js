@@ -2,6 +2,7 @@ import express from 'express';
 import dotenv from 'dotenv';
 import cors from 'cors';
 import db from './db.js';
+import userRoute from './routes/userRoute.js';
 
 dotenv.config();
 
@@ -16,7 +17,7 @@ app.get('/', (req, res)=>{
 })
 
 const PORT = process.env.PORT
-
+app.use('/api/auth', userRoute);
 const startServer = async () => {
     try {
         await db.connect();
