@@ -1,0 +1,70 @@
+@import "tailwindcss";
+  
+  /* Custom scrollbar */
+  ::-webkit-scrollbar {
+    width: 8px;
+  }
+  
+  ::-webkit-scrollbar-track {
+    @apply bg-gray-100;
+  }
+  
+  ::-webkit-scrollbar-thumb {
+    @apply bg-blue-400 rounded-full;
+  }
+  
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-blue-500;
+  }
+  .card-shadow {
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.08), 0 10px 20px rgba(0, 0, 0, 0.04);
+  }
+  
+  .glass-effect {
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+  }
+  
+  .gradient-text {
+    @apply bg-linear-to-r from-blue-600 to-teal-600 bg-clip-text text-transparent;
+  }
+  
+  .gradient-bg {
+    @apply bg-linear-to-br from-blue-900 to-teal-800;
+  }
+  
+  .gradient-button {
+    @apply bg-linear-to-r from-blue-600 to-teal-600 hover:from-blue-700 hover:to-teal-700;
+  }
+  
+  .input-field {
+    @apply w-full px-4 py-3 bg-gray-50 border-2 border-gray-200 rounded-xl 
+           focus:outline-none focus:border-blue-500 focus:bg-white 
+           transition-all duration-200 placeholder:text-gray-400;
+  }
+  
+  .password-strength-bar {
+    @apply h-1 rounded-full transition-all duration-300;
+  }
+
+  .full-screen-section {
+    height: 100vh;
+    overflow: hidden;
+  }
+
+  @supports (height: 100dvh) {
+    .full-screen-section {
+      height: 100dvh;
+    }
+  }
+
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .no-scrollbar::-webkit-scrollbar {
+    width: 0;
+    height: 0;
+  }
