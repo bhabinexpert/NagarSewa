@@ -4,6 +4,8 @@ import cors from 'cors';
 import db from './db.js';
 import userRoute from './routes/userRoute.js';
 
+
+
 dotenv.config();
 
 const app = express();
@@ -32,4 +34,6 @@ const startServer = async () => {
     }
 };
 
+
 startServer();
+
