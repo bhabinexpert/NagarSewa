@@ -7,12 +7,14 @@ import Services from "../components/Services";
 
 const Landing = () => {
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="min-h-screen w-full flex flex-col">
       <Header />
-      <Hero />
-      <Highlights />
-      <Services />
-      <About />
+      <main className="flex-1 w-full">
+        <Hero />
+        <Highlights />
+        <Services />
+        <About />
+      </main>
       <Footer />
     </div>
   );
