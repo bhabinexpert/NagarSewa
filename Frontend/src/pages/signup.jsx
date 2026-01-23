@@ -8,11 +8,112 @@ import {
   Check,
   Eye,
   EyeOff,
-  AlertCircle,
   ShieldCheck,
   X,
 } from "lucide-react";
 import { Link } from "react-router-dom";
+import { useLanguage } from "../context/useLanguage";
+
+const signupText = {
+  en: {
+    brand: "NagarSewa",
+    subtitle: "Create Your Digital Citizen Account",
+    formTitle: "Create Your Account",
+    formSubtitle: "Join thousands of citizens using digital services",
+    fullName: "Full Name",
+    fullNamePlaceholder: "As per citizenship certificate",
+    email: "Email Address",
+    emailPlaceholder: "citizen@example.com",
+    password: "Password",
+    passwordPlaceholder: "Create a strong password",
+    confirmPassword: "Confirm Password",
+    confirmPasswordPlaceholder: "Re-enter your password",
+    strength: "Strength:",
+    strengthLabels: ["", "Weak", "Medium", "Good", "Strong"],
+    reqLen: "8+ characters",
+    reqUpper: "Uppercase",
+    reqLower: "Lowercase",
+    reqNumber: "Number",
+    matchYes: "Passwords match",
+    matchNo: "Passwords do not match",
+    termsText: "I accept the",
+    termsLink: "Terms of Service",
+    privacyLink: "Privacy Policy",
+    createAccount: "Create Account",
+    loginPrompt: "Already have an account?",
+    loginLink: "Log In",
+    benefitsTitle: "Why Join NagarSewa?",
+    benefit1Title: "Smart Issue Reporting",
+    benefit1Desc: "Track progress smartly",
+    benefit2Title: "Service Requests",
+    benefit2Desc: "Appeal for services and events",
+    benefit3Title: "Notifications",
+    benefit3Desc: "Important municipal updates",
+    benefit4Title: "24/7 Support",
+    benefit4Desc: "Government-certified assistance",
+    security: "Government verified & secure platform",
+    footerLinks: ["Help Center", "FAQ", "Contact Support"],
+    copyright: "© 2023 NagarSewa",
+    alerts: {
+      name: "Please enter your full name",
+      email: "Please enter your email",
+      password: "Please enter a password",
+      mismatch: "Passwords do not match",
+      terms: "Please accept the terms and conditions",
+      success: "Account created successfully!",
+    },
+    toggleLabel: "नेपाली",
+  },
+  np: {
+    brand: "नगरसेवा",
+    subtitle: "आफ्नो डिजिटल नागरिक खाता बनाउनुहोस्",
+    formTitle: "खाता बनाउनुहोस्",
+    formSubtitle: "डिजिटल सेवा प्रयोग गर्ने हजारौं नागरिकमा सामेल हुनुहोस्",
+    fullName: "पुरा नाम",
+    fullNamePlaceholder: "नागरिकता प्रमाणपत्र अनुसार",
+    email: "इमेल ठेगाना",
+    emailPlaceholder: "citizen@example.com",
+    password: "पासवर्ड",
+    passwordPlaceholder: "बलियो पासवर्ड सिर्जना गर्नुहोस्",
+    confirmPassword: "पासवर्ड पुष्टि गर्नुहोस्",
+    confirmPasswordPlaceholder: "पासवर्ड पुन: प्रविष्ट गर्नुहोस्",
+    strength: "मजबूती:",
+    strengthLabels: ["", "कमजोर", "मध्यम", "राम्रो", "बलियो"],
+    reqLen: "८+ क्यारेक्टर",
+    reqUpper: "ठूलो अक्षर",
+    reqLower: "सानो अक्षर",
+    reqNumber: "संख्या",
+    matchYes: "पासवर्ड मिल्यो",
+    matchNo: "पासवर्ड मिलेन",
+    termsText: "म स्वीकार गर्दछु",
+    termsLink: "सेवा सर्तहरू",
+    privacyLink: "गोपनीयता नीति",
+    createAccount: "खाता बनाउनुहोस्",
+    loginPrompt: "पहिले नै खाता छ?",
+    loginLink: "लग इन गर्नुहोस्",
+    benefitsTitle: "किन नगरसेवा?",
+    benefit1Title: "स्मार्ट समस्या रिपोर्टिंग",
+    benefit1Desc: "प्रगति स्मार्ट तरिकाले ट्र्याक गर्नुहोस्",
+    benefit2Title: "सेवा अनुरोध",
+    benefit2Desc: "सेवा र कार्यक्रमका लागि अपील",
+    benefit3Title: "सूचनाहरू",
+    benefit3Desc: "महत्वपूर्ण नगरपालिका अपडेटहरू",
+    benefit4Title: "२४/७ समर्थन",
+    benefit4Desc: "सरकारी प्रमाणित सहायता",
+    security: "सरकारद्वारा प्रमाणित सुरक्षित प्लेटफर्म",
+    footerLinks: ["सहायता केन्द्र", "FAQ", "सम्पर्क समर्थन"],
+    copyright: "© 2023 नगरसेवा",
+    alerts: {
+      name: "कृपया आफ्नो पुरा नाम प्रविष्ट गर्नुहोस्",
+      email: "कृपया आफ्नो इमेल प्रविष्ट गर्नुहोस्",
+      password: "कृपया पासवर्ड प्रविष्ट गर्नुहोस्",
+      mismatch: "पासवर्ड मिलेन",
+      terms: "कृपया सर्तहरू स्वीकार गर्नुहोस्",
+      success: "खाता सफलतापूर्वक सिर्जना भयो!",
+    },
+    toggleLabel: "English",
+  },
+};
 
 // Simple component to show password requirements
 const PasswordRequirement = ({ met, text }) => (
@@ -22,6 +123,8 @@ const PasswordRequirement = ({ met, text }) => (
 );
 
 export default function Signup() {
+  const { language, toggleLanguage } = useLanguage();
+  const t = signupText[language];
   // Form data state - stores all user inputs
   const [formData, setFormData] = useState({
     fullName: "",
@@ -38,19 +141,19 @@ export default function Signup() {
   // Calculate password strength based on length
   const getPasswordStrength = () => {
     const length = formData.password.length;
-    if (length === 0) return { score: 0, message: "" };
-    if (length < 3) return { score: 1, message: "Weak" };
-    if (length < 5) return { score: 2, message: "Medium" };
-    if (length < 8) return { score: 3, message: "Good" };
-    return { score: 4, message: "Strong" };
+    if (length === 0) return { score: 0, message: t.strengthLabels[0] };
+    if (length < 3) return { score: 1, message: t.strengthLabels[1] };
+    if (length < 5) return { score: 2, message: t.strengthLabels[2] };
+    if (length < 8) return { score: 3, message: t.strengthLabels[3] };
+    return { score: 4, message: t.strengthLabels[4] };
   };
 
   // Get color for strength indicator bar
   const getStrengthColor = (score) => {
     if (score <= 1) return "bg-red-600";
     if (score === 2) return "bg-yellow-600";
-    if (score === 3) return "bg-blue-600";
-    return "bg-green-600";
+    if (score === 3) return "bg-teal-600";
+    return "bg-emerald-600";
   };
 
   // Check if passwords match
@@ -77,49 +180,57 @@ export default function Signup() {
   const handleSubmit = () => {
     // Basic validation
     if (!formData.fullName) {
-      alert("Please enter your full name");
+      alert(t.alerts.name);
       return;
     }
     if (!formData.email) {
-      alert("Please enter your email");
+      alert(t.alerts.email);
       return;
     }
     if (!formData.password) {
-      alert("Please enter a password");
+      alert(t.alerts.password);
       return;
     }
     if (!passwordsMatch) {
-      alert("Passwords do not match");
+      alert(t.alerts.mismatch);
       return;
     }
     if (!formData.acceptTerms) {
-      alert("Please accept the terms and conditions");
+      alert(t.alerts.terms);
       return;
     }
 
     // Submit the form
     console.log("Form submitted:", formData);
-    alert("Account created successfully!");
+    alert(t.alerts.success);
   };
 
   const passwordStrength = getPasswordStrength();
 
   return (
-    <div className="h-screen w-screen overflow-hidden bg-gradient-to-br from-blue-900 via-blue-800 to-teal-800">
+    <div className="h-screen w-screen overflow-hidden bg-linear-to-br from-emerald-950 via-emerald-900 to-teal-900">
       <div className="h-full w-full flex flex-col max-w-6xl mx-auto px-4 py-4">
+        <div className="flex justify-end mb-2">
+          <button
+            onClick={toggleLanguage}
+            className="px-4 py-2 bg-white/10 border border-white/30 text-white text-sm rounded-lg hover:bg-white/20 backdrop-blur"
+          >
+            {t.toggleLabel}
+          </button>
+        </div>
         
         {/* Header Section */}
-        <div className="text-center mb-3 flex-shrink-0">
+        <div className="text-center mb-3 shrink-0">
           <div className="inline-flex items-center gap-3">
             <div className="flex items-center justify-center w-10 h-10 bg-white rounded-xl shadow-lg">
-              <Building2 className="w-5 h-5 text-blue-600" />
+              <Building2 className="w-5 h-5 text-emerald-600" />
             </div>
             <div className="text-left m-5">
               <h1 className="text-xl font-bold text-white leading-tight">
-                NagarSewa
+                {t.brand}
               </h1>
               <p className="text-white/80 text-xs">
-                Create Your Digital Citizen Account
+                {t.subtitle}
               </p>
             </div>
           </div>
@@ -132,15 +243,15 @@ export default function Signup() {
             <div className="bg-white rounded-2xl shadow-md flex flex-col h-full overflow-hidden">
               
               {/* Form Header */}
-              <div className="bg-linear-to-r from-blue-600 to-teal-600 p-3 text-white shrink-0">
+              <div className="bg-linear-to-r from-emerald-600 to-teal-600 p-3 text-white shrink-0">
                 <div className="flex items-center justify-center gap-4 p-2">
                   <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center">
                     <FileText className="w-5 h-5" />
                   </div>
                   <div>
-                    <h2 className="text-lg font-bold">Create Your Account</h2>
+                    <h2 className="text-lg font-bold">{t.formTitle}</h2>
                     <p className="text-white/90 text-xs">
-                      Join thousands of citizens using digital services
+                      {t.formSubtitle}
                     </p>
                   </div>
                 </div>
@@ -156,15 +267,15 @@ export default function Signup() {
                     <div>
                       <label className="block text-xs font-medium text-gray-700 mb-1">
                         <User className="inline w-3 h-3 mr-1 text-gray-400" />
-                        Full Name
+                        {t.fullName}
                       </label>
                       <input
                         type="text"
                         name="fullName"
                         value={formData.fullName}
                         onChange={handleInputChange}
-                        className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
-                        placeholder="As per citizenship certificate"
+                        className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all"
+                        placeholder={t.fullNamePlaceholder}
                       />
                     </div>
 
@@ -172,15 +283,15 @@ export default function Signup() {
                     <div>
                       <label className="block text-xs font-medium text-gray-700 mb-1">
                         <Mail className="inline w-3 h-3 mr-1 text-gray-400" />
-                        Email Address
+                        {t.email}
                       </label>
                       <input
                         type="email"
                         name="email"
                         value={formData.email}
                         onChange={handleInputChange}
-                        className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
-                        placeholder="citizen@example.com"
+                        className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all"
+                        placeholder={t.emailPlaceholder}
                       />
                     </div>
                   </div>
@@ -192,7 +303,7 @@ export default function Signup() {
                     <div>
                       <label className="block text-xs font-medium text-gray-700 mb-1">
                         <Lock className="inline w-3 h-3 mr-1 text-gray-400" />
-                        Password
+                        {t.password}
                       </label>
                       <div className="relative">
                         <input
@@ -200,8 +311,8 @@ export default function Signup() {
                           name="password"
                           value={formData.password}
                           onChange={handleInputChange}
-                          className="w-full px-3 py-2 pr-10 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
-                          placeholder="Create a strong password"
+                          className="w-full px-3 py-2 pr-10 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all"
+                          placeholder={t.passwordPlaceholder}
                         />
                         {/* Toggle password visibility button */}
                         <button
@@ -222,11 +333,11 @@ export default function Signup() {
                         <div className="mt-2">
                           {/* Strength label and score */}
                           <div className="flex justify-between items-center mb-1">
-                            <span className="text-xs text-gray-600">Strength:</span>
+                            <span className="text-xs text-gray-600">{t.strength}</span>
                             <span className={`text-xs font-medium ${
                               passwordStrength.score <= 1 ? "text-red-600" :
                               passwordStrength.score === 2 ? "text-yellow-600" :
-                              passwordStrength.score === 3 ? "text-blue-600" :
+                              passwordStrength.score === 3 ? "text-teal-600" :
                               "text-green-600"
                             }`}>
                               {passwordStrength.message}
@@ -249,10 +360,10 @@ export default function Signup() {
                           
                           {/* Password requirements checklist */}
                           <div className="grid grid-cols-2 gap-1">
-                            <PasswordRequirement met={hasMinLength} text="8+ characters" />
-                            <PasswordRequirement met={hasUppercase} text="Uppercase" />
-                            <PasswordRequirement met={hasLowercase} text="Lowercase" />
-                            <PasswordRequirement met={hasNumber} text="Number" />
+                            <PasswordRequirement met={hasMinLength} text={t.reqLen} />
+                            <PasswordRequirement met={hasUppercase} text={t.reqUpper} />
+                            <PasswordRequirement met={hasLowercase} text={t.reqLower} />
+                            <PasswordRequirement met={hasNumber} text={t.reqNumber} />
                           </div>
                         </div>
                       )}
@@ -262,7 +373,7 @@ export default function Signup() {
                     <div>
                       <label className="block text-xs font-medium text-gray-700 mb-1">
                         <Lock className="inline w-3 h-3 mr-1 text-gray-400" />
-                        Confirm Password
+                        {t.confirmPassword}
                       </label>
                       <div className="relative">
                         <input
@@ -270,8 +381,8 @@ export default function Signup() {
                           name="confirmPassword"
                           value={formData.confirmPassword}
                           onChange={handleInputChange}
-                          className="w-full px-3 py-2 pr-10 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
-                          placeholder="Re-enter your password"
+                          className="w-full px-3 py-2 pr-10 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all"
+                          placeholder={t.confirmPasswordPlaceholder}
                         />
                         {/* Toggle confirm password visibility button */}
                         <button
@@ -297,7 +408,7 @@ export default function Signup() {
                           ) : (
                             <X className="w-3 h-3 mr-1" />
                           )}
-                          {passwordsMatch ? "Passwords match" : "Passwords do not match"}
+                          {passwordsMatch ? t.matchYes : t.matchNo}
                         </div>
                       )}
                     </div>
@@ -319,13 +430,13 @@ export default function Signup() {
                       )}
                     </button>
                     <label className="text-xs text-gray-600 cursor-pointer" onClick={toggleTerms}>
-                      I accept the{" "}
-                      <span className="text-blue-600 font-medium hover:text-blue-800">
-                        Terms of Service
+                      {t.termsText}{" "}
+                      <span className="text-emerald-600 font-medium hover:text-emerald-800">
+                        {t.termsLink}
                       </span>{" "}
-                      and{" "}
-                      <span className="text-blue-600 font-medium hover:text-blue-800">
-                        Privacy Policy
+                      {language === "en" ? "and" : "र"}{" "}
+                      <span className="text-emerald-600 font-medium hover:text-emerald-800">
+                        {t.privacyLink}
                       </span>
                     </label>
                   </div>
@@ -333,17 +444,17 @@ export default function Signup() {
                   {/* Submit Button */}
                   <button
                     onClick={handleSubmit}
-                    className="w-full py-2.5 bg-gradient-to-r from-blue-600 to-teal-600 text-white font-semibold rounded-lg shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all duration-200 text-sm"
+                    className="w-full py-2.5 bg-linear-to-r from-emerald-600 to-teal-600 text-white font-semibold rounded-lg shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all duration-200 text-sm"
                   >
-                    Create Account
+                    {t.createAccount}
                   </button>
 
                   {/* Login Link */}
                   <div className="text-center pt-1">
                     <p className="text-gray-600 text-xs">
-                      Already have an account?{" "}
-                      <span className="text-blue-600 font-semibold hover:text-blue-800 cursor-pointer">
-                        <Link to = '/login'>Login In</Link>
+                      {t.loginPrompt}{" "}
+                      <span className="text-emerald-600 font-semibold hover:text-emerald-800 cursor-pointer">
+                        <Link to='/login'>{t.loginLink}</Link>
                       </span>
                     </p>
                   </div>
@@ -357,11 +468,11 @@ export default function Signup() {
             <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-4 border border-white/20 flex flex-col overflow-hidden">
               
               {/* Benefits Header */}
-              <div className="text-white mb-3 flex-shrink-0">
+              <div className="text-white mb-3 shrink-0">
                 <ShieldCheck className="w-8 h-8 mb-2" />
-                <h3 className="text-lg font-bold mb-2">Why Join NagarSewa?</h3>
+                <h3 className="text-lg font-bold mb-2">{t.benefitsTitle}</h3>
                 <p className="text-white/80 text-xs">
-                  Get notices of social offers and trainings.
+                  {t.formSubtitle}
                 </p>
               </div>
 
@@ -374,25 +485,25 @@ export default function Signup() {
                   </div>
                   <div>
                     <h4 className="text-white font-medium text-xs">
-                      Smart Issue Reporting
+                      {t.benefit1Title}
                     </h4>
                     <p className="text-white/70 text-xs mt-0.5">
-                      Track progress smartly
+                      {t.benefit1Desc}
                     </p>
                   </div>
                 </div>
 
                 {/* Benefit 2 */}
                 <div className="flex items-start gap-2">
-                  <div className="w-7 h-7 rounded-full bg-blue-500/20 flex items-center justify-center shrink-0">
-                    <Check className="w-3 h-3 text-blue-300" />
+                  <div className="w-7 h-7 rounded-full bg-cyan-500/20 flex items-center justify-center shrink-0">
+                    <Check className="w-3 h-3 text-cyan-300" />
                   </div>
                   <div>
                     <h4 className="text-white font-medium text-xs">
-                      Service Requests
+                      {t.benefit2Title}
                     </h4>
                     <p className="text-white/70 text-xs mt-0.5">
-                      Appeal for services and events
+                      {t.benefit2Desc}
                     </p>
                   </div>
                 </div>
@@ -404,10 +515,10 @@ export default function Signup() {
                   </div>
                   <div>
                     <h4 className="text-white font-medium text-xs">
-                      Notifications
+                      {t.benefit3Title}
                     </h4>
                     <p className="text-white/70 text-xs mt-0.5">
-                      Important municipal updates
+                      {t.benefit3Desc}
                     </p>
                   </div>
                 </div>
@@ -419,20 +530,20 @@ export default function Signup() {
                   </div>
                   <div>
                     <h4 className="text-white font-medium text-xs">
-                      24/7 Support
+                      {t.benefit4Title}
                     </h4>
                     <p className="text-white/70 text-xs mt-0.5">
-                      Government-certified assistance
+                      {t.benefit4Desc}
                     </p>
                   </div>
                 </div>
               </div>
 
               {/* Security Badge */}
-              <div className="mt-3 pt-3 border-t border-white/20 flex-shrink-0">
+              <div className="mt-3 pt-3 border-t border-white/20 shrink-0">
                 <p className="text-white/60 text-xs">
                   <ShieldCheck className="inline w-3 h-3 mr-1" />
-                  Government verified & secure platform
+                  {t.security}
                 </p>
               </div>
             </div>
@@ -441,21 +552,18 @@ export default function Signup() {
         
 
         {/* Footer */}
-        <footer className="mt-3 text-center flex-shrink-0">
+        <footer className="mt-3 text-center shrink-0">
           <div className="flex flex-wrap justify-center gap-2 text-xs text-white/80">
-            <span className="hover:text-white transition-colors cursor-pointer">
-              Help Center
-            </span>
-            <span className="text-white/40">•</span>
-            <span className="hover:text-white transition-colors cursor-pointer">
-              FAQ
-            </span>
-            <span className="text-white/40">•</span>
-            <span className="hover:text-white transition-colors cursor-pointer">
-              Contact Support
-            </span>
+            {t.footerLinks.map((item, idx) => (
+              <React.Fragment key={item}>
+                {idx > 0 && <span className="text-white/40">•</span>}
+                <span className="hover:text-white transition-colors cursor-pointer">
+                  {item}
+                </span>
+              </React.Fragment>
+            ))}
           </div>
-          <p className="text-white/60 text-xs mt-1">© 2023 NagarSewa</p>
+          <p className="text-white/60 text-xs mt-1">{t.copyright}</p>
         </footer>
       </div>
     </div>
