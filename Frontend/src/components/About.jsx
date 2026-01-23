@@ -1,13 +1,60 @@
+import { FaFlag, FaUsers, FaLandmark, FaShieldAlt } from "react-icons/fa";
 import { useLanguage } from "../context/useLanguage";
 
 const aboutContent = {
   en: {
     title: "About NagarSewa",
-    desc: "NagarSewa is a digital public service platform that connects citizens with local authorities to report issues, request services, and stay informed through a secure citizen account.",
+    lead: "NagarSewa is a national civic platform that amplifies citizen voices and connects them directly with local authorities for swift action.",
+    body: "Built for Nepal’s municipalities, NagarSewa helps residents report community problems, request services, and follow official updates with transparency and accountability. Every report becomes a verified civic signal—bridging the gap between people and public offices.",
+    pillars: [
+      {
+        title: "Citizen Voice",
+        desc: "Give every ward a reliable channel to speak up and be heard.",
+        icon: FaUsers,
+      },
+      {
+        title: "National Service",
+        desc: "Strengthen civic responsibility and pride across Nepal’s communities.",
+        icon: FaFlag,
+      },
+      {
+        title: "Local Authority Link",
+        desc: "Route reports and requests directly to responsible offices.",
+        icon: FaLandmark,
+      },
+      {
+        title: "Transparent Action",
+        desc: "Track progress and ensure issues are resolved with integrity.",
+        icon: FaShieldAlt,
+      },
+    ],
   },
   np: {
     title: "नगरसेवा बारेमा",
-    desc: "नगरसेवा डिजिटल सार्वजनिक सेवा प्लेटफर्म हो जसले नागरिकलाई स्थानीय निकायसँग जोडेर समस्या रिपोर्ट गर्न, सेवा अनुरोध गर्न, र सुरक्षित नागरिक खातामार्फत अपडेटहरू प्राप्त गर्न सक्षम बनाउँछ।",
+    lead: "नगरसेवा राष्ट्रिय नागरिक प्लेटफर्म हो जसले नागरिकको आवाजलाई सशक्त बनाउँदै स्थानीय निकायसँग प्रत्यक्ष जोड्छ।",
+    body: "नेपालका नगरपालिकाका लागि निर्माण गरिएको नगरसेवाले समुदायका समस्या रिपोर्ट गर्न, सेवा अनुरोध गर्न र आधिकारिक अपडेटहरू पारदर्शितासहित पाउन सहयोग गर्छ। प्रत्येक रिपोर्ट जिम्मेवार निकायमा पुग्ने विश्वासिलो नागरिक सन्देश हो।",
+    pillars: [
+      {
+        title: "नागरिकको आवाज",
+        desc: "हरेक वडाको आवाज सुन्ने भरपर्दो माध्यम।",
+        icon: FaUsers,
+      },
+      {
+        title: "राष्ट्रिय सेवा",
+        desc: "नेपालभर नागरिक जिम्मेवारी र गौरव सुदृढ गर्नुहोस्।",
+        icon: FaFlag,
+      },
+      {
+        title: "स्थानीय निकायसँग जोड",
+        desc: "समस्या र अनुरोध जिम्मेवार कार्यालयमै पुर्‍याउनुहोस्।",
+        icon: FaLandmark,
+      },
+      {
+        title: "पारदर्शी कार्यान्वयन",
+        desc: "समस्या समाधानको प्रगति ट्र्याक गर्दै विश्वास बढाउनुहोस्।",
+        icon: FaShieldAlt,
+      },
+    ],
   },
 };
 
@@ -16,12 +63,32 @@ export default function About() {
   const content = aboutContent[language];
 
   return (
-    <section id="about" className="bg-gray-100 py-20">
-      <div className="max-w-5xl mx-auto px-6 text-center">
-        <h3 className="text-3xl font-bold mb-6">{content.title}</h3>
-        <p className="text-gray-700 leading-relaxed">
-          {content.desc}
-        </p>
+    <section id="about" className="bg-emerald-50/50 py-20 w-full">
+      <div className="max-w-6xl mx-auto px-6">
+        <div className="text-center max-w-3xl mx-auto mb-12">
+          <h3 className="text-3xl font-bold mb-4 text-emerald-900">{content.title}</h3>
+          <p className="text-emerald-700 font-semibold">{content.lead}</p>
+          <p className="text-gray-600 leading-relaxed mt-4">
+            {content.body}
+          </p>
+        </div>
+        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+          {content.pillars.map((pillar) => {
+            const Icon = pillar.icon;
+            return (
+              <div
+                key={pillar.title}
+                className="bg-white rounded-2xl p-6 shadow-sm border border-emerald-100 card-hover"
+              >
+                <div className="h-12 w-12 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center mb-4 text-xl">
+                  <Icon />
+                </div>
+                <h4 className="font-semibold text-lg mb-2 text-emerald-900">{pillar.title}</h4>
+                <p className="text-sm text-gray-600">{pillar.desc}</p>
+              </div>
+            );
+          })}
+        </div>
       </div>
     </section>
   );
