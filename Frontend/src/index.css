@@ -1,70 +1,123 @@
 @import "tailwindcss";
-  
-  /* Custom scrollbar */
-  ::-webkit-scrollbar {
-    width: 8px;
-  }
-  
-  ::-webkit-scrollbar-track {
-    @apply bg-gray-100;
-  }
-  
-  ::-webkit-scrollbar-thumb {
-    @apply bg-emerald-400 rounded-full;
-  }
-  
-  ::-webkit-scrollbar-thumb:hover {
-    @apply bg-emerald-500;
-  }
-  .card-shadow {
-    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.08), 0 10px 20px rgba(0, 0, 0, 0.04);
-  }
-  
-  .glass-effect {
-    background: rgba(255, 255, 255, 0.1);
-    backdrop-filter: blur(10px);
-    -webkit-backdrop-filter: blur(10px);
-  }
-  
-  .gradient-text {
-    @apply bg-linear-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent;
-  }
-  
-  .gradient-bg {
-    @apply bg-linear-to-br from-emerald-900 to-teal-800;
-  }
-  
-  .gradient-button {
-    @apply bg-linear-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700;
-  }
-  
-  .input-field {
-    @apply w-full px-4 py-3 bg-gray-50 border-2 border-gray-200 rounded-xl 
-           focus:outline-none focus:border-emerald-500 focus:bg-white 
-           transition-all duration-200 placeholder:text-gray-400;
-  }
-  
-  .password-strength-bar {
-    @apply h-1 rounded-full transition-all duration-300;
-  }
 
+/* Smooth page transitions */
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  @apply min-h-screen antialiased;
+}
+
+/* Page transition animation */
+.page-enter {
+  opacity: 0;
+  transform: translateY(10px);
+}
+.page-enter-active {
+  opacity: 1;
+  transform: translateY(0);
+  transition: opacity 300ms ease-out, transform 300ms ease-out;
+}
+.page-exit {
+  opacity: 1;
+}
+.page-exit-active {
+  opacity: 0;
+  transition: opacity 200ms ease-in;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  @apply bg-emerald-50;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-emerald-400 rounded-full;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  @apply bg-emerald-500;
+}
+
+/* Unified card styling */
+.card-shadow {
+  box-shadow: 0 20px 40px rgba(16, 185, 129, 0.08), 0 10px 20px rgba(16, 185, 129, 0.04);
+}
+
+.glass-effect {
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+.gradient-text {
+  @apply bg-linear-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent;
+}
+
+.gradient-bg {
+  @apply bg-linear-to-br from-emerald-900 to-teal-800;
+}
+
+.gradient-button {
+  @apply bg-linear-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 transition-all duration-300;
+}
+
+.input-field {
+  @apply w-full px-4 py-3 bg-gray-50 border-2 border-gray-200 rounded-xl 
+         focus:outline-none focus:border-emerald-500 focus:bg-white 
+         transition-all duration-200 placeholder:text-gray-400;
+}
+
+.password-strength-bar {
+  @apply h-1 rounded-full transition-all duration-300;
+}
+
+/* Full width container */
+.full-width {
+  @apply w-full max-w-none;
+}
+
+.full-screen-section {
+  height: 100vh;
+  overflow: hidden;
+}
+
+@supports (height: 100dvh) {
   .full-screen-section {
-    height: 100vh;
-    overflow: hidden;
+    height: 100dvh;
   }
+}
 
-  @supports (height: 100dvh) {
-    .full-screen-section {
-      height: 100dvh;
-    }
-  }
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
 
-  .no-scrollbar {
-    -ms-overflow-style: none;
-    scrollbar-width: none;
-  }
+.no-scrollbar::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+}
 
-  .no-scrollbar::-webkit-scrollbar {
-    width: 0;
-    height: 0;
-  }
+/* Section styling */
+.section-light {
+  @apply bg-white;
+}
+
+.section-alt {
+  @apply bg-emerald-50/50;
+}
+
+/* Card hover effects */
+.card-hover {
+  @apply transition-all duration-300 hover:shadow-lg hover:-translate-y-1;
+}
+
+/* Link transitions */
+a, button {
+  @apply transition-all duration-200;
+}
