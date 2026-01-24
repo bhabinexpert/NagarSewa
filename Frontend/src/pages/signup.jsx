@@ -411,10 +411,10 @@ export default function Signup() {
               <Building2 className="w-6 h-6 text-emerald-600" />
             </div>
             <div className="text-left">
-              <h1 className="text-2xl md:text-3xl font-bold text-white leading-tight">
+              <h1 className="text-3xl md:text-4xl font-bold text-white leading-tight">
                 {t.brand}
               </h1>
-              <p className="text-white/80 text-sm">
+              <p className="text-white/80 text-base">
                 {t.subtitle}
               </p>
             </div>
@@ -433,8 +433,8 @@ export default function Signup() {
                   <FileText className="w-5 h-5" />
                 </div>
                 <div>
-                  <h2 className="text-xl md:text-2xl font-bold">{t.formTitle}</h2>
-                  <p className="text-white/90 text-xs md:text-sm">{t.formSubtitle}</p>
+                  <h2 className="text-2xl md:text-3xl font-bold">{t.formTitle}</h2>
+                  <p className="text-white/90 text-sm md:text-base">{t.formSubtitle}</p>
                 </div>
               </div>
             </div>
@@ -447,8 +447,8 @@ export default function Signup() {
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 {/* Full Name */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    <User className="inline w-4 h-4 mr-1 text-gray-400" />
+                  <label className="block text-base font-medium text-gray-700 mb-1">
+                    <User className="inline w-5 h-5 mr-1 text-gray-400" />
                     {t.fullName} <span className="text-red-500">*</span>
                   </label>
                   <input
@@ -456,15 +456,15 @@ export default function Signup() {
                     name="fullName"
                     value={formData.fullName}
                     onChange={handleInputChange}
-                    className="w-full px-3 py-2.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all"
+                    className="w-full px-3 py-2.5 text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all"
                     placeholder={t.fullNamePlaceholder}
                   />
                 </div>
 
                 {/* Email */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    <Mail className="inline w-4 h-4 mr-1 text-gray-400" />
+                  <label className="block text-base font-medium text-gray-700 mb-1">
+                    <Mail className="inline w-5 h-5 mr-1 text-gray-400" />
                     {t.email} <span className="text-red-500">*</span>
                   </label>
                   <input
@@ -472,15 +472,15 @@ export default function Signup() {
                     name="email"
                     value={formData.email}
                     onChange={handleInputChange}
-                    className="w-full px-3 py-2.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all"
+                    className="w-full px-3 py-2.5 text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all"
                     placeholder={t.emailPlaceholder}
                   />
                 </div>
 
                 {/* Phone */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    <Phone className="inline w-4 h-4 mr-1 text-gray-400" />
+                  <label className="block text-base font-medium text-gray-700 mb-1">
+                    <Phone className="inline w-5 h-5 mr-1 text-gray-400" />
                     {t.phone} <span className="text-red-500">*</span>
                   </label>
                   <input
@@ -488,7 +488,7 @@ export default function Signup() {
                     name="phone"
                     value={formData.phone}
                     onChange={handleInputChange}
-                    className="w-full px-3 py-2.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all"
+                    className="w-full px-3 py-2.5 text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all"
                     placeholder={t.phonePlaceholder}
                   />
                 </div>
@@ -496,8 +496,8 @@ export default function Signup() {
 
               {/* Location Section Header */}
               <div className="pt-1">
-                <label className="text-sm font-semibold text-gray-700 flex items-center">
-                  <MapPin className="w-4 h-4 mr-1 text-emerald-600" />
+                <label className="text-base font-semibold text-gray-700 flex items-center">
+                  <MapPin className="w-5 h-5 mr-1 text-emerald-600" />
                   {t.locationDetails}
                 </label>
               </div>
@@ -506,14 +506,14 @@ export default function Signup() {
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 {/* Province */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-base font-medium text-gray-700 mb-1">
                     {t.province} <span className="text-red-500">*</span>
                   </label>
                   <select
                     name="province"
                     value={formData.province}
                     onChange={handleInputChange}
-                    className="w-full px-3 py-2.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all bg-white"
+                    className="w-full px-3 py-2.5 text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all bg-white"
                   >
                     <option value="">{t.provincePlaceholder}</option>
                     {provinces.map((province) => (
@@ -526,7 +526,7 @@ export default function Signup() {
 
                 {/* District */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-base font-medium text-gray-700 mb-1">
                     {t.district} <span className="text-red-500">*</span>
                   </label>
                   <select
@@ -534,7 +534,7 @@ export default function Signup() {
                     value={formData.district}
                     onChange={handleInputChange}
                     disabled={!formData.province}
-                    className="w-full px-3 py-2.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all bg-white disabled:bg-gray-100 disabled:cursor-not-allowed"
+                    className="w-full px-3 py-2.5 text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all bg-white disabled:bg-gray-100 disabled:cursor-not-allowed"
                   >
                     <option value="">{t.districtPlaceholder}</option>
                     {districts.map((district) => (
@@ -547,7 +547,7 @@ export default function Signup() {
 
                 {/* Municipality */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-base font-medium text-gray-700 mb-1">
                     {t.municipality} <span className="text-red-500">*</span>
                   </label>
                   <select
@@ -555,7 +555,7 @@ export default function Signup() {
                     value={formData.municipality}
                     onChange={handleInputChange}
                     disabled={!formData.district}
-                    className="w-full px-3 py-2.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all bg-white disabled:bg-gray-100 disabled:cursor-not-allowed"
+                    className="w-full px-3 py-2.5 text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all bg-white disabled:bg-gray-100 disabled:cursor-not-allowed"
                   >
                     <option value="">{t.municipalityPlaceholder}</option>
                     {municipalities.map((municipality) => (
@@ -568,7 +568,7 @@ export default function Signup() {
 
                 {/* Ward Number Dropdown */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-base font-medium text-gray-700 mb-1">
                     {t.wardNumber} <span className="text-red-500">*</span>
                   </label>
                   <select
@@ -576,7 +576,7 @@ export default function Signup() {
                     value={formData.wardNumber}
                     onChange={handleInputChange}
                     disabled={!formData.municipality || wardOptions.length === 0}
-                    className="w-full px-3 py-2.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all bg-white disabled:bg-gray-100 disabled:cursor-not-allowed"
+                    className="w-full px-3 py-2.5 text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all bg-white disabled:bg-gray-100 disabled:cursor-not-allowed"
                   >
                     <option value="">{t.wardNumberPlaceholder}</option>
                     {wardOptions.map((ward) => (
@@ -592,8 +592,8 @@ export default function Signup() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {/* Password */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    <Lock className="inline w-4 h-4 mr-1 text-gray-400" />
+                  <label className="block text-base font-medium text-gray-700 mb-1">
+                    <Lock className="inline w-5 h-5 mr-1 text-gray-400" />
                     {t.password} <span className="text-red-500">*</span>
                   </label>
                   <div className="relative">
@@ -602,7 +602,7 @@ export default function Signup() {
                       name="password"
                       value={formData.password}
                       onChange={handleInputChange}
-                      className="w-full px-3 py-2.5 pr-10 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all"
+                      className="w-full px-3 py-2.5 pr-10 text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all"
                       placeholder={t.passwordPlaceholder}
                     />
                     <button
@@ -643,8 +643,8 @@ export default function Signup() {
 
                 {/* Confirm Password */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    <Lock className="inline w-4 h-4 mr-1 text-gray-400" />
+                  <label className="block text-base font-medium text-gray-700 mb-1">
+                    <Lock className="inline w-5 h-5 mr-1 text-gray-400" />
                     {t.confirmPassword} <span className="text-red-500">*</span>
                   </label>
                   <div className="relative">
@@ -653,7 +653,7 @@ export default function Signup() {
                       name="confirmPassword"
                       value={formData.confirmPassword}
                       onChange={handleInputChange}
-                      className="w-full px-3 py-2.5 pr-10 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all"
+                      className="w-full px-3 py-2.5 pr-10 text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all"
                       placeholder={t.confirmPasswordPlaceholder}
                     />
                     <button
@@ -686,7 +686,7 @@ export default function Signup() {
                   >
                     {formData.acceptTerms && <Check className="w-3 h-3 text-white" />}
                   </button>
-                  <label className="text-sm text-gray-600 cursor-pointer" onClick={toggleTerms}>
+                  <label className="text-base text-gray-600 cursor-pointer" onClick={toggleTerms}>
                     {t.termsText}{" "}
                     <span className="text-emerald-600 font-medium hover:text-emerald-800">{t.termsLink}</span>
                     {" "}{language === "en" ? "and" : "\u0930"}{" "}
@@ -697,7 +697,7 @@ export default function Signup() {
                 {/* Submit Button */}
                 <button
                   onClick={handleSubmit}
-                  className="w-full sm:w-auto px-8 py-3 bg-linear-to-r from-emerald-600 to-teal-600 text-white font-semibold rounded-lg shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all duration-200 text-sm"
+                  className="w-full sm:w-auto px-8 py-3 bg-linear-to-r from-emerald-600 to-teal-600 text-white font-semibold rounded-lg shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all duration-200 text-base"
                 >
                   {t.createAccount}
                 </button>
@@ -705,7 +705,7 @@ export default function Signup() {
 
               {/* Login Link */}
               <div className="text-center pt-2">
-                <p className="text-gray-600 text-sm">
+                <p className="text-gray-600 text-base">
                   {t.loginPrompt}{" "}
                   <Link to='/login' className="text-emerald-600 font-semibold hover:text-emerald-800">
                     {t.loginLink}
@@ -723,7 +723,7 @@ export default function Signup() {
                 <div className="w-12 h-12 rounded-xl bg-emerald-500/20 flex items-center justify-center">
                   <ShieldCheck className="w-6 h-6 text-emerald-300" />
                 </div>
-                <h3 className="text-xl font-bold text-white">{t.benefitsTitle}</h3>
+                <h3 className="text-2xl font-bold text-white">{t.benefitsTitle}</h3>
               </div>
               
               <div className="space-y-4">
@@ -733,8 +733,8 @@ export default function Signup() {
                     <FileText className="w-4 h-4 text-blue-300" />
                   </div>
                   <div>
-                    <h4 className="text-white font-medium text-sm">{t.benefit1Title}</h4>
-                    <p className="text-white/70 text-xs mt-0.5">{t.benefit1Desc}</p>
+                    <h4 className="text-white font-medium text-base">{t.benefit1Title}</h4>
+                    <p className="text-white/70 text-sm mt-0.5">{t.benefit1Desc}</p>
                   </div>
                 </div>
                 
@@ -744,8 +744,8 @@ export default function Signup() {
                     <Mail className="w-4 h-4 text-purple-300" />
                   </div>
                   <div>
-                    <h4 className="text-white font-medium text-sm">{t.benefit2Title}</h4>
-                    <p className="text-white/70 text-xs mt-0.5">{t.benefit2Desc}</p>
+                    <h4 className="text-white font-medium text-base">{t.benefit2Title}</h4>
+                    <p className="text-white/70 text-sm mt-0.5">{t.benefit2Desc}</p>
                   </div>
                 </div>
                 
@@ -755,8 +755,8 @@ export default function Signup() {
                     <Building2 className="w-4 h-4 text-amber-300" />
                   </div>
                   <div>
-                    <h4 className="text-white font-medium text-sm">{t.benefit3Title}</h4>
-                    <p className="text-white/70 text-xs mt-0.5">{t.benefit3Desc}</p>
+                    <h4 className="text-white font-medium text-base">{t.benefit3Title}</h4>
+                    <p className="text-white/70 text-sm mt-0.5">{t.benefit3Desc}</p>
                   </div>
                 </div>
                 
@@ -766,8 +766,8 @@ export default function Signup() {
                     <ShieldCheck className="w-4 h-4 text-teal-300" />
                   </div>
                   <div>
-                    <h4 className="text-white font-medium text-sm">{t.benefit4Title}</h4>
-                    <p className="text-white/70 text-xs mt-0.5">{t.benefit4Desc}</p>
+                    <h4 className="text-white font-medium text-base">{t.benefit4Title}</h4>
+                    <p className="text-white/70 text-sm mt-0.5">{t.benefit4Desc}</p>
                   </div>
                 </div>
               </div>
@@ -775,8 +775,8 @@ export default function Signup() {
               {/* Security Badge */}
               <div className="mt-6 pt-4 border-t border-white/20">
                 <div className="flex items-center gap-2 text-white/80">
-                  <Lock className="w-4 h-4 text-emerald-400" />
-                  <span className="text-xs">{t.security}</span>
+                  <Lock className="w-5 h-5 text-emerald-400" />
+                  <span className="text-sm">{t.security}</span>
                 </div>
               </div>
             </div>
@@ -785,7 +785,7 @@ export default function Signup() {
 
         {/* Footer */}
         <footer className="mt-4 text-center">
-          <div className="flex flex-wrap justify-center gap-3 text-sm text-white/80">
+          <div className="flex flex-wrap justify-center gap-3 text-base text-white/80">
             {t.footerLinks.map((item, idx) => (
               <React.Fragment key={item}>
                 {idx > 0 && <span className="text-white/40">•</span>}
@@ -793,7 +793,7 @@ export default function Signup() {
               </React.Fragment>
             ))}
           </div>
-          <p className="text-white/60 text-xs mt-2">{t.copyright}</p>
+          <p className="text-white/60 text-sm mt-2">{t.copyright}</p>
         </footer>
       </div>
     </div>
