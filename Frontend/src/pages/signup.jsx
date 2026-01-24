@@ -391,30 +391,30 @@ export default function Signup() {
   const passwordStrength = getPasswordStrength();
 
   return (
-    <div className="min-h-screen bg-linear-to-br from-emerald-950 via-emerald-900 to-teal-900 py-4 px-4">
+    <div className="h-screen overflow-hidden bg-linear-to-br from-emerald-950 via-emerald-900 to-teal-900 py-2 px-4">
       <ToastContainer />
       <div className="max-w-6xl mx-auto">
         {/* Language Toggle */}
-        <div className="flex justify-end mb-3">
+        <div className="flex justify-end mb-1">
           <button
             onClick={toggleLanguage}
-            className="px-4 py-2 bg-white/10 border border-white/30 text-white text-sm rounded-lg hover:bg-white/20 backdrop-blur"
+            className="px-3 py-1.5 bg-white/10 border border-white/30 text-white text-sm rounded-lg hover:bg-white/20 backdrop-blur"
           >
             {t.toggleLabel}
           </button>
         </div>
         
         {/* Header Section */}
-        <div className="text-center mb-4">
-          <div className="inline-flex items-center gap-3">
-            <div className="flex items-center justify-center w-12 h-12 bg-white rounded-xl shadow-lg">
-              <Building2 className="w-6 h-6 text-emerald-600" />
+        <div className="text-center mb-2">
+          <div className="inline-flex items-center gap-2">
+            <div className="flex items-center justify-center w-10 h-10 bg-white rounded-xl shadow-lg">
+              <Building2 className="w-5 h-5 text-emerald-600" />
             </div>
             <div className="text-left">
-              <h1 className="text-3xl md:text-4xl font-bold text-white leading-tight">
+              <h1 className="text-2xl md:text-3xl font-bold text-white leading-tight">
                 {t.brand}
               </h1>
-              <p className="text-white/80 text-base">
+              <p className="text-white/80 text-sm">
                 {t.subtitle}
               </p>
             </div>
@@ -422,33 +422,33 @@ export default function Signup() {
         </div>
 
         {/* Main Content - Form + Benefits */}
-        <div className="flex flex-col lg:flex-row gap-4">
+        <div className="flex flex-col lg:flex-row gap-3">
           
           {/* Main Form Card */}
           <div className="flex-1 bg-white rounded-2xl shadow-2xl overflow-hidden">
             {/* Form Header */}
-            <div className="bg-linear-to-r from-emerald-600 to-teal-600 p-4 md:p-5 text-white">
-              <div className="flex items-center justify-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center">
-                  <FileText className="w-5 h-5" />
+            <div className="bg-linear-to-r from-emerald-600 to-teal-600 p-3 text-white">
+              <div className="flex items-center justify-center gap-2">
+                <div className="w-8 h-8 rounded-lg bg-white/20 flex items-center justify-center">
+                  <FileText className="w-4 h-4" />
                 </div>
                 <div>
-                  <h2 className="text-2xl md:text-3xl font-bold">{t.formTitle}</h2>
-                  <p className="text-white/90 text-sm md:text-base">{t.formSubtitle}</p>
+                  <h2 className="text-xl md:text-2xl font-bold">{t.formTitle}</h2>
+                  <p className="text-white/90 text-xs md:text-sm">{t.formSubtitle}</p>
                 </div>
               </div>
             </div>
 
           {/* Form Content */}
-          <div className="p-4 md:p-6">
-            <div className="space-y-4">
+          <div className="p-3 md:p-4">
+            <div className="space-y-3">
               
               {/* Row 1: Full Name, Email, Phone */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                 {/* Full Name */}
                 <div>
-                  <label className="block text-base font-medium text-gray-700 mb-1">
-                    <User className="inline w-5 h-5 mr-1 text-gray-400" />
+                  <label className="block text-sm font-medium text-gray-700 mb-0.5">
+                    <User className="inline w-4 h-4 mr-1 text-gray-400" />
                     {t.fullName} <span className="text-red-500">*</span>
                   </label>
                   <input
@@ -456,15 +456,15 @@ export default function Signup() {
                     name="fullName"
                     value={formData.fullName}
                     onChange={handleInputChange}
-                    className="w-full px-3 py-2.5 text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all"
+                    className="w-full px-2 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all"
                     placeholder={t.fullNamePlaceholder}
                   />
                 </div>
 
                 {/* Email */}
                 <div>
-                  <label className="block text-base font-medium text-gray-700 mb-1">
-                    <Mail className="inline w-5 h-5 mr-1 text-gray-400" />
+                  <label className="block text-sm font-medium text-gray-700 mb-0.5">
+                    <Mail className="inline w-4 h-4 mr-1 text-gray-400" />
                     {t.email} <span className="text-red-500">*</span>
                   </label>
                   <input
@@ -472,15 +472,15 @@ export default function Signup() {
                     name="email"
                     value={formData.email}
                     onChange={handleInputChange}
-                    className="w-full px-3 py-2.5 text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all"
+                    className="w-full px-2 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all"
                     placeholder={t.emailPlaceholder}
                   />
                 </div>
 
                 {/* Phone */}
                 <div>
-                  <label className="block text-base font-medium text-gray-700 mb-1">
-                    <Phone className="inline w-5 h-5 mr-1 text-gray-400" />
+                  <label className="block text-sm font-medium text-gray-700 mb-0.5">
+                    <Phone className="inline w-4 h-4 mr-1 text-gray-400" />
                     {t.phone} <span className="text-red-500">*</span>
                   </label>
                   <input
@@ -488,32 +488,32 @@ export default function Signup() {
                     name="phone"
                     value={formData.phone}
                     onChange={handleInputChange}
-                    className="w-full px-3 py-2.5 text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all"
+                    className="w-full px-2 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all"
                     placeholder={t.phonePlaceholder}
                   />
                 </div>
               </div>
 
               {/* Location Section Header */}
-              <div className="pt-1">
-                <label className="text-base font-semibold text-gray-700 flex items-center">
-                  <MapPin className="w-5 h-5 mr-1 text-emerald-600" />
+              <div className="pt-0">
+                <label className="text-sm font-semibold text-gray-700 flex items-center">
+                  <MapPin className="w-4 h-4 mr-1 text-emerald-600" />
                   {t.locationDetails}
                 </label>
               </div>
 
               {/* Row 2: Province, District, Municipality, Ward */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                 {/* Province */}
                 <div>
-                  <label className="block text-base font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-medium text-gray-700 mb-0.5">
                     {t.province} <span className="text-red-500">*</span>
                   </label>
                   <select
                     name="province"
                     value={formData.province}
                     onChange={handleInputChange}
-                    className="w-full px-3 py-2.5 text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all bg-white"
+                    className="w-full px-2 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all bg-white"
                   >
                     <option value="">{t.provincePlaceholder}</option>
                     {provinces.map((province) => (
@@ -526,7 +526,7 @@ export default function Signup() {
 
                 {/* District */}
                 <div>
-                  <label className="block text-base font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-medium text-gray-700 mb-0.5">
                     {t.district} <span className="text-red-500">*</span>
                   </label>
                   <select
@@ -534,7 +534,7 @@ export default function Signup() {
                     value={formData.district}
                     onChange={handleInputChange}
                     disabled={!formData.province}
-                    className="w-full px-3 py-2.5 text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all bg-white disabled:bg-gray-100 disabled:cursor-not-allowed"
+                    className="w-full px-2 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all bg-white disabled:bg-gray-100 disabled:cursor-not-allowed"
                   >
                     <option value="">{t.districtPlaceholder}</option>
                     {districts.map((district) => (
@@ -547,7 +547,7 @@ export default function Signup() {
 
                 {/* Municipality */}
                 <div>
-                  <label className="block text-base font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-medium text-gray-700 mb-0.5">
                     {t.municipality} <span className="text-red-500">*</span>
                   </label>
                   <select
@@ -555,7 +555,7 @@ export default function Signup() {
                     value={formData.municipality}
                     onChange={handleInputChange}
                     disabled={!formData.district}
-                    className="w-full px-3 py-2.5 text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all bg-white disabled:bg-gray-100 disabled:cursor-not-allowed"
+                    className="w-full px-2 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all bg-white disabled:bg-gray-100 disabled:cursor-not-allowed"
                   >
                     <option value="">{t.municipalityPlaceholder}</option>
                     {municipalities.map((municipality) => (
@@ -568,7 +568,7 @@ export default function Signup() {
 
                 {/* Ward Number Dropdown */}
                 <div>
-                  <label className="block text-base font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-medium text-gray-700 mb-0.5">
                     {t.wardNumber} <span className="text-red-500">*</span>
                   </label>
                   <select
@@ -576,7 +576,7 @@ export default function Signup() {
                     value={formData.wardNumber}
                     onChange={handleInputChange}
                     disabled={!formData.municipality || wardOptions.length === 0}
-                    className="w-full px-3 py-2.5 text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all bg-white disabled:bg-gray-100 disabled:cursor-not-allowed"
+                    className="w-full px-2 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all bg-white disabled:bg-gray-100 disabled:cursor-not-allowed"
                   >
                     <option value="">{t.wardNumberPlaceholder}</option>
                     {wardOptions.map((ward) => (
@@ -589,11 +589,11 @@ export default function Signup() {
               </div>
 
               {/* Row 3: Password and Confirm Password */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 {/* Password */}
                 <div>
-                  <label className="block text-base font-medium text-gray-700 mb-1">
-                    <Lock className="inline w-5 h-5 mr-1 text-gray-400" />
+                  <label className="block text-sm font-medium text-gray-700 mb-0.5">
+                    <Lock className="inline w-4 h-4 mr-1 text-gray-400" />
                     {t.password} <span className="text-red-500">*</span>
                   </label>
                   <div className="relative">
@@ -602,7 +602,7 @@ export default function Signup() {
                       name="password"
                       value={formData.password}
                       onChange={handleInputChange}
-                      className="w-full px-3 py-2.5 pr-10 text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all"
+                      className="w-full px-2 py-2 pr-9 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all"
                       placeholder={t.passwordPlaceholder}
                     />
                     <button
@@ -615,8 +615,8 @@ export default function Signup() {
                   </div>
                   {/* Password Strength */}
                   {formData.password && (
-                    <div className="mt-2">
-                      <div className="flex justify-between items-center mb-1">
+                    <div className="mt-1">
+                      <div className="flex justify-between items-center mb-0.5">
                         <span className="text-xs text-gray-600">{t.strength}</span>
                         <span className={`text-xs font-medium ${
                           passwordStrength.score <= 1 ? "text-red-600" :
@@ -624,9 +624,9 @@ export default function Signup() {
                           passwordStrength.score === 3 ? "text-teal-600" : "text-green-600"
                         }`}>{passwordStrength.message}</span>
                       </div>
-                      <div className="flex gap-1 mb-2">
+                      <div className="flex gap-1 mb-1">
                         {[1, 2, 3, 4].map((bar) => (
-                          <div key={bar} className={`h-1.5 rounded-full flex-1 ${
+                          <div key={bar} className={`h-1 rounded-full flex-1 ${
                             bar <= passwordStrength.score ? getStrengthColor(passwordStrength.score) : "bg-gray-200"
                           }`} />
                         ))}
@@ -643,8 +643,8 @@ export default function Signup() {
 
                 {/* Confirm Password */}
                 <div>
-                  <label className="block text-base font-medium text-gray-700 mb-1">
-                    <Lock className="inline w-5 h-5 mr-1 text-gray-400" />
+                  <label className="block text-sm font-medium text-gray-700 mb-0.5">
+                    <Lock className="inline w-4 h-4 mr-1 text-gray-400" />
                     {t.confirmPassword} <span className="text-red-500">*</span>
                   </label>
                   <div className="relative">
@@ -653,7 +653,7 @@ export default function Signup() {
                       name="confirmPassword"
                       value={formData.confirmPassword}
                       onChange={handleInputChange}
-                      className="w-full px-3 py-2.5 pr-10 text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all"
+                      className="w-full px-2 py-2 pr-9 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all"
                       placeholder={t.confirmPasswordPlaceholder}
                     />
                     <button
@@ -665,7 +665,7 @@ export default function Signup() {
                     </button>
                   </div>
                   {formData.password && formData.confirmPassword && (
-                    <div className={`mt-2 text-xs flex items-center ${passwordsMatch ? "text-green-600" : "text-red-600"}`}>
+                    <div className={`mt-1 text-xs flex items-center ${passwordsMatch ? "text-green-600" : "text-red-600"}`}>
                       {passwordsMatch ? <Check className="w-3 h-3 mr-1" /> : <X className="w-3 h-3 mr-1" />}
                       {passwordsMatch ? t.matchYes : t.matchNo}
                     </div>
@@ -674,19 +674,19 @@ export default function Signup() {
               </div>
 
               {/* Terms and Submit Row */}
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pt-2">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pt-1">
                 {/* Terms Checkbox */}
                 <div className="flex items-start gap-2">
                   <button
                     type="button"
                     onClick={toggleTerms}
-                    className={`w-5 h-5 rounded border-2 flex items-center justify-center shrink-0 mt-0.5 transition-colors ${
+                    className={`w-4 h-4 rounded border-2 flex items-center justify-center shrink-0 mt-0.5 transition-colors ${
                       formData.acceptTerms ? "bg-teal-600 border-teal-600" : "border-gray-300 hover:border-teal-500"
                     }`}
                   >
-                    {formData.acceptTerms && <Check className="w-3 h-3 text-white" />}
+                    {formData.acceptTerms && <Check className="w-2.5 h-2.5 text-white" />}
                   </button>
-                  <label className="text-base text-gray-600 cursor-pointer" onClick={toggleTerms}>
+                  <label className="text-sm text-gray-600 cursor-pointer" onClick={toggleTerms}>
                     {t.termsText}{" "}
                     <span className="text-emerald-600 font-medium hover:text-emerald-800">{t.termsLink}</span>
                     {" "}{language === "en" ? "and" : "\u0930"}{" "}
@@ -697,15 +697,15 @@ export default function Signup() {
                 {/* Submit Button */}
                 <button
                   onClick={handleSubmit}
-                  className="w-full sm:w-auto px-8 py-3 bg-linear-to-r from-emerald-600 to-teal-600 text-white font-semibold rounded-lg shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all duration-200 text-base"
+                  className="w-full sm:w-auto px-6 py-2 bg-linear-to-r from-emerald-600 to-teal-600 text-white font-semibold rounded-lg shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all duration-200 text-sm"
                 >
                   {t.createAccount}
                 </button>
               </div>
 
               {/* Login Link */}
-              <div className="text-center pt-2">
-                <p className="text-gray-600 text-base">
+              <div className="text-center pt-1">
+                <p className="text-gray-600 text-sm">
                   {t.loginPrompt}{" "}
                   <Link to='/login' className="text-emerald-600 font-semibold hover:text-emerald-800">
                     {t.loginLink}
@@ -717,66 +717,66 @@ export default function Signup() {
         </div>
 
           {/* Benefits Section - Desktop Only */}
-          <div className="hidden lg:flex lg:w-80 flex-col">
-            <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-6 border border-white/20 h-full">
-              <div className="flex items-center gap-3 mb-6">
-                <div className="w-12 h-12 rounded-xl bg-emerald-500/20 flex items-center justify-center">
-                  <ShieldCheck className="w-6 h-6 text-emerald-300" />
+          <div className="hidden lg:flex lg:w-72 flex-col">
+            <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-4 border border-white/20 h-full">
+              <div className="flex items-center gap-2 mb-4">
+                <div className="w-10 h-10 rounded-xl bg-emerald-500/20 flex items-center justify-center">
+                  <ShieldCheck className="w-5 h-5 text-emerald-300" />
                 </div>
-                <h3 className="text-2xl font-bold text-white">{t.benefitsTitle}</h3>
+                <h3 className="text-lg font-bold text-white">{t.benefitsTitle}</h3>
               </div>
               
-              <div className="space-y-4">
+              <div className="space-y-3">
                 {/* Benefit 1 */}
-                <div className="flex items-start gap-3 p-3 rounded-xl bg-white/5 hover:bg-white/10 transition-colors">
-                  <div className="w-8 h-8 rounded-lg bg-blue-500/20 flex items-center justify-center shrink-0">
-                    <FileText className="w-4 h-4 text-blue-300" />
+                <div className="flex items-start gap-2 p-2 rounded-xl bg-white/5 hover:bg-white/10 transition-colors">
+                  <div className="w-7 h-7 rounded-lg bg-blue-500/20 flex items-center justify-center shrink-0">
+                    <FileText className="w-3.5 h-3.5 text-blue-300" />
                   </div>
                   <div>
-                    <h4 className="text-white font-medium text-base">{t.benefit1Title}</h4>
-                    <p className="text-white/70 text-sm mt-0.5">{t.benefit1Desc}</p>
+                    <h4 className="text-white font-medium text-sm">{t.benefit1Title}</h4>
+                    <p className="text-white/70 text-xs">{t.benefit1Desc}</p>
                   </div>
                 </div>
                 
                 {/* Benefit 2 */}
-                <div className="flex items-start gap-3 p-3 rounded-xl bg-white/5 hover:bg-white/10 transition-colors">
-                  <div className="w-8 h-8 rounded-lg bg-purple-500/20 flex items-center justify-center shrink-0">
-                    <Mail className="w-4 h-4 text-purple-300" />
+                <div className="flex items-start gap-2 p-2 rounded-xl bg-white/5 hover:bg-white/10 transition-colors">
+                  <div className="w-7 h-7 rounded-lg bg-purple-500/20 flex items-center justify-center shrink-0">
+                    <Mail className="w-3.5 h-3.5 text-purple-300" />
                   </div>
                   <div>
-                    <h4 className="text-white font-medium text-base">{t.benefit2Title}</h4>
-                    <p className="text-white/70 text-sm mt-0.5">{t.benefit2Desc}</p>
+                    <h4 className="text-white font-medium text-sm">{t.benefit2Title}</h4>
+                    <p className="text-white/70 text-xs">{t.benefit2Desc}</p>
                   </div>
                 </div>
                 
                 {/* Benefit 3 */}
-                <div className="flex items-start gap-3 p-3 rounded-xl bg-white/5 hover:bg-white/10 transition-colors">
-                  <div className="w-8 h-8 rounded-lg bg-amber-500/20 flex items-center justify-center shrink-0">
-                    <Building2 className="w-4 h-4 text-amber-300" />
+                <div className="flex items-start gap-2 p-2 rounded-xl bg-white/5 hover:bg-white/10 transition-colors">
+                  <div className="w-7 h-7 rounded-lg bg-amber-500/20 flex items-center justify-center shrink-0">
+                    <Building2 className="w-3.5 h-3.5 text-amber-300" />
                   </div>
                   <div>
-                    <h4 className="text-white font-medium text-base">{t.benefit3Title}</h4>
-                    <p className="text-white/70 text-sm mt-0.5">{t.benefit3Desc}</p>
+                    <h4 className="text-white font-medium text-sm">{t.benefit3Title}</h4>
+                    <p className="text-white/70 text-xs">{t.benefit3Desc}</p>
                   </div>
                 </div>
                 
                 {/* Benefit 4 */}
-                <div className="flex items-start gap-3 p-3 rounded-xl bg-white/5 hover:bg-white/10 transition-colors">
-                  <div className="w-8 h-8 rounded-lg bg-teal-500/20 flex items-center justify-center shrink-0">
-                    <ShieldCheck className="w-4 h-4 text-teal-300" />
+                <div className="flex items-start gap-2 p-2 rounded-xl bg-white/5 hover:bg-white/10 transition-colors">
+                  <div className="w-7 h-7 rounded-lg bg-teal-500/20 flex items-center justify-center shrink-0">
+                    <ShieldCheck className="w-3.5 h-3.5 text-teal-300" />
                   </div>
                   <div>
-                    <h4 className="text-white font-medium text-base">{t.benefit4Title}</h4>
-                    <p className="text-white/70 text-sm mt-0.5">{t.benefit4Desc}</p>
+                    <h4 className="text-white font-medium text-sm">{t.benefit4Title}</h4>
+                    <p className="text-white/70 text-xs">{t.benefit4Desc}</p>
                   </div>
                 </div>
               </div>
               
               {/* Security Badge */}
-              <div className="mt-6 pt-4 border-t border-white/20">
+              <div className="mt-4 pt-3 border-t border-white/20">
                 <div className="flex items-center gap-2 text-white/80">
-                  <Lock className="w-5 h-5 text-emerald-400" />
-                  <span className="text-sm">{t.security}</span>
+                  <Lock className="w-4 h-4 text-emerald-400" />
+                  <span className="text-xs">{t.security}</span>
                 </div>
               </div>
             </div>
@@ -784,8 +784,8 @@ export default function Signup() {
         </div>
 
         {/* Footer */}
-        <footer className="mt-4 text-center">
-          <div className="flex flex-wrap justify-center gap-3 text-base text-white/80">
+        <footer className="mt-2 text-center">
+          <div className="flex flex-wrap justify-center gap-2 text-sm text-white/80">
             {t.footerLinks.map((item, idx) => (
               <React.Fragment key={item}>
                 {idx > 0 && <span className="text-white/40">•</span>}
@@ -793,7 +793,7 @@ export default function Signup() {
               </React.Fragment>
             ))}
           </div>
-          <p className="text-white/60 text-sm mt-2">{t.copyright}</p>
+          <p className="text-white/60 text-xs mt-1">{t.copyright}</p>
         </footer>
       </div>
     </div>
