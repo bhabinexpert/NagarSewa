@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import {
   User,
   Mail,
@@ -10,9 +10,14 @@ import {
   EyeOff,
   ShieldCheck,
   X,
+  MapPin,
+  Phone,
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useLanguage } from "../context/useLanguage";
+import { toast, ToastContainer } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
+import { getProvinces, getDistricts, getMunicipalities } from '../utils/nepalLocation';
 
 const signupText = {
   en: {
@@ -24,10 +29,21 @@ const signupText = {
     fullNamePlaceholder: "As per citizenship certificate",
     email: "Email Address",
     emailPlaceholder: "citizen@example.com",
+    phone: "Phone Number",
+    phonePlaceholder: "+977 98XXXXXXXX",
     password: "Password",
     passwordPlaceholder: "Create a strong password",
     confirmPassword: "Confirm Password",
     confirmPasswordPlaceholder: "Re-enter your password",
+    province: "Province",
+    provincePlaceholder: "Select your province",
+    district: "District",
+    districtPlaceholder: "Select your district",
+    municipality: "Municipality/VDC",
+    municipalityPlaceholder: "Select your municipality",
+    wardNumber: "Ward Number",
+    wardNumberPlaceholder: "Select ward",
+    locationDetails: "Location Details",
     strength: "Strength:",
     strengthLabels: ["", "Weak", "Medium", "Good", "Strong"],
     reqLen: "8+ characters",
@@ -57,10 +73,19 @@ const signupText = {
     alerts: {
       name: "Please enter your full name",
       email: "Please enter your email",
+      phone: "Please enter your phone number",
+      phoneInvalid: "Please enter a valid phone number",
       password: "Please enter a password",
       mismatch: "Passwords do not match",
       terms: "Please accept the terms and conditions",
+      province: "Please select your province",
+      district: "Please select your district",
+      municipality: "Please select your municipality",
+      ward: "Please enter your ward number",
+      wardInvalid: "Ward number must be between 1 and 35",
       success: "Account created successfully!",
+      provinceRestricted: "This feature is currently available only for Koshi Province. More provinces coming soon!",
+      districtRestricted: "This feature is currently available only for Jhapa District. More districts coming soon!",
     },
     toggleLabel: "नेपाली",
   },
@@ -73,10 +98,21 @@ const signupText = {
     fullNamePlaceholder: "नागरिकता प्रमाणपत्र अनुसार",
     email: "इमेल ठेगाना",
     emailPlaceholder: "citizen@example.com",
+    phone: "फोन नम्बर",
+    phonePlaceholder: "+९७७ ९८XXXXXXXX",
     password: "पासवर्ड",
     passwordPlaceholder: "बलियो पासवर्ड सिर्जना गर्नुहोस्",
     confirmPassword: "पासवर्ड पुष्टि गर्नुहोस्",
     confirmPasswordPlaceholder: "पासवर्ड पुन: प्रविष्ट गर्नुहोस्",
+    province: "प्रदेश",
+    provincePlaceholder: "आफ्नो प्रदेश छान्नुहोस्",
+    district: "जिल्ला",
+    districtPlaceholder: "आफ्नो जिल्ला छान्नुहोस्",
+    municipality: "नगरपालिका/गाउँपालिका",
+    municipalityPlaceholder: "आफ्नो नगरपालिका छान्नुहोस्",
+    wardNumber: "वडा नम्बर",
+    wardNumberPlaceholder: "वडा छान्नुहोस्",
+    locationDetails: "स्थान विवरण",
     strength: "मजबूती:",
     strengthLabels: ["", "कमजोर", "मध्यम", "राम्रो", "बलियो"],
     reqLen: "८+ क्यारेक्टर",
@@ -106,10 +142,19 @@ const signupText = {
     alerts: {
       name: "कृपया आफ्नो पुरा नाम प्रविष्ट गर्नुहोस्",
       email: "कृपया आफ्नो इमेल प्रविष्ट गर्नुहोस्",
+      phone: "कृपया आफ्नो फोन नम्बर प्रविष्ट गर्नुहोस्",
+      phoneInvalid: "कृपया मान्य फोन नम्बर प्रविष्ट गर्नुहोस्",
       password: "कृपया पासवर्ड प्रविष्ट गर्नुहोस्",
       mismatch: "पासवर्ड मिलेन",
       terms: "कृपया सर्तहरू स्वीकार गर्नुहोस्",
+      province: "कृपया आफ्नो प्रदेश छान्नुहोस्",
+      district: "कृपया आफ्नो जिल्ला छान्नुहोस्",
+      municipality: "कृपया आफ्नो नगरपालिका छान्नुहोस्",
+      ward: "कृपया आफ्नो वडा नम्बर प्रविष्ट गर्नुहोस्",
+      wardInvalid: "वडा नम्बर १ र ३५ बीच हुनुपर्छ",
       success: "खाता सफलतापूर्वक सिर्जना भयो!",
+      provinceRestricted: "यो सुविधा हाल कोशी प्रदेशको लागि मात्र उपलब्ध छ। थप प्रदेशहरू चाँडै आउँदैछन्!",
+      districtRestricted: "यो सुविधा हाल झापा जिल्लाको लागि मात्र उपलब्ध छ। थप जिल्लाहरू चाँडै आउँदैछन्!",
     },
     toggleLabel: "English",
   },
@@ -129,10 +174,50 @@ export default function Signup() {
   const [formData, setFormData] = useState({
     fullName: "",
     email: "",
+    phone: "",
+    province: "",
+    district: "",
+    municipality: "",
+    wardNumber: "",
     password: "",
     confirmPassword: "",
     acceptTerms: false,
   });
+
+  // Load all provinces (static data)
+  const provinces = useMemo(() => getProvinces(), []);
+
+  // Derive districts based on selected province
+  const districts = useMemo(() => {
+    if (formData.province) {
+      return getDistricts(formData.province);
+    }
+    return [];
+  }, [formData.province]);
+
+  // Derive municipalities based on selected district
+  const municipalities = useMemo(() => {
+    if (formData.district) {
+      return getMunicipalities(formData.district);
+    }
+    return [];
+  }, [formData.district]);
+
+  // Get selected municipality's total wards
+  const selectedMunicipality = useMemo(() => {
+    if (formData.municipality) {
+      return municipalities.find(m => String(m.id) === String(formData.municipality));
+    }
+    return null;
+  }, [formData.municipality, municipalities]);
+
+  // Generate ward options based on selected municipality
+  const wardOptions = useMemo(() => {
+    if (selectedMunicipality && selectedMunicipality.totalWard) {
+      return Array.from({ length: selectedMunicipality.totalWard }, (_, i) => i + 1);
+    }
+    return [];
+  }, [selectedMunicipality]);
 
   // Toggle visibility for password fields
   const [showPassword, setShowPassword] = useState(false);
@@ -165,10 +250,81 @@ export default function Signup() {
   const hasLowercase = /[a-z]/.test(formData.password);
   const hasNumber = /[0-9]/.test(formData.password);
 
-  // Handle input changes
+  // Allowed province and district codes
+  const ALLOWED_PROVINCE_CODE = '1'; // Koshi Province
+  const ALLOWED_DISTRICT_CODE = '111'; // Jhapa District
+
+  // Handle input changes - reset dependent fields when location changes
   const handleInputChange = (event) => {
     const { name, value } = event.target;
-    setFormData({ ...formData, [name]: value });
+    
+    // When province changes, reset district, municipality and ward
+    if (name === 'province') {
+      // Check if selected province is allowed (Koshi Province = 1)
+      if (value && value !== ALLOWED_PROVINCE_CODE) {
+        toast.warning(t.alerts.provinceRestricted, { 
+          position: "top-right", 
+          autoClose: 4000,
+          icon: "🚧"
+        });
+        // Reset province selection
+        setFormData(prev => ({
+          ...prev,
+          province: '',
+          district: '',
+          municipality: '',
+          wardNumber: ''
+        }));
+        return;
+      }
+      setFormData(prev => ({
+        ...prev,
+        province: value,
+        district: '',
+        municipality: '',
+        wardNumber: ''
+      }));
+      return;
+    }
+    
+    // When district changes, reset municipality and ward
+    if (name === 'district') {
+      // Check if selected district is allowed (Jhapa = 111)
+      if (value && value !== ALLOWED_DISTRICT_CODE) {
+        toast.warning(t.alerts.districtRestricted, { 
+          position: "top-right", 
+          autoClose: 4000,
+          icon: "🚧"
+        });
+        // Reset district selection
+        setFormData(prev => ({
+          ...prev,
+          district: '',
+          municipality: '',
+          wardNumber: ''
+        }));
+        return;
+      }
+      setFormData(prev => ({
+        ...prev,
+        district: value,
+        municipality: '',
+        wardNumber: ''
+      }));
+      return;
+    }
+    
+    // When municipality changes, reset ward
+    if (name === 'municipality') {
+      setFormData(prev => ({
+        ...prev,
+        municipality: value,
+        wardNumber: ''
+      }));
+      return;
+    }
+    
+    setFormData(prev => ({ ...prev, [name]: value }));
   };
 
   // Toggle terms acceptance
@@ -180,37 +336,66 @@ export default function Signup() {
   const handleSubmit = () => {
     // Basic validation
     if (!formData.fullName) {
-      alert(t.alerts.name);
+      toast.error(t.alerts.name, { position: "top-right", autoClose: 3000 });
       return;
     }
     if (!formData.email) {
-      alert(t.alerts.email);
+      toast.error(t.alerts.email, { position: "top-right", autoClose: 3000 });
+      return;
+    }
+    if (!formData.phone) {
+      toast.error(t.alerts.phone, { position: "top-right", autoClose: 3000 });
+      return;
+    }
+    // Validate phone number (Nepal format: 10 digits starting with 9)
+    const phoneRegex = /^9[0-9]{9}$/;
+    const cleanPhone = formData.phone.replace(/[^0-9]/g, '');
+    if (!phoneRegex.test(cleanPhone)) {
+      toast.error(t.alerts.phoneInvalid, { position: "top-right", autoClose: 3000 });
+      return;
+    }
+    if (!formData.province) {
+      toast.error(t.alerts.province, { position: "top-right", autoClose: 3000 });
+      return;
+    }
+    if (!formData.district) {
+      toast.error(t.alerts.district, { position: "top-right", autoClose: 3000 });
+      return;
+    }
+    if (!formData.municipality) {
+      toast.error(t.alerts.municipality, { position: "top-right", autoClose: 3000 });
+      return;
+    }
+    if (!formData.wardNumber) {
+      toast.error(t.alerts.ward, { position: "top-right", autoClose: 3000 });
       return;
     }
     if (!formData.password) {
-      alert(t.alerts.password);
+      toast.error(t.alerts.password, { position: "top-right", autoClose: 3000 });
       return;
     }
     if (!passwordsMatch) {
-      alert(t.alerts.mismatch);
+      toast.error(t.alerts.mismatch, { position: "top-right", autoClose: 3000 });
       return;
     }
     if (!formData.acceptTerms) {
-      alert(t.alerts.terms);
+      toast.error(t.alerts.terms, { position: "top-right", autoClose: 3000 });
       return;
     }
 
     // Submit the form
     console.log("Form submitted:", formData);
-    alert(t.alerts.success);
+    toast.success(t.alerts.success, { position: "top-right", autoClose: 3000 });
   };
 
   const passwordStrength = getPasswordStrength();
 
   return (
-    <div className="h-screen w-screen overflow-hidden bg-linear-to-br from-emerald-950 via-emerald-900 to-teal-900">
-      <div className="h-full w-full flex flex-col max-w-6xl mx-auto px-4 py-4">
-        <div className="flex justify-end mb-2">
+    <div className="min-h-screen bg-linear-to-br from-emerald-950 via-emerald-900 to-teal-900 py-4 px-4">
+      <ToastContainer />
+      <div className="max-w-6xl mx-auto">
+        {/* Language Toggle */}
+        <div className="flex justify-end mb-3">
           <button
             onClick={toggleLanguage}
             className="px-4 py-2 bg-white/10 border border-white/30 text-white text-sm rounded-lg hover:bg-white/20 backdrop-blur"
@@ -220,350 +405,395 @@ export default function Signup() {
         </div>
         
         {/* Header Section */}
-        <div className="text-center mb-6 shrink-0">
-          <div className="inline-flex items-center gap-4">
-            <div className="flex items-center justify-center w-14 h-14 bg-white rounded-xl shadow-lg">
-              <Building2 className="w-7 h-7 text-emerald-600" />
+        <div className="text-center mb-4">
+          <div className="inline-flex items-center gap-3">
+            <div className="flex items-center justify-center w-12 h-12 bg-white rounded-xl shadow-lg">
+              <Building2 className="w-6 h-6 text-emerald-600" />
             </div>
             <div className="text-left">
-              <h1 className="text-3xl font-bold text-white leading-tight">
+              <h1 className="text-2xl md:text-3xl font-bold text-white leading-tight">
                 {t.brand}
               </h1>
-              <p className="text-white/80 text-base">
+              <p className="text-white/80 text-sm">
                 {t.subtitle}
               </p>
             </div>
           </div>
         </div>
 
-        <div className="flex-1 flex gap-6 overflow-hidden min-h-0">
+        {/* Main Content - Form + Benefits */}
+        <div className="flex flex-col lg:flex-row gap-4">
           
-          {/* Main Signup Form */}
-          <div className="lg:w-2/3 flex flex-col min-h-0">
-            <div className="bg-white rounded-2xl shadow-2xl flex flex-col h-full overflow-hidden">
-              
-              {/* Form Header */}
-              <div className="bg-linear-to-r from-emerald-600 to-teal-600 p-6 text-white shrink-0">
-                <div className="flex items-center justify-center gap-4">
-                  <div className="w-12 h-12 rounded-xl bg-white/20 flex items-center justify-center">
-                    <FileText className="w-6 h-6" />
-                  </div>
-                  <div>
-                    <h2 className="text-2xl font-bold">{t.formTitle}</h2>
-                    <p className="text-white/90 text-sm">
-                      {t.formSubtitle}
-                    </p>
-                  </div>
+          {/* Main Form Card */}
+          <div className="flex-1 bg-white rounded-2xl shadow-2xl overflow-hidden">
+            {/* Form Header */}
+            <div className="bg-linear-to-r from-emerald-600 to-teal-600 p-4 md:p-5 text-white">
+              <div className="flex items-center justify-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center">
+                  <FileText className="w-5 h-5" />
                 </div>
-              </div>
-
-              {/* Scrollable Form Content */}
-              <div className="flex-1 overflow-y-auto p-8 min-h-0">
-                <div className="space-y-5">
-                  
-                  {/* Name and Email Row */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                    {/* Full Name Input */}
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        <User className="inline w-4 h-4 mr-1 text-gray-400" />
-                        {t.fullName}
-                      </label>
-                      <input
-                        type="text"
-                        name="fullName"
-                        value={formData.fullName}
-                        onChange={handleInputChange}
-                        className="w-full px-4 py-3 text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all"
-                        placeholder={t.fullNamePlaceholder}
-                      />
-                    </div>
-
-                    {/* Email Input */}
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        <Mail className="inline w-4 h-4 mr-1 text-gray-400" />
-                        {t.email}
-                      </label>
-                      <input
-                        type="email"
-                        name="email"
-                        value={formData.email}
-                        onChange={handleInputChange}
-                        className="w-full px-4 py-3 text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all"
-                        placeholder={t.emailPlaceholder}
-                      />
-                    </div>
-                  </div>
-
-                  {/* Password Fields Row */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                    
-                    {/* Password Input */}
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        <Lock className="inline w-4 h-4 mr-1 text-gray-400" />
-                        {t.password}
-                      </label>
-                      <div className="relative">
-                        <input
-                          type={showPassword ? "text" : "password"}
-                          name="password"
-                          value={formData.password}
-                          onChange={handleInputChange}
-                          className="w-full px-4 py-3 pr-12 text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all"
-                          placeholder={t.passwordPlaceholder}
-                        />
-                        {/* Toggle password visibility button */}
-                        <button
-                          type="button"
-                          onClick={() => setShowPassword(!showPassword)}
-                          className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                        >
-                          {showPassword ? (
-                            <EyeOff className="w-5 h-5" />
-                          ) : (
-                            <Eye className="w-5 h-5" />
-                          )}
-                        </button>
-                      </div>
-
-                      {/* Password Strength Indicator - Only show if password has content */}
-                      {formData.password && (
-                        <div className="mt-3">
-                          {/* Strength label and score */}
-                          <div className="flex justify-between items-center mb-2">
-                            <span className="text-sm text-gray-600">{t.strength}</span>
-                            <span className={`text-sm font-medium ${
-                              passwordStrength.score <= 1 ? "text-red-600" :
-                              passwordStrength.score === 2 ? "text-yellow-600" :
-                              passwordStrength.score === 3 ? "text-teal-600" :
-                              "text-green-600"
-                            }`}>
-                              {passwordStrength.message}
-                            </span>
-                          </div>
-                          
-                          {/* Strength bars */}
-                          <div className="flex gap-1.5 mb-3">
-                            {[1, 2, 3, 4].map((barNumber) => (
-                              <div
-                                key={barNumber}
-                                className={`h-2 rounded-full flex-1 ${
-                                  barNumber <= passwordStrength.score
-                                    ? getStrengthColor(passwordStrength.score)
-                                    : "bg-gray-200"
-                                }`}
-                              />
-                            ))}
-                          </div>
-                          
-                          {/* Password requirements checklist */}
-                          <div className="grid grid-cols-2 gap-2">
-                            <PasswordRequirement met={hasMinLength} text={t.reqLen} />
-                            <PasswordRequirement met={hasUppercase} text={t.reqUpper} />
-                            <PasswordRequirement met={hasLowercase} text={t.reqLower} />
-                            <PasswordRequirement met={hasNumber} text={t.reqNumber} />
-                          </div>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Confirm Password Input */}
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        <Lock className="inline w-4 h-4 mr-1 text-gray-400" />
-                        {t.confirmPassword}
-                      </label>
-                      <div className="relative">
-                        <input
-                          type={showConfirmPassword ? "text" : "password"}
-                          name="confirmPassword"
-                          value={formData.confirmPassword}
-                          onChange={handleInputChange}
-                          className="w-full px-4 py-3 pr-12 text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all"
-                          placeholder={t.confirmPasswordPlaceholder}
-                        />
-                        {/* Toggle confirm password visibility button */}
-                        <button
-                          type="button"
-                          onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                          className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                        >
-                          {showConfirmPassword ? (
-                            <EyeOff className="w-5 h-5" />
-                          ) : (
-                            <Eye className="w-5 h-5" />
-                          )}
-                        </button>
-                      </div>
-
-                      {/* Password match indicator - Only show if both passwords have content */}
-                      {formData.password && formData.confirmPassword && (
-                        <div className={`mt-3 text-sm flex items-center ${
-                          passwordsMatch ? "text-green-600" : "text-red-600"
-                        }`}>
-                          {passwordsMatch ? (
-                            <Check className="w-4 h-4 mr-1" />
-                          ) : (
-                            <X className="w-4 h-4 mr-1" />
-                          )}
-                          {passwordsMatch ? t.matchYes : t.matchNo}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Terms and Conditions Checkbox */}
-                  <div className="flex items-start gap-3">
-                    <button
-                      type="button"
-                      onClick={toggleTerms}
-                      className={`w-5 h-5 rounded border-2 flex items-center justify-center shrink-0 mt-0.5 transition-colors ${
-                        formData.acceptTerms
-                          ? "bg-teal-600 border-teal-600"
-                          : "border-gray-300 hover:border-teal-500"
-                      }`}
-                    >
-                      {formData.acceptTerms && (
-                        <Check className="w-3.5 h-3.5 text-white" />
-                      )}
-                    </button>
-                    <label className="text-sm text-gray-600 cursor-pointer" onClick={toggleTerms}>
-                      {t.termsText}{" "}
-                      <span className="text-emerald-600 font-medium hover:text-emerald-800">
-                        {t.termsLink}
-                      </span>{" "}
-                      {language === "en" ? "and" : "र"}{" "}
-                      <span className="text-emerald-600 font-medium hover:text-emerald-800">
-                        {t.privacyLink}
-                      </span>
-                    </label>
-                  </div>
-
-                  {/* Submit Button */}
-                  <button
-                    onClick={handleSubmit}
-                    className="w-full py-4 bg-linear-to-r from-emerald-600 to-teal-600 text-white font-semibold rounded-lg shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all duration-200 text-base"
-                  >
-                    {t.createAccount}
-                  </button>
-
-                  {/* Login Link */}
-                  <div className="text-center pt-2">
-                    <p className="text-gray-600 text-sm">
-                      {t.loginPrompt}{" "}
-                      <span className="text-emerald-600 font-semibold hover:text-emerald-800 cursor-pointer">
-                        <Link to='/login'>{t.loginLink}</Link>
-                      </span>
-                    </p>
-                  </div>
+                <div>
+                  <h2 className="text-xl md:text-2xl font-bold">{t.formTitle}</h2>
+                  <p className="text-white/90 text-xs md:text-sm">{t.formSubtitle}</p>
                 </div>
               </div>
             </div>
-          </div>
 
-          {/* Benefits Section - Desktop Only */}
-          <div className="hidden lg:flex lg:w-1/3 flex-col min-h-0">
-            <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-6 border border-white/20 flex flex-col overflow-hidden">
+          {/* Form Content */}
+          <div className="p-4 md:p-6">
+            <div className="space-y-4">
               
-              {/* Benefits Header */}
-              <div className="text-white mb-5 shrink-0">
-                <ShieldCheck className="w-10 h-10 mb-3" />
-                <h3 className="text-xl font-bold mb-2">{t.benefitsTitle}</h3>
-                <p className="text-white/80 text-sm">
-                  {t.formSubtitle}
-                </p>
-              </div>
-
-              {/* Benefits List */}
-              <div className="space-y-4 flex-1 overflow-y-auto min-h-0">
-                {/* Benefit 1 */}
-                <div className="flex items-start gap-3">
-                  <div className="w-9 h-9 rounded-full bg-teal-500/20 flex items-center justify-center shrink-0">
-                    <Check className="w-5 h-5 text-teal-300" />
-                  </div>
-                  <div>
-                    <h4 className="text-white font-medium text-base">
-                      {t.benefit1Title}
-                    </h4>
-                    <p className="text-white/70 text-sm mt-1">
-                      {t.benefit1Desc}
-                    </p>
-                  </div>
+              {/* Row 1: Full Name, Email, Phone */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {/* Full Name */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <User className="inline w-4 h-4 mr-1 text-gray-400" />
+                    {t.fullName} <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    name="fullName"
+                    value={formData.fullName}
+                    onChange={handleInputChange}
+                    className="w-full px-3 py-2.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all"
+                    placeholder={t.fullNamePlaceholder}
+                  />
                 </div>
 
-                {/* Benefit 2 */}
-                <div className="flex items-start gap-3">
-                  <div className="w-9 h-9 rounded-full bg-cyan-500/20 flex items-center justify-center shrink-0">
-                    <Check className="w-5 h-5 text-cyan-300" />
-                  </div>
-                  <div>
-                    <h4 className="text-white font-medium text-base">
-                      {t.benefit2Title}
-                    </h4>
-                    <p className="text-white/70 text-sm mt-1">
-                      {t.benefit2Desc}
-                    </p>
-                  </div>
+                {/* Email */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <Mail className="inline w-4 h-4 mr-1 text-gray-400" />
+                    {t.email} <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="email"
+                    name="email"
+                    value={formData.email}
+                    onChange={handleInputChange}
+                    className="w-full px-3 py-2.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all"
+                    placeholder={t.emailPlaceholder}
+                  />
                 </div>
 
-                {/* Benefit 3 */}
-                <div className="flex items-start gap-3">
-                  <div className="w-9 h-9 rounded-full bg-purple-500/20 flex items-center justify-center shrink-0">
-                    <Check className="w-5 h-5 text-purple-300" />
-                  </div>
-                  <div>
-                    <h4 className="text-white font-medium text-base">
-                      {t.benefit3Title}
-                    </h4>
-                    <p className="text-white/70 text-sm mt-1">
-                      {t.benefit3Desc}
-                    </p>
-                  </div>
-                </div>
-
-                {/* Benefit 4 */}
-                <div className="flex items-start gap-3">
-                  <div className="w-9 h-9 rounded-full bg-green-500/20 flex items-center justify-center shrink-0">
-                    <Check className="w-5 h-5 text-green-300" />
-                  </div>
-                  <div>
-                    <h4 className="text-white font-medium text-base">
-                      {t.benefit4Title}
-                    </h4>
-                    <p className="text-white/70 text-sm mt-1">
-                      {t.benefit4Desc}
-                    </p>
-                  </div>
+                {/* Phone */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <Phone className="inline w-4 h-4 mr-1 text-gray-400" />
+                    {t.phone} <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="tel"
+                    name="phone"
+                    value={formData.phone}
+                    onChange={handleInputChange}
+                    className="w-full px-3 py-2.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all"
+                    placeholder={t.phonePlaceholder}
+                  />
                 </div>
               </div>
 
-              {/* Security Badge */}
-              <div className="mt-4 pt-4 border-t border-white/20 shrink-0">
-                <p className="text-white/60 text-sm">
-                  <ShieldCheck className="inline w-4 h-4 mr-1" />
-                  {t.security}
+              {/* Location Section Header */}
+              <div className="pt-1">
+                <label className="text-sm font-semibold text-gray-700 flex items-center">
+                  <MapPin className="w-4 h-4 mr-1 text-emerald-600" />
+                  {t.locationDetails}
+                </label>
+              </div>
+
+              {/* Row 2: Province, District, Municipality, Ward */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                {/* Province */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    {t.province} <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    name="province"
+                    value={formData.province}
+                    onChange={handleInputChange}
+                    className="w-full px-3 py-2.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all bg-white"
+                  >
+                    <option value="">{t.provincePlaceholder}</option>
+                    {provinces.map((province) => (
+                      <option key={province.id} value={province.id}>
+                        {language === 'np' && province.nameNp ? province.nameNp : province.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* District */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    {t.district} <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    name="district"
+                    value={formData.district}
+                    onChange={handleInputChange}
+                    disabled={!formData.province}
+                    className="w-full px-3 py-2.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all bg-white disabled:bg-gray-100 disabled:cursor-not-allowed"
+                  >
+                    <option value="">{t.districtPlaceholder}</option>
+                    {districts.map((district) => (
+                      <option key={district.id} value={district.id}>
+                        {language === 'np' && district.nameNp ? district.nameNp : district.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Municipality */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    {t.municipality} <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    name="municipality"
+                    value={formData.municipality}
+                    onChange={handleInputChange}
+                    disabled={!formData.district}
+                    className="w-full px-3 py-2.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all bg-white disabled:bg-gray-100 disabled:cursor-not-allowed"
+                  >
+                    <option value="">{t.municipalityPlaceholder}</option>
+                    {municipalities.map((municipality) => (
+                      <option key={municipality.id} value={municipality.id}>
+                        {language === 'np' && municipality.nameNp ? municipality.nameNp : municipality.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Ward Number Dropdown */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    {t.wardNumber} <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    name="wardNumber"
+                    value={formData.wardNumber}
+                    onChange={handleInputChange}
+                    disabled={!formData.municipality || wardOptions.length === 0}
+                    className="w-full px-3 py-2.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all bg-white disabled:bg-gray-100 disabled:cursor-not-allowed"
+                  >
+                    <option value="">{t.wardNumberPlaceholder}</option>
+                    {wardOptions.map((ward) => (
+                      <option key={ward} value={ward}>
+                        {language === 'np' ? `\u0935\u0921\u093e ${ward}` : `Ward ${ward}`}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {/* Row 3: Password and Confirm Password */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Password */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <Lock className="inline w-4 h-4 mr-1 text-gray-400" />
+                    {t.password} <span className="text-red-500">*</span>
+                  </label>
+                  <div className="relative">
+                    <input
+                      type={showPassword ? "text" : "password"}
+                      name="password"
+                      value={formData.password}
+                      onChange={handleInputChange}
+                      className="w-full px-3 py-2.5 pr-10 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all"
+                      placeholder={t.passwordPlaceholder}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                    >
+                      {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
+                  {/* Password Strength */}
+                  {formData.password && (
+                    <div className="mt-2">
+                      <div className="flex justify-between items-center mb-1">
+                        <span className="text-xs text-gray-600">{t.strength}</span>
+                        <span className={`text-xs font-medium ${
+                          passwordStrength.score <= 1 ? "text-red-600" :
+                          passwordStrength.score === 2 ? "text-yellow-600" :
+                          passwordStrength.score === 3 ? "text-teal-600" : "text-green-600"
+                        }`}>{passwordStrength.message}</span>
+                      </div>
+                      <div className="flex gap-1 mb-2">
+                        {[1, 2, 3, 4].map((bar) => (
+                          <div key={bar} className={`h-1.5 rounded-full flex-1 ${
+                            bar <= passwordStrength.score ? getStrengthColor(passwordStrength.score) : "bg-gray-200"
+                          }`} />
+                        ))}
+                      </div>
+                      <div className="grid grid-cols-2 gap-1 text-xs">
+                        <PasswordRequirement met={hasMinLength} text={t.reqLen} />
+                        <PasswordRequirement met={hasUppercase} text={t.reqUpper} />
+                        <PasswordRequirement met={hasLowercase} text={t.reqLower} />
+                        <PasswordRequirement met={hasNumber} text={t.reqNumber} />
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Confirm Password */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <Lock className="inline w-4 h-4 mr-1 text-gray-400" />
+                    {t.confirmPassword} <span className="text-red-500">*</span>
+                  </label>
+                  <div className="relative">
+                    <input
+                      type={showConfirmPassword ? "text" : "password"}
+                      name="confirmPassword"
+                      value={formData.confirmPassword}
+                      onChange={handleInputChange}
+                      className="w-full px-3 py-2.5 pr-10 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all"
+                      placeholder={t.confirmPasswordPlaceholder}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                      className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                    >
+                      {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
+                  {formData.password && formData.confirmPassword && (
+                    <div className={`mt-2 text-xs flex items-center ${passwordsMatch ? "text-green-600" : "text-red-600"}`}>
+                      {passwordsMatch ? <Check className="w-3 h-3 mr-1" /> : <X className="w-3 h-3 mr-1" />}
+                      {passwordsMatch ? t.matchYes : t.matchNo}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Terms and Submit Row */}
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pt-2">
+                {/* Terms Checkbox */}
+                <div className="flex items-start gap-2">
+                  <button
+                    type="button"
+                    onClick={toggleTerms}
+                    className={`w-5 h-5 rounded border-2 flex items-center justify-center shrink-0 mt-0.5 transition-colors ${
+                      formData.acceptTerms ? "bg-teal-600 border-teal-600" : "border-gray-300 hover:border-teal-500"
+                    }`}
+                  >
+                    {formData.acceptTerms && <Check className="w-3 h-3 text-white" />}
+                  </button>
+                  <label className="text-sm text-gray-600 cursor-pointer" onClick={toggleTerms}>
+                    {t.termsText}{" "}
+                    <span className="text-emerald-600 font-medium hover:text-emerald-800">{t.termsLink}</span>
+                    {" "}{language === "en" ? "and" : "\u0930"}{" "}
+                    <span className="text-emerald-600 font-medium hover:text-emerald-800">{t.privacyLink}</span>
+                  </label>
+                </div>
+
+                {/* Submit Button */}
+                <button
+                  onClick={handleSubmit}
+                  className="w-full sm:w-auto px-8 py-3 bg-linear-to-r from-emerald-600 to-teal-600 text-white font-semibold rounded-lg shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all duration-200 text-sm"
+                >
+                  {t.createAccount}
+                </button>
+              </div>
+
+              {/* Login Link */}
+              <div className="text-center pt-2">
+                <p className="text-gray-600 text-sm">
+                  {t.loginPrompt}{" "}
+                  <Link to='/login' className="text-emerald-600 font-semibold hover:text-emerald-800">
+                    {t.loginLink}
+                  </Link>
                 </p>
               </div>
             </div>
           </div>
         </div>
-        
+
+          {/* Benefits Section - Desktop Only */}
+          <div className="hidden lg:flex lg:w-80 flex-col">
+            <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-6 border border-white/20 h-full">
+              <div className="flex items-center gap-3 mb-6">
+                <div className="w-12 h-12 rounded-xl bg-emerald-500/20 flex items-center justify-center">
+                  <ShieldCheck className="w-6 h-6 text-emerald-300" />
+                </div>
+                <h3 className="text-xl font-bold text-white">{t.benefitsTitle}</h3>
+              </div>
+              
+              <div className="space-y-4">
+                {/* Benefit 1 */}
+                <div className="flex items-start gap-3 p-3 rounded-xl bg-white/5 hover:bg-white/10 transition-colors">
+                  <div className="w-8 h-8 rounded-lg bg-blue-500/20 flex items-center justify-center shrink-0">
+                    <FileText className="w-4 h-4 text-blue-300" />
+                  </div>
+                  <div>
+                    <h4 className="text-white font-medium text-sm">{t.benefit1Title}</h4>
+                    <p className="text-white/70 text-xs mt-0.5">{t.benefit1Desc}</p>
+                  </div>
+                </div>
+                
+                {/* Benefit 2 */}
+                <div className="flex items-start gap-3 p-3 rounded-xl bg-white/5 hover:bg-white/10 transition-colors">
+                  <div className="w-8 h-8 rounded-lg bg-purple-500/20 flex items-center justify-center shrink-0">
+                    <Mail className="w-4 h-4 text-purple-300" />
+                  </div>
+                  <div>
+                    <h4 className="text-white font-medium text-sm">{t.benefit2Title}</h4>
+                    <p className="text-white/70 text-xs mt-0.5">{t.benefit2Desc}</p>
+                  </div>
+                </div>
+                
+                {/* Benefit 3 */}
+                <div className="flex items-start gap-3 p-3 rounded-xl bg-white/5 hover:bg-white/10 transition-colors">
+                  <div className="w-8 h-8 rounded-lg bg-amber-500/20 flex items-center justify-center shrink-0">
+                    <Building2 className="w-4 h-4 text-amber-300" />
+                  </div>
+                  <div>
+                    <h4 className="text-white font-medium text-sm">{t.benefit3Title}</h4>
+                    <p className="text-white/70 text-xs mt-0.5">{t.benefit3Desc}</p>
+                  </div>
+                </div>
+                
+                {/* Benefit 4 */}
+                <div className="flex items-start gap-3 p-3 rounded-xl bg-white/5 hover:bg-white/10 transition-colors">
+                  <div className="w-8 h-8 rounded-lg bg-teal-500/20 flex items-center justify-center shrink-0">
+                    <ShieldCheck className="w-4 h-4 text-teal-300" />
+                  </div>
+                  <div>
+                    <h4 className="text-white font-medium text-sm">{t.benefit4Title}</h4>
+                    <p className="text-white/70 text-xs mt-0.5">{t.benefit4Desc}</p>
+                  </div>
+                </div>
+              </div>
+              
+              {/* Security Badge */}
+              <div className="mt-6 pt-4 border-t border-white/20">
+                <div className="flex items-center gap-2 text-white/80">
+                  <Lock className="w-4 h-4 text-emerald-400" />
+                  <span className="text-xs">{t.security}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
 
         {/* Footer */}
-        <footer className="mt-4 text-center shrink-0">
+        <footer className="mt-4 text-center">
           <div className="flex flex-wrap justify-center gap-3 text-sm text-white/80">
             {t.footerLinks.map((item, idx) => (
               <React.Fragment key={item}>
                 {idx > 0 && <span className="text-white/40">•</span>}
-                <span className="hover:text-white transition-colors cursor-pointer">
-                  {item}
-                </span>
+                <span className="hover:text-white transition-colors cursor-pointer">{item}</span>
               </React.Fragment>
             ))}
           </div>
-          <p className="text-white/60 text-sm mt-2">{t.copyright}</p>
+          <p className="text-white/60 text-xs mt-2">{t.copyright}</p>
         </footer>
       </div>
     </div>

@@ -39,7 +39,7 @@ export const registerUser = async (req, res) => {
     const newUser = await query(
       `
         INSERT INTO users(
-          full_name, email, password, phone, role,  is_verified
+          full_name, email, password, phone, role, is_verified
         )
         VALUES($1, $2, $3, $4, $5, $6)
         RETURNING *
