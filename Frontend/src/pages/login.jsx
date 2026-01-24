@@ -10,6 +10,8 @@ import {
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useLanguage } from "../context/useLanguage";
+import { toast, ToastContainer } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 
 const loginText = {
   en: {
@@ -101,7 +103,10 @@ const Login = () => {
    
     setTimeout(() => {
       console.log('Login successful:', formData.email);
-      alert(t.success);
+      toast.success(t.success, {
+        position: "top-right",
+        autoClose: 3000,
+      });
       
       // In real app, you would:
       // 1. Send login request to backend
@@ -121,59 +126,60 @@ const Login = () => {
   };
 
   return (
-    <div className="min-h-screen bg-linear-to-br from-emerald-950 via-emerald-900 to-teal-900 flex items-center justify-center p-4">
-      <div className="w-full max-w-md">
-        <div className="flex justify-end mb-4">
+    <div className="h-screen overflow-hidden bg-linear-to-br from-emerald-950 via-emerald-900 to-teal-900 flex items-center justify-center p-3 sm:p-4 md:p-6">
+      <ToastContainer />
+      <div className="w-full max-w-sm sm:max-w-md">
+        <div className="flex justify-end mb-2 sm:mb-3">
           <button
             onClick={toggleLanguage}
-            className="px-4 py-2 bg-white/10 border border-white/30 text-white text-sm rounded-lg hover:bg-white/20 backdrop-blur"
+            className="px-3 py-1.5 sm:px-4 sm:py-2 bg-white/10 border border-white/30 text-white text-xs sm:text-sm rounded-lg hover:bg-white/20 backdrop-blur transition-colors"
           >
             {t.toggleLabel}
           </button>
         </div>
         
         {/* Logo and Header Section */}
-        <div className="text-center mb-6">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-white rounded-2xl shadow-lg mb-4">
-            <Building2 className="w-8 h-8 text-emerald-600" />
+        <div className="text-center mb-3 sm:mb-4">
+          <div className="inline-flex items-center justify-center w-10 h-10 sm:w-14 sm:h-14 bg-white rounded-xl sm:rounded-2xl shadow-lg mb-2 sm:mb-3">
+            <Building2 className="w-5 h-5 sm:w-7 sm:h-7 text-emerald-600" />
           </div>
-          <h1 className="text-3xl font-bold text-white mb-2">{t.brand}</h1>
-          <p className="text-white/80 text-base">{t.subtitle}</p>
+          <h1 className="text-xl sm:text-2xl font-bold text-white mb-0.5 sm:mb-1">{t.brand}</h1>
+          <p className="text-white/80 text-xs sm:text-sm">{t.subtitle}</p>
         </div>
 
         {/* Main Login Card */}
-        <div className="bg-white rounded-3xl shadow-lg overflow-hidden">
+        <div className="bg-white rounded-2xl sm:rounded-3xl shadow-lg overflow-hidden">
           
           {/* Card Header with Gradient Background */}
-          <div className="bg-linear-to-r from-emerald-600 to-teal-600 p-6 text-white">
-            <div className="flex items-center gap-4">
-              <div className="w-14 h-14 rounded-2xl bg-white/20 backdrop-blur-sm flex items-center justify-center">
-                <User className="w-7 h-7" />
+          <div className="bg-linear-to-r from-emerald-600 to-teal-600 p-3 sm:p-4 text-white">
+            <div className="flex items-center gap-2 sm:gap-3">
+              <div className="w-9 h-9 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl bg-white/20 backdrop-blur-sm flex items-center justify-center shrink-0">
+                <User className="w-4 h-4 sm:w-6 sm:h-6" />
               </div>
-              <div className="flex-1">
-                <h2 className="text-2xl font-bold">{t.welcome}</h2>
-                <p className="text-white/90 text-sm mt-1">{t.subWelcome}</p>
+              <div className="flex-1 min-w-0">
+                <h2 className="text-lg sm:text-xl font-bold truncate">{t.welcome}</h2>
+                <p className="text-white/90 text-xs sm:text-sm">{t.subWelcome}</p>
               </div>
             </div>
           </div>
 
           {/* Form Section */}
-          <div className="p-8">
+          <div className="p-4 sm:p-5 md:p-6">
             
             {/* Error Message Display */}
             {error && (
-              <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-xl flex items-center gap-2">
-                <AlertCircle className="w-5 h-5 text-red-600 shrink-0" />
-                <p className="text-red-700 text-sm">{error}</p>
+              <div className="mb-3 p-2 sm:p-2.5 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 text-red-600 shrink-0" />
+                <p className="text-red-700 text-xs sm:text-sm">{error}</p>
               </div>
             )}
 
-            <div className="space-y-6">
+            <div className="space-y-3 sm:space-y-4">
               
               {/* Email Input Field */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  <Mail className="inline w-4 h-4 mr-2 text-gray-400" />
+                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-1.5">
+                  <Mail className="inline w-3.5 h-3.5 sm:w-4 sm:h-4 mr-1 sm:mr-1.5 text-gray-400" />
                   {t.email}
                 </label>
                 <input
@@ -182,7 +188,7 @@ const Login = () => {
                   value={formData.email}
                   onChange={handleInputChange}
                   onKeyPress={handleKeyPress}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all"
+                  className="w-full px-3 py-2 sm:py-2.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all"
                   placeholder={t.emailPlaceholder}
                   disabled={isLoading}
                 />
@@ -190,8 +196,8 @@ const Login = () => {
 
               {/* Password Input Field */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  <Lock className="inline w-4 h-4 mr-2 text-gray-400" />
+                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-1.5">
+                  <Lock className="inline w-3.5 h-3.5 sm:w-4 sm:h-4 mr-1 sm:mr-1.5 text-gray-400" />
                   {t.password}
                 </label>
                 <div className="relative">
@@ -201,7 +207,7 @@ const Login = () => {
                     value={formData.password}
                     onChange={handleInputChange}
                     onKeyPress={handleKeyPress}
-                    className="w-full px-4 py-3 pr-12 border border-gray-300 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all"
+                    className="w-full px-3 py-2 sm:py-2.5 pr-9 sm:pr-10 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all"
                     placeholder={t.passwordPlaceholder}
                     disabled={isLoading}
                   />
@@ -209,13 +215,13 @@ const Login = () => {
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                    className="absolute right-2.5 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
                     disabled={isLoading}
                   >
                     {showPassword ? (
-                      <EyeOff className="w-5 h-5" />
+                      <EyeOff className="w-4 h-4" />
                     ) : (
-                      <Eye className="w-5 h-5" />
+                      <Eye className="w-4 h-4" />
                     )}
                   </button>
                 </div>
@@ -225,11 +231,11 @@ const Login = () => {
               <button
                 onClick={handleSubmit}
                 disabled={isLoading}
-                className="w-full py-4 bg-linear-to-r from-emerald-600 to-teal-600 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all duration-200 disabled:opacity-70 disabled:cursor-not-allowed"
+                className="w-full py-2.5 sm:py-3 bg-linear-to-r from-emerald-600 to-teal-600 text-white text-sm font-semibold rounded-lg shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all duration-200 disabled:opacity-70 disabled:cursor-not-allowed"
               >
                 {isLoading ? (
                   <div className="flex items-center justify-center">
-                    <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
                     {t.signingIn}
                   </div>
                 ) : (
@@ -237,8 +243,8 @@ const Login = () => {
                 )}
               </button>
               {/* Create Account Link */}
-              <div className="text-center pt-2">
-                <p className="text-gray-600 text-base">
+              <div className="text-center pt-1">
+                <p className="text-gray-600 text-xs sm:text-sm">
                   {t.noAccount}{" "}
                   <span className="text-emerald-600 font-semibold hover:text-emerald-800 cursor-pointer transition-colors">
                     <Link to='/signup'>{t.createAccount}</Link>
@@ -250,18 +256,18 @@ const Login = () => {
         </div>
 
         {/* Footer Links */}
-        <div className="mt-6 text-center">
-          <div className="flex flex-wrap justify-center gap-4 text-sm text-white/80">
+        <div className="mt-3 sm:mt-4 text-center">
+          <div className="flex flex-wrap justify-center gap-2 text-xs text-white/80">
             {t.footerLinks.map((item, idx) => (
               <React.Fragment key={item}>
                 {idx > 0 && <span className="text-white/40">•</span>}
-                <span className="hover:text-white transition-colors cursor-pointer px-2">
+                <span className="hover:text-white transition-colors cursor-pointer px-1">
                   {item}
                 </span>
               </React.Fragment>
             ))}
           </div>
-          <p className="text-white/60 text-xs mt-4">{t.copyright}</p>
+          <p className="text-white/60 text-xs mt-2 px-4">{t.copyright}</p>
         </div>
       </div>
     </div>
