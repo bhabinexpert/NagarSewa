@@ -12,12 +12,18 @@ import {
   X,
   MapPin,
   Phone,
+  Crosshair,
+  Loader2,
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useLanguage } from "../context/useLanguage";
-import { toast, ToastContainer } from 'react-toastify';
-import 'react-toastify/dist/ReactToastify.css';
-import { getProvinces, getDistricts, getMunicipalities } from '../utils/nepalLocation';
+import { toast, ToastContainer } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
+import {
+  getProvinces,
+  getDistricts,
+  getMunicipalities,
+} from "../utils/nepalLocation";
 
 const signupText = {
   en: {
@@ -84,9 +90,19 @@ const signupText = {
       ward: "Please enter your ward number",
       wardInvalid: "Ward number must be between 1 and 35",
       success: "Account created successfully!",
-      provinceRestricted: "This feature is currently available only for Koshi Province. More provinces coming soon!",
-      districtRestricted: "This feature is currently available only for Jhapa District. More districts coming soon!",
+      provinceRestricted:
+        "This feature is currently available only for Koshi Province. More provinces coming soon!",
+      districtRestricted:
+        "This feature is currently available only for Jhapa District. More districts coming soon!",
+      locationDetected: "Location detected successfully!",
+      locationError: "Could not detect your location. Please select manually.",
+      locationPermissionDenied:
+        "Location access denied. Please enable location permission.",
+      locationOutsideJhapa:
+        "You appear to be outside Jhapa District. Please select your location manually.",
     },
+    useMyLocation: "Use My Location",
+    detectingLocation: "Detecting...",
     toggleLabel: "नेपाली",
   },
   np: {
@@ -153,9 +169,20 @@ const signupText = {
       ward: "कृपया आफ्नो वडा नम्बर प्रविष्ट गर्नुहोस्",
       wardInvalid: "वडा नम्बर १ र ३५ बीच हुनुपर्छ",
       success: "खाता सफलतापूर्वक सिर्जना भयो!",
-      provinceRestricted: "यो सुविधा हाल कोशी प्रदेशको लागि मात्र उपलब्ध छ। थप प्रदेशहरू चाँडै आउँदैछन्!",
-      districtRestricted: "यो सुविधा हाल झापा जिल्लाको लागि मात्र उपलब्ध छ। थप जिल्लाहरू चाँडै आउँदैछन्!",
+      provinceRestricted:
+        "यो सुविधा हाल कोशी प्रदेशको लागि मात्र उपलब्ध छ। थप प्रदेशहरू चाँडै आउँदैछन्!",
+      districtRestricted:
+        "यो सुविधा हाल झापा जिल्लाको लागि मात्र उपलब्ध छ। थप जिल्लाहरू चाँडै आउँदैछन्!",
+      locationDetected: "स्थान सफलतापूर्वक पत्ता लाग्यो!",
+      locationError:
+        "तपाईंको स्थान पत्ता लगाउन सकिएन। कृपया म्यानुअल रूपमा छान्नुहोस्।",
+      locationPermissionDenied:
+        "स्थान पहुँच अस्वीकृत। कृपया स्थान अनुमति सक्षम गर्नुहोस्।",
+      locationOutsideJhapa:
+        "तपाईं झापा जिल्ला बाहिर हुनुहुन्छ जस्तो देखिन्छ। कृपया आफ्नो स्थान म्यानुअल रूपमा छान्नुहोस्।",
     },
+    useMyLocation: "मेरो स्थान प्रयोग गर्नुहोस्",
+    detectingLocation: "पत्ता लगाउँदै...",
     toggleLabel: "English",
   },
 };
@@ -206,7 +233,9 @@ export default function Signup() {
   // Get selected municipality's total wards
   const selectedMunicipality = useMemo(() => {
     if (formData.municipality) {
-      return municipalities.find(m => String(m.id) === String(formData.municipality));
+      return municipalities.find(
+        (m) => String(m.id) === String(formData.municipality),
+      );
     }
     return null;
   }, [formData.municipality, municipalities]);
@@ -214,7 +243,10 @@ export default function Signup() {
   // Generate ward options based on selected municipality
   const wardOptions = useMemo(() => {
     if (selectedMunicipality && selectedMunicipality.totalWard) {
-      return Array.from({ length: selectedMunicipality.totalWard }, (_, i) => i + 1);
+      return Array.from(
+        { length: selectedMunicipality.totalWard },
+        (_, i) => i + 1,
+      );
     }
     return [];
   }, [selectedMunicipality]);
@@ -222,6 +254,9 @@ export default function Signup() {
   // Toggle visibility for password fields
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+
+  // Location detection loading state
+  const [isDetectingLocation, setIsDetectingLocation] = useState(false);
 
   // Calculate password strength based on length
   const getPasswordStrength = () => {
@@ -251,80 +286,216 @@ export default function Signup() {
   const hasNumber = /[0-9]/.test(formData.password);
 
   // Allowed province and district codes
-  const ALLOWED_PROVINCE_CODE = '1'; // Koshi Province
-  const ALLOWED_DISTRICT_CODE = '111'; // Jhapa District
+  const ALLOWED_PROVINCE_CODE = "1"; // Koshi Province
+  const ALLOWED_DISTRICT_CODE = "111"; // Jhapa District
+
+  // Handle geolocation to auto-fill location fields
+  const handleUseMyLocation = () => {
+    if (!navigator.geolocation) {
+      toast.error(t.alerts.locationError, {
+        position: "top-right",
+        autoClose: 3000,
+      });
+      return;
+    }
+
+    setIsDetectingLocation(true);
+
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        const { latitude, longitude } = position.coords;
+
+        try {
+          // Use OpenStreetMap's Nominatim for reverse geocoding
+          const response = await fetch(
+            `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&addressdetails=1&accept-language=en`,
+            {
+              headers: {
+                "User-Agent": "NagarSewa/1.0",
+              },
+            },
+          );
+
+          if (!response.ok) throw new Error("Geocoding failed");
+
+          const data = await response.json();
+          const address = data.address || {};
+
+          // Check if user is in Jhapa District area (approximate bounds)
+          // Jhapa District approximate bounds: lat 26.3-26.9, lon 87.6-88.2
+          const isInJhapa =
+            latitude >= 26.3 &&
+            latitude <= 26.9 &&
+            longitude >= 87.6 &&
+            longitude <= 88.2;
+
+          if (!isInJhapa) {
+            toast.warning(t.alerts.locationOutsideJhapa, {
+              position: "top-right",
+              autoClose: 4000,
+              icon: "📍",
+            });
+            setIsDetectingLocation(false);
+            return;
+          }
+
+          // Get Jhapa district municipalities
+          const jhapaMunicipalities = getMunicipalities(ALLOWED_DISTRICT_CODE);
+
+          // Try to find matching municipality from address
+          const locationName =
+            address.city ||
+            address.town ||
+            address.village ||
+            address.suburb ||
+            address.county ||
+            "";
+
+          // Find best matching municipality
+          let matchedMunicipality = null;
+          if (locationName) {
+            const locationLower = locationName.toLowerCase();
+            matchedMunicipality = jhapaMunicipalities.find(
+              (m) =>
+                m.name.toLowerCase().includes(locationLower) ||
+                locationLower.includes(m.name.toLowerCase().split(" ")[0]),
+            );
+          }
+
+          // If no direct match, try to find by proximity or default to first option
+          if (!matchedMunicipality && jhapaMunicipalities.length > 0) {
+            // For now, let user select municipality manually but set province and district
+            matchedMunicipality = null;
+          }
+
+          // Auto-fill the location fields
+          setFormData((prev) => ({
+            ...prev,
+            province: ALLOWED_PROVINCE_CODE,
+            district: ALLOWED_DISTRICT_CODE,
+            municipality: matchedMunicipality
+              ? String(matchedMunicipality.id)
+              : "",
+            wardNumber: "",
+          }));
+
+          toast.success(t.alerts.locationDetected, {
+            position: "top-right",
+            autoClose: 3000,
+            icon: "📍",
+          });
+        } catch (error) {
+          console.error("Geocoding error:", error);
+          // Even if geocoding fails, set province and district since we're targeting Jhapa
+          setFormData((prev) => ({
+            ...prev,
+            province: ALLOWED_PROVINCE_CODE,
+            district: ALLOWED_DISTRICT_CODE,
+            municipality: "",
+            wardNumber: "",
+          }));
+          toast.info(t.alerts.locationDetected, {
+            position: "top-right",
+            autoClose: 3000,
+            icon: "📍",
+          });
+        }
+
+        setIsDetectingLocation(false);
+      },
+      (error) => {
+        setIsDetectingLocation(false);
+        if (error.code === error.PERMISSION_DENIED) {
+          toast.error(t.alerts.locationPermissionDenied, {
+            position: "top-right",
+            autoClose: 3000,
+          });
+        } else {
+          toast.error(t.alerts.locationError, {
+            position: "top-right",
+            autoClose: 3000,
+          });
+        }
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 10000,
+        maximumAge: 0,
+      },
+    );
+  };
 
   // Handle input changes - reset dependent fields when location changes
   const handleInputChange = (event) => {
     const { name, value } = event.target;
-    
+
     // When province changes, reset district, municipality and ward
-    if (name === 'province') {
+    if (name === "province") {
       // Check if selected province is allowed (Koshi Province = 1)
       if (value && value !== ALLOWED_PROVINCE_CODE) {
-        toast.warning(t.alerts.provinceRestricted, { 
-          position: "top-right", 
+        toast.warning(t.alerts.provinceRestricted, {
+          position: "top-right",
           autoClose: 4000,
-          icon: "🚧"
+          icon: "🚧",
         });
         // Reset province selection
-        setFormData(prev => ({
+        setFormData((prev) => ({
           ...prev,
-          province: '',
-          district: '',
-          municipality: '',
-          wardNumber: ''
+          province: "",
+          district: "",
+          municipality: "",
+          wardNumber: "",
         }));
         return;
       }
-      setFormData(prev => ({
+      setFormData((prev) => ({
         ...prev,
         province: value,
-        district: '',
-        municipality: '',
-        wardNumber: ''
+        district: "",
+        municipality: "",
+        wardNumber: "",
       }));
       return;
     }
-    
+
     // When district changes, reset municipality and ward
-    if (name === 'district') {
+    if (name === "district") {
       // Check if selected district is allowed (Jhapa = 111)
       if (value && value !== ALLOWED_DISTRICT_CODE) {
-        toast.warning(t.alerts.districtRestricted, { 
-          position: "top-right", 
+        toast.warning(t.alerts.districtRestricted, {
+          position: "top-right",
           autoClose: 4000,
-          icon: "🚧"
+          icon: "🚧",
         });
         // Reset district selection
-        setFormData(prev => ({
+        setFormData((prev) => ({
           ...prev,
-          district: '',
-          municipality: '',
-          wardNumber: ''
+          district: "",
+          municipality: "",
+          wardNumber: "",
         }));
         return;
       }
-      setFormData(prev => ({
+      setFormData((prev) => ({
         ...prev,
         district: value,
-        municipality: '',
-        wardNumber: ''
+        municipality: "",
+        wardNumber: "",
       }));
       return;
     }
-    
+
     // When municipality changes, reset ward
-    if (name === 'municipality') {
-      setFormData(prev => ({
+    if (name === "municipality") {
+      setFormData((prev) => ({
         ...prev,
         municipality: value,
-        wardNumber: ''
+        wardNumber: "",
       }));
       return;
     }
-    
-    setFormData(prev => ({ ...prev, [name]: value }));
+
+    setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
   // Toggle terms acceptance
@@ -349,21 +520,33 @@ export default function Signup() {
     }
     // Validate phone number (Nepal format: 10 digits starting with 9)
     const phoneRegex = /^9[0-9]{9}$/;
-    const cleanPhone = formData.phone.replace(/[^0-9]/g, '');
+    const cleanPhone = formData.phone.replace(/[^0-9]/g, "");
     if (!phoneRegex.test(cleanPhone)) {
-      toast.error(t.alerts.phoneInvalid, { position: "top-right", autoClose: 3000 });
+      toast.error(t.alerts.phoneInvalid, {
+        position: "top-right",
+        autoClose: 3000,
+      });
       return;
     }
     if (!formData.province) {
-      toast.error(t.alerts.province, { position: "top-right", autoClose: 3000 });
+      toast.error(t.alerts.province, {
+        position: "top-right",
+        autoClose: 3000,
+      });
       return;
     }
     if (!formData.district) {
-      toast.error(t.alerts.district, { position: "top-right", autoClose: 3000 });
+      toast.error(t.alerts.district, {
+        position: "top-right",
+        autoClose: 3000,
+      });
       return;
     }
     if (!formData.municipality) {
-      toast.error(t.alerts.municipality, { position: "top-right", autoClose: 3000 });
+      toast.error(t.alerts.municipality, {
+        position: "top-right",
+        autoClose: 3000,
+      });
       return;
     }
     if (!formData.wardNumber) {
@@ -371,11 +554,17 @@ export default function Signup() {
       return;
     }
     if (!formData.password) {
-      toast.error(t.alerts.password, { position: "top-right", autoClose: 3000 });
+      toast.error(t.alerts.password, {
+        position: "top-right",
+        autoClose: 3000,
+      });
       return;
     }
     if (!passwordsMatch) {
-      toast.error(t.alerts.mismatch, { position: "top-right", autoClose: 3000 });
+      toast.error(t.alerts.mismatch, {
+        position: "top-right",
+        autoClose: 3000,
+      });
       return;
     }
     if (!formData.acceptTerms) {
@@ -403,7 +592,7 @@ export default function Signup() {
             {t.toggleLabel}
           </button>
         </div>
-        
+
         {/* Header Section */}
         <div className="text-center mb-2">
           <div className="inline-flex items-center gap-2">
@@ -414,16 +603,13 @@ export default function Signup() {
               <h1 className="text-2xl md:text-3xl font-bold text-white leading-tight">
                 {t.brand}
               </h1>
-              <p className="text-white/80 text-sm">
-                {t.subtitle}
-              </p>
+              <p className="text-white/80 text-sm">{t.subtitle}</p>
             </div>
           </div>
         </div>
 
         {/* Main Content - Form + Benefits */}
         <div className="flex flex-col lg:flex-row gap-3">
-          
           {/* Main Form Card */}
           <div className="flex-1 bg-white rounded-2xl shadow-2xl overflow-hidden">
             {/* Form Header */}
@@ -433,288 +619,377 @@ export default function Signup() {
                   <FileText className="w-4 h-4" />
                 </div>
                 <div>
-                  <h2 className="text-xl md:text-2xl font-bold">{t.formTitle}</h2>
-                  <p className="text-white/90 text-xs md:text-sm">{t.formSubtitle}</p>
+                  <h2 className="text-xl md:text-2xl font-bold">
+                    {t.formTitle}
+                  </h2>
+                  <p className="text-white/90 text-xs md:text-sm">
+                    {t.formSubtitle}
+                  </p>
                 </div>
               </div>
             </div>
 
-          {/* Form Content */}
-          <div className="p-3 md:p-4">
-            <div className="space-y-3">
-              
-              {/* Row 1: Full Name, Email, Phone */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                {/* Full Name */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-0.5">
-                    <User className="inline w-4 h-4 mr-1 text-gray-400" />
-                    {t.fullName} <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    name="fullName"
-                    value={formData.fullName}
-                    onChange={handleInputChange}
-                    className="w-full px-2 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all"
-                    placeholder={t.fullNamePlaceholder}
-                  />
-                </div>
-
-                {/* Email */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-0.5">
-                    <Mail className="inline w-4 h-4 mr-1 text-gray-400" />
-                    {t.email} <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="email"
-                    name="email"
-                    value={formData.email}
-                    onChange={handleInputChange}
-                    className="w-full px-2 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all"
-                    placeholder={t.emailPlaceholder}
-                  />
-                </div>
-
-                {/* Phone */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-0.5">
-                    <Phone className="inline w-4 h-4 mr-1 text-gray-400" />
-                    {t.phone} <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="tel"
-                    name="phone"
-                    value={formData.phone}
-                    onChange={handleInputChange}
-                    className="w-full px-2 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all"
-                    placeholder={t.phonePlaceholder}
-                  />
-                </div>
-              </div>
-
-              {/* Location Section Header */}
-              <div className="pt-0">
-                <label className="text-sm font-semibold text-gray-700 flex items-center">
-                  <MapPin className="w-4 h-4 mr-1 text-emerald-600" />
-                  {t.locationDetails}
-                </label>
-              </div>
-
-              {/* Row 2: Province, District, Municipality, Ward */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-                {/* Province */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-0.5">
-                    {t.province} <span className="text-red-500">*</span>
-                  </label>
-                  <select
-                    name="province"
-                    value={formData.province}
-                    onChange={handleInputChange}
-                    className="w-full px-2 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all bg-white"
-                  >
-                    <option value="">{t.provincePlaceholder}</option>
-                    {provinces.map((province) => (
-                      <option key={province.id} value={province.id}>
-                        {language === 'np' && province.nameNp ? province.nameNp : province.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                {/* District */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-0.5">
-                    {t.district} <span className="text-red-500">*</span>
-                  </label>
-                  <select
-                    name="district"
-                    value={formData.district}
-                    onChange={handleInputChange}
-                    disabled={!formData.province}
-                    className="w-full px-2 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all bg-white disabled:bg-gray-100 disabled:cursor-not-allowed"
-                  >
-                    <option value="">{t.districtPlaceholder}</option>
-                    {districts.map((district) => (
-                      <option key={district.id} value={district.id}>
-                        {language === 'np' && district.nameNp ? district.nameNp : district.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                {/* Municipality */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-0.5">
-                    {t.municipality} <span className="text-red-500">*</span>
-                  </label>
-                  <select
-                    name="municipality"
-                    value={formData.municipality}
-                    onChange={handleInputChange}
-                    disabled={!formData.district}
-                    className="w-full px-2 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all bg-white disabled:bg-gray-100 disabled:cursor-not-allowed"
-                  >
-                    <option value="">{t.municipalityPlaceholder}</option>
-                    {municipalities.map((municipality) => (
-                      <option key={municipality.id} value={municipality.id}>
-                        {language === 'np' && municipality.nameNp ? municipality.nameNp : municipality.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                {/* Ward Number Dropdown */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-0.5">
-                    {t.wardNumber} <span className="text-red-500">*</span>
-                  </label>
-                  <select
-                    name="wardNumber"
-                    value={formData.wardNumber}
-                    onChange={handleInputChange}
-                    disabled={!formData.municipality || wardOptions.length === 0}
-                    className="w-full px-2 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all bg-white disabled:bg-gray-100 disabled:cursor-not-allowed"
-                  >
-                    <option value="">{t.wardNumberPlaceholder}</option>
-                    {wardOptions.map((ward) => (
-                      <option key={ward} value={ward}>
-                        {language === 'np' ? `\u0935\u0921\u093e ${ward}` : `Ward ${ward}`}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
-              {/* Row 3: Password and Confirm Password */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                {/* Password */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-0.5">
-                    <Lock className="inline w-4 h-4 mr-1 text-gray-400" />
-                    {t.password} <span className="text-red-500">*</span>
-                  </label>
-                  <div className="relative">
+            {/* Form Content */}
+            <div className="p-3 md:p-4">
+              <div className="space-y-3">
+                {/* Row 1: Full Name, Email, Phone */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  {/* Full Name */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-0.5">
+                      <User className="inline w-4 h-4 mr-1 text-gray-400" />
+                      {t.fullName} <span className="text-red-500">*</span>
+                    </label>
                     <input
-                      type={showPassword ? "text" : "password"}
-                      name="password"
-                      value={formData.password}
+                      type="text"
+                      name="fullName"
+                      value={formData.fullName}
                       onChange={handleInputChange}
-                      className="w-full px-2 py-2 pr-9 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all"
-                      placeholder={t.passwordPlaceholder}
+                      className="w-full px-2 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all"
+                      placeholder={t.fullNamePlaceholder}
                     />
-                    <button
-                      type="button"
-                      onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                    >
-                      {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                    </button>
                   </div>
-                  {/* Password Strength */}
-                  {formData.password && (
-                    <div className="mt-1">
-                      <div className="flex justify-between items-center mb-0.5">
-                        <span className="text-xs text-gray-600">{t.strength}</span>
-                        <span className={`text-xs font-medium ${
-                          passwordStrength.score <= 1 ? "text-red-600" :
-                          passwordStrength.score === 2 ? "text-yellow-600" :
-                          passwordStrength.score === 3 ? "text-teal-600" : "text-green-600"
-                        }`}>{passwordStrength.message}</span>
-                      </div>
-                      <div className="flex gap-1 mb-1">
-                        {[1, 2, 3, 4].map((bar) => (
-                          <div key={bar} className={`h-1 rounded-full flex-1 ${
-                            bar <= passwordStrength.score ? getStrengthColor(passwordStrength.score) : "bg-gray-200"
-                          }`} />
-                        ))}
-                      </div>
-                      <div className="grid grid-cols-2 gap-1 text-xs">
-                        <PasswordRequirement met={hasMinLength} text={t.reqLen} />
-                        <PasswordRequirement met={hasUppercase} text={t.reqUpper} />
-                        <PasswordRequirement met={hasLowercase} text={t.reqLower} />
-                        <PasswordRequirement met={hasNumber} text={t.reqNumber} />
-                      </div>
-                    </div>
-                  )}
-                </div>
 
-                {/* Confirm Password */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-0.5">
-                    <Lock className="inline w-4 h-4 mr-1 text-gray-400" />
-                    {t.confirmPassword} <span className="text-red-500">*</span>
-                  </label>
-                  <div className="relative">
+                  {/* Email */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-0.5">
+                      <Mail className="inline w-4 h-4 mr-1 text-gray-400" />
+                      {t.email} <span className="text-red-500">*</span>
+                    </label>
                     <input
-                      type={showConfirmPassword ? "text" : "password"}
-                      name="confirmPassword"
-                      value={formData.confirmPassword}
+                      type="email"
+                      name="email"
+                      value={formData.email}
                       onChange={handleInputChange}
-                      className="w-full px-2 py-2 pr-9 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all"
-                      placeholder={t.confirmPasswordPlaceholder}
+                      className="w-full px-2 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all"
+                      placeholder={t.emailPlaceholder}
                     />
-                    <button
-                      type="button"
-                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                      className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                    >
-                      {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                    </button>
                   </div>
-                  {formData.password && formData.confirmPassword && (
-                    <div className={`mt-1 text-xs flex items-center ${passwordsMatch ? "text-green-600" : "text-red-600"}`}>
-                      {passwordsMatch ? <Check className="w-3 h-3 mr-1" /> : <X className="w-3 h-3 mr-1" />}
-                      {passwordsMatch ? t.matchYes : t.matchNo}
-                    </div>
-                  )}
-                </div>
-              </div>
 
-              {/* Terms and Submit Row */}
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pt-1">
-                {/* Terms Checkbox */}
-                <div className="flex items-start gap-2">
+                  {/* Phone */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-0.5">
+                      <Phone className="inline w-4 h-4 mr-1 text-gray-400" />
+                      {t.phone} <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="tel"
+                      name="phone"
+                      value={formData.phone}
+                      onChange={handleInputChange}
+                      className="w-full px-2 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all"
+                      placeholder={t.phonePlaceholder}
+                    />
+                  </div>
+                </div>
+
+                {/* Location Section Header */}
+                <div className="pt-0 flex items-center justify-between">
+                  <label className="text-sm font-semibold text-gray-700 flex items-center">
+                    <MapPin className="w-4 h-4 mr-1 text-emerald-600" />
+                    {t.locationDetails}
+                  </label>
                   <button
                     type="button"
-                    onClick={toggleTerms}
-                    className={`w-4 h-4 rounded border-2 flex items-center justify-center shrink-0 mt-0.5 transition-colors ${
-                      formData.acceptTerms ? "bg-teal-600 border-teal-600" : "border-gray-300 hover:border-teal-500"
-                    }`}
+                    onClick={handleUseMyLocation}
+                    disabled={isDetectingLocation}
+                    className="flex items-center gap-1 px-2 py-1 text-xs font-medium text-emerald-600 bg-emerald-50 hover:bg-emerald-100 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    {formData.acceptTerms && <Check className="w-2.5 h-2.5 text-white" />}
+                    {isDetectingLocation ? (
+                      <>
+                        <Loader2 className="w-3 h-3 animate-spin" />
+                        {t.detectingLocation}
+                      </>
+                    ) : (
+                      <>
+                        <Crosshair className="w-3 h-3" />
+                        {t.useMyLocation}
+                      </>
+                    )}
                   </button>
-                  <label className="text-sm text-gray-600 cursor-pointer" onClick={toggleTerms}>
-                    {t.termsText}{" "}
-                    <span className="text-emerald-600 font-medium hover:text-emerald-800">{t.termsLink}</span>
-                    {" "}{language === "en" ? "and" : "\u0930"}{" "}
-                    <span className="text-emerald-600 font-medium hover:text-emerald-800">{t.privacyLink}</span>
-                  </label>
                 </div>
 
-                {/* Submit Button */}
-                <button
-                  onClick={handleSubmit}
-                  className="w-full sm:w-auto px-6 py-2 bg-linear-to-r from-emerald-600 to-teal-600 text-white font-semibold rounded-lg shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all duration-200 text-sm"
-                >
-                  {t.createAccount}
-                </button>
-              </div>
+                {/* Row 2: Province, District, Municipality, Ward */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                  {/* Province */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-0.5">
+                      {t.province} <span className="text-red-500">*</span>
+                    </label>
+                    <select
+                      name="province"
+                      value={formData.province}
+                      onChange={handleInputChange}
+                      className="w-full px-2 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all bg-white"
+                    >
+                      <option value="">{t.provincePlaceholder}</option>
+                      {provinces.map((province) => (
+                        <option key={province.id} value={province.id}>
+                          {language === "np" && province.nameNp
+                            ? province.nameNp
+                            : province.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
 
-              {/* Login Link */}
-              <div className="text-center pt-1">
-                <p className="text-gray-600 text-sm">
-                  {t.loginPrompt}{" "}
-                  <Link to='/login' className="text-emerald-600 font-semibold hover:text-emerald-800">
-                    {t.loginLink}
-                  </Link>
-                </p>
+                  {/* District */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-0.5">
+                      {t.district} <span className="text-red-500">*</span>
+                    </label>
+                    <select
+                      name="district"
+                      value={formData.district}
+                      onChange={handleInputChange}
+                      disabled={!formData.province}
+                      className="w-full px-2 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all bg-white disabled:bg-gray-100 disabled:cursor-not-allowed"
+                    >
+                      <option value="">{t.districtPlaceholder}</option>
+                      {districts.map((district) => (
+                        <option key={district.id} value={district.id}>
+                          {language === "np" && district.nameNp
+                            ? district.nameNp
+                            : district.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Municipality */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-0.5">
+                      {t.municipality} <span className="text-red-500">*</span>
+                    </label>
+                    <select
+                      name="municipality"
+                      value={formData.municipality}
+                      onChange={handleInputChange}
+                      disabled={!formData.district}
+                      className="w-full px-2 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all bg-white disabled:bg-gray-100 disabled:cursor-not-allowed"
+                    >
+                      <option value="">{t.municipalityPlaceholder}</option>
+                      {municipalities.map((municipality) => (
+                        <option key={municipality.id} value={municipality.id}>
+                          {language === "np" && municipality.nameNp
+                            ? municipality.nameNp
+                            : municipality.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Ward Number Dropdown */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-0.5">
+                      {t.wardNumber} <span className="text-red-500">*</span>
+                    </label>
+                    <select
+                      name="wardNumber"
+                      value={formData.wardNumber}
+                      onChange={handleInputChange}
+                      disabled={
+                        !formData.municipality || wardOptions.length === 0
+                      }
+                      className="w-full px-2 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all bg-white disabled:bg-gray-100 disabled:cursor-not-allowed"
+                    >
+                      <option value="">{t.wardNumberPlaceholder}</option>
+                      {wardOptions.map((ward) => (
+                        <option key={ward} value={ward}>
+                          {language === "np"
+                            ? `\u0935\u0921\u093e ${ward}`
+                            : `Ward ${ward}`}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                {/* Row 3: Password and Confirm Password */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {/* Password */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-0.5">
+                      <Lock className="inline w-4 h-4 mr-1 text-gray-400" />
+                      {t.password} <span className="text-red-500">*</span>
+                    </label>
+                    <div className="relative">
+                      <input
+                        type={showPassword ? "text" : "password"}
+                        name="password"
+                        value={formData.password}
+                        onChange={handleInputChange}
+                        className="w-full px-2 py-2 pr-9 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all"
+                        placeholder={t.passwordPlaceholder}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                      >
+                        {showPassword ? (
+                          <EyeOff className="w-4 h-4" />
+                        ) : (
+                          <Eye className="w-4 h-4" />
+                        )}
+                      </button>
+                    </div>
+                    {/* Password Strength */}
+                    {formData.password && (
+                      <div className="mt-1">
+                        <div className="flex justify-between items-center mb-0.5">
+                          <span className="text-xs text-gray-600">
+                            {t.strength}
+                          </span>
+                          <span
+                            className={`text-xs font-medium ${
+                              passwordStrength.score <= 1
+                                ? "text-red-600"
+                                : passwordStrength.score === 2
+                                  ? "text-yellow-600"
+                                  : passwordStrength.score === 3
+                                    ? "text-teal-600"
+                                    : "text-green-600"
+                            }`}
+                          >
+                            {passwordStrength.message}
+                          </span>
+                        </div>
+                        <div className="flex gap-1 mb-1">
+                          {[1, 2, 3, 4].map((bar) => (
+                            <div
+                              key={bar}
+                              className={`h-1 rounded-full flex-1 ${
+                                bar <= passwordStrength.score
+                                  ? getStrengthColor(passwordStrength.score)
+                                  : "bg-gray-200"
+                              }`}
+                            />
+                          ))}
+                        </div>
+                        <div className="grid grid-cols-2 gap-1 text-xs">
+                          <PasswordRequirement
+                            met={hasMinLength}
+                            text={t.reqLen}
+                          />
+                          <PasswordRequirement
+                            met={hasUppercase}
+                            text={t.reqUpper}
+                          />
+                          <PasswordRequirement
+                            met={hasLowercase}
+                            text={t.reqLower}
+                          />
+                          <PasswordRequirement
+                            met={hasNumber}
+                            text={t.reqNumber}
+                          />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Confirm Password */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-0.5">
+                      <Lock className="inline w-4 h-4 mr-1 text-gray-400" />
+                      {t.confirmPassword}{" "}
+                      <span className="text-red-500">*</span>
+                    </label>
+                    <div className="relative">
+                      <input
+                        type={showConfirmPassword ? "text" : "password"}
+                        name="confirmPassword"
+                        value={formData.confirmPassword}
+                        onChange={handleInputChange}
+                        className="w-full px-2 py-2 pr-9 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all"
+                        placeholder={t.confirmPasswordPlaceholder}
+                      />
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setShowConfirmPassword(!showConfirmPassword)
+                        }
+                        className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                      >
+                        {showConfirmPassword ? (
+                          <EyeOff className="w-4 h-4" />
+                        ) : (
+                          <Eye className="w-4 h-4" />
+                        )}
+                      </button>
+                    </div>
+                    {formData.password && formData.confirmPassword && (
+                      <div
+                        className={`mt-1 text-xs flex items-center ${passwordsMatch ? "text-green-600" : "text-red-600"}`}
+                      >
+                        {passwordsMatch ? (
+                          <Check className="w-3 h-3 mr-1" />
+                        ) : (
+                          <X className="w-3 h-3 mr-1" />
+                        )}
+                        {passwordsMatch ? t.matchYes : t.matchNo}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Terms and Submit Row */}
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pt-1">
+                  {/* Terms Checkbox */}
+                  <div className="flex items-start gap-2">
+                    <button
+                      type="button"
+                      onClick={toggleTerms}
+                      className={`w-4 h-4 rounded border-2 flex items-center justify-center shrink-0 mt-0.5 transition-colors ${
+                        formData.acceptTerms
+                          ? "bg-teal-600 border-teal-600"
+                          : "border-gray-300 hover:border-teal-500"
+                      }`}
+                    >
+                      {formData.acceptTerms && (
+                        <Check className="w-2.5 h-2.5 text-white" />
+                      )}
+                    </button>
+                    <label
+                      className="text-sm text-gray-600 cursor-pointer"
+                      onClick={toggleTerms}
+                    >
+                      {t.termsText}{" "}
+                      <span className="text-emerald-600 font-medium hover:text-emerald-800">
+                        {t.termsLink}
+                      </span>{" "}
+                      {language === "en" ? "and" : "\u0930"}{" "}
+                      <span className="text-emerald-600 font-medium hover:text-emerald-800">
+                        {t.privacyLink}
+                      </span>
+                    </label>
+                  </div>
+
+                  {/* Submit Button */}
+                  <button
+                    onClick={handleSubmit}
+                    className="w-full sm:w-auto px-6 py-2 bg-linear-to-r from-emerald-600 to-teal-600 text-white font-semibold rounded-lg shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all duration-200 text-sm"
+                  >
+                    {t.createAccount}
+                  </button>
+                </div>
+
+                {/* Login Link */}
+                <div className="text-center pt-1">
+                  <p className="text-gray-600 text-sm">
+                    {t.loginPrompt}{" "}
+                    <Link
+                      to="/login"
+                      className="text-emerald-600 font-semibold hover:text-emerald-800"
+                    >
+                      {t.loginLink}
+                    </Link>
+                  </p>
+                </div>
               </div>
             </div>
           </div>
-        </div>
 
           {/* Benefits Section - Desktop Only */}
           <div className="hidden lg:flex lg:w-72 flex-col">
@@ -723,9 +998,11 @@ export default function Signup() {
                 <div className="w-10 h-10 rounded-xl bg-emerald-500/20 flex items-center justify-center">
                   <ShieldCheck className="w-5 h-5 text-emerald-300" />
                 </div>
-                <h3 className="text-lg font-bold text-white">{t.benefitsTitle}</h3>
+                <h3 className="text-lg font-bold text-white">
+                  {t.benefitsTitle}
+                </h3>
               </div>
-              
+
               <div className="space-y-3">
                 {/* Benefit 1 */}
                 <div className="flex items-start gap-2 p-2 rounded-xl bg-white/5 hover:bg-white/10 transition-colors">
@@ -733,45 +1010,53 @@ export default function Signup() {
                     <FileText className="w-3.5 h-3.5 text-blue-300" />
                   </div>
                   <div>
-                    <h4 className="text-white font-medium text-sm">{t.benefit1Title}</h4>
+                    <h4 className="text-white font-medium text-sm">
+                      {t.benefit1Title}
+                    </h4>
                     <p className="text-white/70 text-xs">{t.benefit1Desc}</p>
                   </div>
                 </div>
-                
+
                 {/* Benefit 2 */}
                 <div className="flex items-start gap-2 p-2 rounded-xl bg-white/5 hover:bg-white/10 transition-colors">
                   <div className="w-7 h-7 rounded-lg bg-purple-500/20 flex items-center justify-center shrink-0">
                     <Mail className="w-3.5 h-3.5 text-purple-300" />
                   </div>
                   <div>
-                    <h4 className="text-white font-medium text-sm">{t.benefit2Title}</h4>
+                    <h4 className="text-white font-medium text-sm">
+                      {t.benefit2Title}
+                    </h4>
                     <p className="text-white/70 text-xs">{t.benefit2Desc}</p>
                   </div>
                 </div>
-                
+
                 {/* Benefit 3 */}
                 <div className="flex items-start gap-2 p-2 rounded-xl bg-white/5 hover:bg-white/10 transition-colors">
                   <div className="w-7 h-7 rounded-lg bg-amber-500/20 flex items-center justify-center shrink-0">
                     <Building2 className="w-3.5 h-3.5 text-amber-300" />
                   </div>
                   <div>
-                    <h4 className="text-white font-medium text-sm">{t.benefit3Title}</h4>
+                    <h4 className="text-white font-medium text-sm">
+                      {t.benefit3Title}
+                    </h4>
                     <p className="text-white/70 text-xs">{t.benefit3Desc}</p>
                   </div>
                 </div>
-                
+
                 {/* Benefit 4 */}
                 <div className="flex items-start gap-2 p-2 rounded-xl bg-white/5 hover:bg-white/10 transition-colors">
                   <div className="w-7 h-7 rounded-lg bg-teal-500/20 flex items-center justify-center shrink-0">
                     <ShieldCheck className="w-3.5 h-3.5 text-teal-300" />
                   </div>
                   <div>
-                    <h4 className="text-white font-medium text-sm">{t.benefit4Title}</h4>
+                    <h4 className="text-white font-medium text-sm">
+                      {t.benefit4Title}
+                    </h4>
                     <p className="text-white/70 text-xs">{t.benefit4Desc}</p>
                   </div>
                 </div>
               </div>
-              
+
               {/* Security Badge */}
               <div className="mt-4 pt-3 border-t border-white/20">
                 <div className="flex items-center gap-2 text-white/80">
@@ -789,7 +1074,9 @@ export default function Signup() {
             {t.footerLinks.map((item, idx) => (
               <React.Fragment key={item}>
                 {idx > 0 && <span className="text-white/40">•</span>}
-                <span className="hover:text-white transition-colors cursor-pointer">{item}</span>
+                <span className="hover:text-white transition-colors cursor-pointer">
+                  {item}
+                </span>
               </React.Fragment>
             ))}
           </div>
