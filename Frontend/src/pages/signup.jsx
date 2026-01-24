@@ -580,7 +580,7 @@ export default function Signup() {
   const passwordStrength = getPasswordStrength();
 
   return (
-    <div className="h-screen overflow-hidden bg-linear-to-br from-emerald-950 via-emerald-900 to-teal-900 py-2 px-4">
+    <div className="min-h-screen overflow-y-auto lg:h-screen lg:overflow-hidden bg-linear-to-br from-emerald-950 via-emerald-900 to-teal-900 py-2 px-4">
       <ToastContainer />
       <div className="max-w-6xl mx-auto">
         {/* Language Toggle */}
