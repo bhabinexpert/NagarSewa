@@ -3,7 +3,6 @@ import {
   Mail,
   Lock,
   User,
-  Building2,
   Eye,
   EyeOff,
   AlertCircle,
@@ -140,9 +139,11 @@ const Login = () => {
         
         {/* Logo and Header Section */}
         <div className="text-center mb-3 sm:mb-4">
-          <div className="inline-flex items-center justify-center w-10 h-10 sm:w-14 sm:h-14 bg-white rounded-xl sm:rounded-2xl shadow-lg mb-2 sm:mb-3">
-            <Building2 className="w-5 h-5 sm:w-7 sm:h-7 text-emerald-600" />
-          </div>
+          <img
+            src="/nagarsewa.jpg"
+            alt="NagarSewa Logo"
+            className="w-16 h-16 sm:w-20 sm:h-20 rounded-full object-cover ring-4 ring-white/30 shadow-xl mx-auto mb-2 sm:mb-3"
+          />
           <h1 className="text-2xl sm:text-3xl font-bold text-white mb-0.5 sm:mb-1">{t.brand}</h1>
           <p className="text-white/80 text-sm sm:text-base">{t.subtitle}</p>
         </div>

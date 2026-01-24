@@ -595,10 +595,12 @@ export default function Signup() {
 
         {/* Header Section */}
         <div className="text-center mb-2">
-          <div className="inline-flex items-center gap-2">
-            <div className="flex items-center justify-center w-10 h-10 bg-white rounded-xl shadow-lg">
-              <Building2 className="w-5 h-5 text-emerald-600" />
-            </div>
+          <div className="inline-flex items-center gap-3">
+            <img
+              src="/nagarsewa.jpg"
+              alt="NagarSewa Logo"
+              className="w-12 h-12 md:w-14 md:h-14 rounded-full object-cover ring-3 ring-white/30 shadow-xl"
+            />
             <div className="text-left">
               <h1 className="text-2xl md:text-3xl font-bold text-white leading-tight">
                 {t.brand}
