@@ -16,6 +16,17 @@ export const AuthProvider = ({ children }) => {
     return null;
   });
   const [wardAdmins, setWardAdmins] = useState(mockWardAdmins);
+  const [disabledUsers, setDisabledUsers] = useState(() => {
+    const savedDisabled = localStorage.getItem("nagarsewa_disabled_users");
+    if (savedDisabled) {
+      try {
+        return JSON.parse(savedDisabled);
+      } catch {
+        return [];
+      }
+    }
+    return [];
+  });
   const [isLoading] = useState(false);
 
   // Save user to localStorage whenever it changes
@@ -27,8 +38,25 @@ export const AuthProvider = ({ children }) => {
     }
   }, [currentUser]);
 
+  // Save disabled users to localStorage
+  useEffect(() => {
+    localStorage.setItem("nagarsewa_disabled_users", JSON.stringify(disabledUsers));
+  }, [disabledUsers]);
+
   // Login function
   const login = (email, password) => {
+    // Check if user is disabled
+    const isUserDisabled = disabledUsers.find(
+      (disabled) => disabled.email.toLowerCase() === email.toLowerCase()
+    );
+    if (isUserDisabled) {
+      return { 
+        success: false, 
+        error: "Your account has been disabled. Please contact the administrator.",
+        isDisabled: true
+      };
+    }
+
     // Check if super admin
     if (
       email.toLowerCase() === superAdminCredentials.email &&
@@ -77,6 +105,7 @@ export const AuthProvider = ({ children }) => {
       email: email,
       fullName: email.split("@")[0],
       role: ROLES.USER,
+      kycVerified: false, // KYC not verified by default
       jurisdiction: {
         district: "Jhapa",
         municipality: "Damak",
@@ -111,6 +140,21 @@ export const AuthProvider = ({ children }) => {
   // Get user's ward number (for ward admins)
   const getUserWard = () => {
     return currentUser?.wardNumber || null;
+  };
+
+  // Verify user's KYC (for demo purposes)
+  const verifyKyc = () => {
+    if (currentUser) {
+      const updatedUser = { ...currentUser, kycVerified: true };
+      setCurrentUser(updatedUser);
+      return { success: true };
+    }
+    return { success: false, error: "No user logged in" };
+  };
+
+  // Check if user's KYC is verified
+  const isKycVerified = () => {
+    return currentUser?.kycVerified || false;
   };
 
   // --- Super Admin Functions ---
@@ -252,6 +296,67 @@ export const AuthProvider = ({ children }) => {
     return data.filter((item) => item.userId === currentUser.id);
   };
 
+  // --- User Account Management (Admin Functions) ---
+
+  // Disable a user account (only admins can do this)
+  const disableUser = (userEmail, reason = "Account disabled by administrator") => {
+    if (!isSuperAdmin() && !isWardAdmin()) {
+      return { success: false, error: "Only admins can disable user accounts" };
+    }
+
+    // Check if already disabled
+    const alreadyDisabled = disabledUsers.find(
+      (u) => u.email.toLowerCase() === userEmail.toLowerCase()
+    );
+    if (alreadyDisabled) {
+      return { success: false, error: "User is already disabled" };
+    }
+
+    const disabledEntry = {
+      email: userEmail.toLowerCase(),
+      disabledAt: new Date().toISOString(),
+      reason: reason,
+      disabledBy: currentUser.email,
+    };
+
+    setDisabledUsers([...disabledUsers, disabledEntry]);
+    
+    // If the disabled user is currently logged in, log them out
+    if (currentUser && currentUser.email.toLowerCase() === userEmail.toLowerCase()) {
+      logout();
+    }
+
+    return { success: true };
+  };
+
+  // Enable a disabled user account (only admins can do this)
+  const enableUser = (userEmail) => {
+    if (!isSuperAdmin() && !isWardAdmin()) {
+      return { success: false, error: "Only admins can enable user accounts" };
+    }
+
+    setDisabledUsers(disabledUsers.filter(
+      (u) => u.email.toLowerCase() !== userEmail.toLowerCase()
+    ));
+
+    return { success: true };
+  };
+
+  // Check if a specific user is disabled
+  const isUserDisabled = (userEmail) => {
+    return disabledUsers.some(
+      (u) => u.email.toLowerCase() === userEmail.toLowerCase()
+    );
+  };
+
+  // Get all disabled users
+  const getDisabledUsers = () => {
+    if (!isSuperAdmin() && !isWardAdmin()) {
+      return [];
+    }
+    return disabledUsers;
+  };
+
   const value = {
     currentUser,
     isLoading,
@@ -261,6 +366,14 @@ export const AuthProvider = ({ children }) => {
     isWardAdmin,
     isUser,
     getUserWard,
+    // KYC functions
+    verifyKyc,
+    isKycVerified,
+    // User account management
+    disableUser,
+    enableUser,
+    isUserDisabled,
+    getDisabledUsers,
     // Super admin functions
     createWardAdmin,
     updateWardAdmin,
