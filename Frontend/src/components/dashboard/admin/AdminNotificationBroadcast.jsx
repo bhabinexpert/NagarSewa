@@ -1,6 +1,8 @@
 import React, { useState } from "react";
 import { useLanguage } from "../../../context/useLanguage";
 import { useAuth } from "../../../context/useAuth";
+import { toast, ToastContainer } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 import {
   Megaphone,
   Send,
@@ -247,13 +249,13 @@ const AdminNotificationBroadcast = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!formData.title || !formData.message) {
-      alert(language === "en" ? "Please fill all required fields" : "कृपया सबै आवश्यक फिल्डहरू भर्नुहोस्");
+      toast.warning(language === "en" ? "Please fill all required fields" : "कृपया सबै आवश्यक फिल्डहरू भर्नुहोस्", { position: "top-right", autoClose: 3000 });
       return;
     }
 
     // Validate ward selection for specific ward audience
     if (formData.audience === "ward" && !formData.targetWard) {
-      alert(language === "en" ? "Please select a ward" : "कृपया वडा छान्नुहोस्");
+      toast.warning(language === "en" ? "Please select a ward" : "कृपया वडा छान्नुहोस्", { position: "top-right", autoClose: 3000 });
       return;
     }
 
@@ -308,6 +310,7 @@ const AdminNotificationBroadcast = () => {
 
   return (
     <div className="max-w-4xl mx-auto">
+      <ToastContainer />
       {/* Header */}
       <div className="bg-white rounded-2xl shadow-sm p-6 mb-6">
         <h2 className="text-2xl font-bold text-gray-800 mb-2">{t.title}</h2>

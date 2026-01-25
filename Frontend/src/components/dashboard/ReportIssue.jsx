@@ -1,6 +1,8 @@
 import React, { useState, useRef, useEffect } from "react";
 import { useLanguage } from "../../context/useLanguage";
 import { useAuth } from "../../context/useAuth";
+import { toast, ToastContainer } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 import {
   Camera,
   Image,
@@ -136,7 +138,7 @@ const ReportIssue = ({ onNavigate }) => {
       setShowCamera(true);
     } catch (error) {
       console.error("Error accessing camera:", error);
-      alert(language === "en" ? "Unable to access camera" : "क्यामेरा पहुँच गर्न असमर्थ");
+      toast.error(language === "en" ? "Unable to access camera" : "क्यामेरा पहुँच गर्न असमर्थ", { position: "top-right", autoClose: 3000 });
     } finally {
       setIsLoading(false);
     }
@@ -225,7 +227,7 @@ const ReportIssue = ({ onNavigate }) => {
         (error) => {
           console.error("Error getting location:", error);
           setGettingLocation(false);
-          alert(language === "en" ? "Unable to get location" : "स्थान प्राप्त गर्न असमर्थ");
+          toast.error(language === "en" ? "Unable to get location" : "स्थान प्राप्त गर्न असमर्थ", { position: "top-right", autoClose: 3000 });
         }
       );
     }
@@ -235,7 +237,7 @@ const ReportIssue = ({ onNavigate }) => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!formData.issueType || !formData.description || !formData.location) {
-      alert(language === "en" ? "Please fill all required fields" : "कृपया सबै आवश्यक फिल्डहरू भर्नुहोस्");
+      toast.warning(language === "en" ? "Please fill all required fields" : "कृपया सबै आवश्यक फिल्डहरू भर्नुहोस्", { position: "top-right", autoClose: 3000 });
       return;
     }
 
@@ -261,6 +263,7 @@ const ReportIssue = ({ onNavigate }) => {
   if (submitted) {
     return (
       <div className="max-w-2xl mx-auto bg-white rounded-2xl shadow-sm p-8 text-center">
+        <ToastContainer />
         <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
           <CheckCircle className="text-green-600" size={40} />
         </div>
@@ -276,6 +279,7 @@ const ReportIssue = ({ onNavigate }) => {
 
   return (
     <div className="max-w-2xl mx-auto">
+      <ToastContainer />
       {/* KYC Verification Required */}
       {!isKycVerified ? (
         <div className="bg-white rounded-2xl shadow-sm p-8 text-center">

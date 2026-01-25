@@ -1,6 +1,8 @@
 import React, { useState, useRef } from "react";
 import { useLanguage } from "../../context/useLanguage";
 import { useAuth } from "../../context/useAuth";
+import { toast, ToastContainer } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 import {
   User,
   Mail,
@@ -174,7 +176,7 @@ const UserProfile = () => {
 
   const handleSubmitKyc = async () => {
     if (!kycDocuments.citizenshipFront || !kycDocuments.citizenshipBack) {
-      alert(language === "en" ? "Please upload both sides of citizenship" : "कृपया नागरिकताको दुवै पक्ष अपलोड गर्नुहोस्");
+      toast.warning(language === "en" ? "Please upload both sides of citizenship" : "कृपया नागरिकताको दुवै पक्ष अपलोड गर्नुहोस्", { position: "top-right", autoClose: 3000 });
       return;
     }
 
@@ -220,6 +222,7 @@ const UserProfile = () => {
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
+      <ToastContainer />
       {/* Header */}
       <div className="bg-white rounded-2xl shadow-sm p-6">
         <h2 className="text-2xl font-bold text-gray-800 mb-2">{t.title}</h2>
