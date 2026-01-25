@@ -430,6 +430,11 @@ const AdminDashboard = () => {
           >
             {mobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
           </button>
+          <img 
+            src="/nagarsewa.jpg" 
+            alt="NagarSewa" 
+            className="w-8 h-8 rounded-lg object-cover"
+          />
           <span className="font-bold text-indigo-600 text-xl">{t.brand}</span>
         </div>
         <button
@@ -457,9 +462,11 @@ const AdminDashboard = () => {
         {/* Logo */}
         <div className="p-6 border-b border-indigo-800">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-white rounded-lg flex items-center justify-center">
-              <span className="text-indigo-600 font-bold text-lg">N</span>
-            </div>
+            <img 
+              src="/nagarsewa.jpg" 
+              alt="NagarSewa Logo" 
+              className="w-10 h-10 rounded-lg object-cover shadow-sm bg-white p-0.5"
+            />
             {sidebarOpen && (
               <div>
                 <h1 className="font-bold text-white text-xl">{t.brand}</h1>
