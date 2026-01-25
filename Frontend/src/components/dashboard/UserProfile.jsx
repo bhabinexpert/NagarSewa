@@ -1,5 +1,6 @@
 import React, { useState, useRef } from "react";
 import { useLanguage } from "../../context/useLanguage";
+import { useAuth } from "../../context/useAuth";
 import {
   User,
   Mail,
@@ -102,11 +103,13 @@ const profileText = {
 
 const UserProfile = () => {
   const { language } = useLanguage();
+  const { verifyKyc, isKycVerified } = useAuth();
   const t = profileText[language];
 
   const [isEditing, setIsEditing] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [kycStatus, setKycStatus] = useState("notSubmitted"); // notSubmitted, pending, verified, rejected
+  // Use auth context for KYC status
+  const [kycStatus, setKycStatus] = useState(isKycVerified() ? "verified" : "notSubmitted");
 
   const [userData, setUserData] = useState({
     fullName: "Ram Bahadur Thapa",
@@ -178,8 +181,15 @@ const UserProfile = () => {
     setIsSubmitting(true);
     // Simulate API call
     await new Promise((resolve) => setTimeout(resolve, 2000));
+    
+    // For demo: directly verify KYC
+    const result = verifyKyc();
+    if (result.success) {
+      setKycStatus("verified");
+    } else {
+      setKycStatus("pending");
+    }
     setIsSubmitting(false);
-    setKycStatus("pending");
   };
 
   const getStatusColor = (status) => {
