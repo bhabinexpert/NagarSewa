@@ -7,8 +7,9 @@ import {
   EyeOff,
   AlertCircle,
 } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useLanguage } from "../context/useLanguage";
+import { useAuth } from "../context/useAuth";
 import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 
@@ -17,13 +18,13 @@ const loginText = {
     brand: "NagarSewa",
     subtitle: "Digital Public Service Platform",
     welcome: "Welcome Back",
-    subWelcome: "Sign in to access your citizen account",
+    subWelcome: "Log in to access your citizen account",
     email: "Email Address",
     password: "Password",
     emailPlaceholder: "example@gmail.com",
     passwordPlaceholder: "Enter your password",
-    signIn: "Sign In",
-    signingIn: "Signing In...",
+    signIn: "Log In",
+    signingIn: "Logging In...",
     noAccount: "Don't have an account?",
     createAccount: "Create Account",
     footerLinks: ["Services", "About", "Contact", "Privacy"],
@@ -35,27 +36,29 @@ const loginText = {
   np: {
     brand: "नगरसेवा",
     subtitle: "डिजिटल सार्वजनिक सेवा प्लेटफर्म",
-    welcome: "फिर्ता स्वागत छ",
+    welcome: "पुन: स्वागत छ",
     subWelcome: "नागरिक खातामा प्रवेश गर्न साइन इन गर्नुहोस्",
     email: "इमेल ठेगाना",
     password: "पासवर्ड",
     emailPlaceholder: "example@gmail.com",
     passwordPlaceholder: "आफ्नो पासवर्ड प्रविष्ट गर्नुहोस्",
-    signIn: "साइन इन",
-    signingIn: "साइन इन हुँदै...",
+    signIn: "लग इन",
+    signingIn: "लग इन हुँदै...",
     noAccount: "खाता छैन?",
     createAccount: "खाता बनाउनुहोस्",
     footerLinks: ["सेवाहरू", "बारेमा", "सम्पर्क", "गोपनीयता"],
     copyright: "© 2023 नगरसेवा - डिजिटल सार्वजनिक सेवा प्लेटफर्म",
     errorRequired: "कृपया सबै आवश्यक फिल्डहरू भर्नुहोस्",
-    success: "सफलतापूर्वक साइन इन! ड्यासबोर्डमा पुन: निर्देशित गर्दै...",
+    success: "सफलतापूर्वक लग इन! ड्यासबोर्डमा पुन: निर्देशित गर्दै...",
     toggleLabel: "English",
   },
 };
 
 const Login = () => {
   const { language, toggleLanguage } = useLanguage();
+  const { login } = useAuth();
   const t = loginText[language];
+  const navigate = useNavigate();
 
   // Form data state - stores email, password, and remember me checkbox
   const [formData, setFormData] = useState({
@@ -99,21 +102,27 @@ const Login = () => {
     
     setIsLoading(true);
     
-   
     setTimeout(() => {
-      console.log('Login successful:', formData.email);
-      toast.success(t.success, {
-        position: "top-right",
-        autoClose: 3000,
-      });
+      // Use auth context for login
+      const result = login(formData.email, formData.password);
       
-      // In real app, you would:
-      // 1. Send login request to backend
-      // 2. Store authentication token
-      // 3. Redirect to dashboard
+      if (result.success) {
+        console.log('Login successful:', formData.email, 'Role:', result.user.role);
+        toast.success(t.success, {
+          position: "top-right",
+          autoClose: 2000,
+        });
+        
+        // Redirect based on user role
+        setTimeout(() => {
+          navigate(result.redirectTo);
+        }, 1500);
+      } else {
+        setError(result.error || "Login failed");
+      }
       
       setIsLoading(false);
-    }, 1500);
+    }, 1000);
   };
 
 
@@ -243,6 +252,50 @@ const Login = () => {
                   t.signIn
                 )}
               </button>
+
+              {/* Demo Login Buttons */}
+              <div className="border-t border-gray-200 pt-3 mt-3">
+                <p className="text-xs text-gray-500 text-center mb-2">Quick Demo Login:</p>
+                <div className="flex flex-wrap gap-2 justify-center">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setFormData({ email: 'superadmin@damak.gov.np', password: 'superadmin123', rememberMe: false });
+                    }}
+                    className="px-3 py-1.5 text-xs bg-purple-100 text-purple-700 rounded-lg hover:bg-purple-200 transition"
+                  >
+                    Super Admin
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setFormData({ email: 'ward1@damak.gov.np', password: 'admin123', rememberMe: false });
+                    }}
+                    className="px-3 py-1.5 text-xs bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition"
+                  >
+                    Ward 1 Admin
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setFormData({ email: 'ward5@damak.gov.np', password: 'admin123', rememberMe: false });
+                    }}
+                    className="px-3 py-1.5 text-xs bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition"
+                  >
+                    Ward 5 Admin
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setFormData({ email: 'user@example.com', password: 'user123', rememberMe: false });
+                    }}
+                    className="px-3 py-1.5 text-xs bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition"
+                  >
+                    Regular User
+                  </button>
+                </div>
+              </div>
+
               {/* Create Account Link */}
               <div className="text-center pt-1">
                 <p className="text-gray-600 text-sm sm:text-base">
