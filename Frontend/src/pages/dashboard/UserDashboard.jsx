@@ -102,7 +102,7 @@ const UserDashboard = () => {
   const renderContent = () => {
     switch (activeTab) {
       case "report":
-        return <ReportIssue />;
+        return <ReportIssue onNavigate={setActiveTab} />;
       case "profile":
         return <UserProfile />;
       case "history":

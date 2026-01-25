@@ -31,11 +31,12 @@ import {
   ArrowDown,
   UserPlus,
 } from "lucide-react";
-import AdminIssueManagement from "../../components/dashboard/admin/AdminIssueManagement";
 import AdminUserManagement from "../../components/dashboard/admin/AdminUserManagement";
 import AdminNotificationBroadcast from "../../components/dashboard/admin/AdminNotificationBroadcast";
 import AdminAnalytics from "../../components/dashboard/admin/AdminAnalytics";
 import SuperAdminPanel from "../../components/dashboard/admin/SuperAdminPanel";
+import WardAdminIssues from "../../components/dashboard/admin/WardAdminIssues";
+import SuperAdminIssues from "../../components/dashboard/admin/SuperAdminIssues";
 import { Link, useNavigate } from "react-router-dom";
 
 const adminDashboardText = {
@@ -166,7 +167,7 @@ const AdminDashboard = () => {
       case "wardManagement":
         return isSuperAdmin() ? <SuperAdminPanel /> : renderDashboardHome();
       case "issues":
-        return <AdminIssueManagement wardFilter={wardFilter} isSuperAdmin={isSuperAdmin()} />;
+        return isSuperAdmin() ? <SuperAdminIssues /> : <WardAdminIssues />;
       case "users":
         return <AdminUserManagement wardFilter={wardFilter} isSuperAdmin={isSuperAdmin()} />;
       case "notifications":
