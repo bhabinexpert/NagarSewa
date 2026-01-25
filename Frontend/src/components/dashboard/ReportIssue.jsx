@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from "react";
 import { useLanguage } from "../../context/useLanguage";
+import { useAuth } from "../../context/useAuth";
 import {
   Camera,
   Image,
@@ -13,12 +14,17 @@ import {
   Loader,
   RotateCcw,
   ZoomIn,
+  ShieldAlert,
+  FileCheck,
 } from "lucide-react";
 
 const reportText = {
   en: {
     title: "Report an Issue",
     subtitle: "Help improve your community by reporting problems",
+    kycRequired: "KYC Verification Required",
+    kycMessage: "Please complete your KYC verification before reporting issues. This helps us maintain service quality.",
+    goToProfile: "Complete KYC Now",
     capturePhoto: "Capture Photo",
     uploadPhoto: "Upload from Gallery",
     recordVideo: "Record Video",
@@ -54,6 +60,9 @@ const reportText = {
   np: {
     title: "समस्या रिपोर्ट गर्नुहोस्",
     subtitle: "समस्याहरू रिपोर्ट गरेर आफ्नो समुदाय सुधार गर्न मद्दत गर्नुहोस्",
+    kycRequired: "KYC प्रमाणीकरण आवश्यक छ",
+    kycMessage: "कृपया समस्या रिपोर्ट गर्नु अघि आफ्नो KYC प्रमाणीकरण पूरा गर्नुहोस्। यसले सेवाको गुणस्तर कायम राख्न मद्दत गर्छ।",
+    goToProfile: "अहिले KYC पूरा गर्नुहोस्",
     capturePhoto: "फोटो खिच्नुहोस्",
     uploadPhoto: "ग्यालेरीबाट अपलोड गर्नुहोस्",
     recordVideo: "भिडियो रेकर्ड गर्नुहोस्",
@@ -88,9 +97,13 @@ const reportText = {
   },
 };
 
-const ReportIssue = () => {
+const ReportIssue = ({ onNavigate }) => {
   const { language } = useLanguage();
+  const { currentUser } = useAuth();
   const t = reportText[language];
+
+  // Check if user KYC is verified (default to false for demo)
+  const isKycVerified = currentUser?.kycVerified || false;
 
   const [formData, setFormData] = useState({
     issueType: "",
@@ -263,12 +276,30 @@ const ReportIssue = () => {
 
   return (
     <div className="max-w-2xl mx-auto">
-      <div className="bg-white rounded-2xl shadow-sm p-6 mb-6">
-        <h2 className="text-2xl font-bold text-gray-800 mb-2">{t.title}</h2>
-        <p className="text-gray-500">{t.subtitle}</p>
-      </div>
+      {/* KYC Verification Required */}
+      {!isKycVerified ? (
+        <div className="bg-white rounded-2xl shadow-sm p-8 text-center">
+          <div className="w-20 h-20 bg-amber-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <ShieldAlert className="text-amber-600" size={40} />
+          </div>
+          <h2 className="text-xl font-bold text-gray-800 mb-2">{t.kycRequired}</h2>
+          <p className="text-gray-500 mb-6 max-w-md mx-auto">{t.kycMessage}</p>
+          <button
+            onClick={() => onNavigate && onNavigate("profile")}
+            className="px-6 py-3 bg-indigo-600 text-white rounded-xl font-medium hover:bg-indigo-700 transition flex items-center gap-2 mx-auto"
+          >
+            <FileCheck size={18} />
+            {t.goToProfile}
+          </button>
+        </div>
+      ) : (
+        <>
+          <div className="bg-white rounded-2xl shadow-sm p-6 mb-6">
+            <h2 className="text-2xl font-bold text-gray-800 mb-2">{t.title}</h2>
+            <p className="text-gray-500">{t.subtitle}</p>
+          </div>
 
-      {/* Camera Modal */}
+          {/* Camera Modal */}
       {showCamera && (
         <div className="fixed inset-0 bg-black z-50 flex flex-col">
           <div className="flex items-center justify-between p-4 bg-black/50">
@@ -488,6 +519,8 @@ const ReportIssue = () => {
           )}
         </button>
       </form>
+        </>
+      )}
     </div>
   );
 };
