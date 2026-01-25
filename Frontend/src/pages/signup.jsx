@@ -94,6 +94,8 @@ const signupText = {
         "This feature is currently available only for Koshi Province. More provinces coming soon!",
       districtRestricted:
         "This feature is currently available only for Jhapa District. More districts coming soon!",
+      municipalityRestricted:
+        "This feature is currently available only for Damak Municipality. More municipalities coming soon!",
       locationDetected: "Location detected successfully!",
       locationError: "Could not detect your location. Please select manually.",
       locationPermissionDenied:
@@ -173,6 +175,8 @@ const signupText = {
         "यो सुविधा हाल कोशी प्रदेशको लागि मात्र उपलब्ध छ। थप प्रदेशहरू चाँडै आउँदैछन्!",
       districtRestricted:
         "यो सुविधा हाल झापा जिल्लाको लागि मात्र उपलब्ध छ। थप जिल्लाहरू चाँडै आउँदैछन्!",
+      municipalityRestricted:
+        "यो सुविधा हाल दमक नगरपालिकाको लागि मात्र उपलब्ध छ। थप नगरपालिकाहरू चाँडै आउँदैछन्!",
       locationDetected: "स्थान सफलतापूर्वक पत्ता लाग्यो!",
       locationError:
         "तपाईंको स्थान पत्ता लगाउन सकिएन। कृपया म्यानुअल रूपमा छान्नुहोस्।",
@@ -288,6 +292,7 @@ export default function Signup() {
   // Allowed province and district codes
   const ALLOWED_PROVINCE_CODE = "1"; // Koshi Province
   const ALLOWED_DISTRICT_CODE = "111"; // Jhapa District
+  const ALLOWED_MUNICIPALITY_CODE = "11103"; // Damak Municipality
 
   // Handle geolocation to auto-fill location fields
   const handleUseMyLocation = () => {
@@ -319,7 +324,7 @@ export default function Signup() {
           if (!response.ok) throw new Error("Geocoding failed");
 
           const data = await response.json();
-          const address = data.address || {};
+          const _address = data.address || {};
 
           // Check if user is in Jhapa District area (approximate bounds)
           // Jhapa District approximate bounds: lat 26.3-26.9, lon 87.6-88.2
@@ -339,43 +344,13 @@ export default function Signup() {
             return;
           }
 
-          // Get Jhapa district municipalities
-          const jhapaMunicipalities = getMunicipalities(ALLOWED_DISTRICT_CODE);
-
-          // Try to find matching municipality from address
-          const locationName =
-            address.city ||
-            address.town ||
-            address.village ||
-            address.suburb ||
-            address.county ||
-            "";
-
-          // Find best matching municipality
-          let matchedMunicipality = null;
-          if (locationName) {
-            const locationLower = locationName.toLowerCase();
-            matchedMunicipality = jhapaMunicipalities.find(
-              (m) =>
-                m.name.toLowerCase().includes(locationLower) ||
-                locationLower.includes(m.name.toLowerCase().split(" ")[0]),
-            );
-          }
-
-          // If no direct match, try to find by proximity or default to first option
-          if (!matchedMunicipality && jhapaMunicipalities.length > 0) {
-            // For now, let user select municipality manually but set province and district
-            matchedMunicipality = null;
-          }
-
+          // Auto-fill with Damak Municipality (the only allowed municipality)
           // Auto-fill the location fields
           setFormData((prev) => ({
             ...prev,
             province: ALLOWED_PROVINCE_CODE,
             district: ALLOWED_DISTRICT_CODE,
-            municipality: matchedMunicipality
-              ? String(matchedMunicipality.id)
-              : "",
+            municipality: ALLOWED_MUNICIPALITY_CODE,
             wardNumber: "",
           }));
 
@@ -386,12 +361,12 @@ export default function Signup() {
           });
         } catch (error) {
           console.error("Geocoding error:", error);
-          // Even if geocoding fails, set province and district since we're targeting Jhapa
+          // Even if geocoding fails, set province, district, and municipality since we're targeting Damak
           setFormData((prev) => ({
             ...prev,
             province: ALLOWED_PROVINCE_CODE,
             district: ALLOWED_DISTRICT_CODE,
-            municipality: "",
+            municipality: ALLOWED_MUNICIPALITY_CODE,
             wardNumber: "",
           }));
           toast.info(t.alerts.locationDetected, {
@@ -485,8 +460,23 @@ export default function Signup() {
       return;
     }
 
-    // When municipality changes, reset ward
+    // When municipality changes, reset ward and check if allowed
     if (name === "municipality") {
+      // Check if selected municipality is allowed (Damak = 11103)
+      if (value && value !== ALLOWED_MUNICIPALITY_CODE) {
+        toast.warning(t.alerts.municipalityRestricted, {
+          position: "top-right",
+          autoClose: 4000,
+          icon: "🚧",
+        });
+        // Reset municipality selection
+        setFormData((prev) => ({
+          ...prev,
+          municipality: "",
+          wardNumber: "",
+        }));
+        return;
+      }
       setFormData((prev) => ({
         ...prev,
         municipality: value,
