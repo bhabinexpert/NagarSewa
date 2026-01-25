@@ -32,6 +32,7 @@ const loginText = {
     errorRequired: "Please fill in all required fields",
     success: "Login successful! Redirecting to dashboard...",
     toggleLabel: "नेपाली",
+    accountDisabled: "Your account has been disabled. Please contact the administrator.",
   },
   np: {
     brand: "नगरसेवा",
@@ -51,6 +52,7 @@ const loginText = {
     errorRequired: "कृपया सबै आवश्यक फिल्डहरू भर्नुहोस्",
     success: "सफलतापूर्वक लग इन! ड्यासबोर्डमा पुन: निर्देशित गर्दै...",
     toggleLabel: "English",
+    accountDisabled: "तपाईंको खाता अक्षम गरिएको छ। कृपया प्रशासकलाई सम्पर्क गर्नुहोस्।",
   },
 };
 
@@ -118,7 +120,16 @@ const Login = () => {
           navigate(result.redirectTo);
         }, 1500);
       } else {
-        setError(result.error || "Login failed");
+        // Show specific error for disabled accounts
+        if (result.isDisabled) {
+          setError(t.accountDisabled);
+          toast.error(t.accountDisabled, {
+            position: "top-right",
+            autoClose: 5000,
+          });
+        } else {
+          setError(result.error || "Login failed");
+        }
       }
       
       setIsLoading(false);
