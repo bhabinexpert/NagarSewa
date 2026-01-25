@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { useLanguage } from "../../../context/useLanguage";
+import { useAuth } from "../../../context/useAuth";
 import {
   Search,
   Filter,
@@ -21,6 +22,8 @@ import {
   X,
   Download,
   Loader,
+  Ban,
+  RotateCcw,
 } from "lucide-react";
 
 const userManagementText = {
@@ -56,6 +59,14 @@ const userManagementText = {
     pendingLabel: "Pending",
     rejectedLabel: "Rejected",
     notSubmitted: "Not Submitted",
+    disableUser: "Disable Account",
+    enableUser: "Enable Account",
+    disabled: "Disabled",
+    disabledUsers: "Disabled",
+    disableConfirm: "Are you sure you want to disable this user account?",
+    enableConfirm: "Are you sure you want to enable this user account?",
+    disableSuccess: "User account has been disabled",
+    enableSuccess: "User account has been enabled",
   },
   np: {
     title: "प्रयोगकर्ता व्यवस्थापन",
@@ -89,6 +100,14 @@ const userManagementText = {
     pendingLabel: "पेन्डिङ",
     rejectedLabel: "अस्वीकृत",
     notSubmitted: "पेश गरिएको छैन",
+    disableUser: "खाता अक्षम गर्नुहोस्",
+    enableUser: "खाता सक्रिय गर्नुहोस्",
+    disabled: "अक्षम",
+    disabledUsers: "अक्षम",
+    disableConfirm: "के तपाईं यो प्रयोगकर्ता खाता अक्षम गर्न चाहनुहुन्छ?",
+    enableConfirm: "के तपाईं यो प्रयोगकर्ता खाता सक्रिय गर्न चाहनुहुन्छ?",
+    disableSuccess: "प्रयोगकर्ता खाता अक्षम गरिएको छ",
+    enableSuccess: "प्रयोगकर्ता खाता सक्रिय गरिएको छ",
   },
 };
 
@@ -105,6 +124,7 @@ const mockUsers = [
     joinedOn: "2024-01-10",
     kycStatus: "pending",
     totalIssues: 5,
+    isDisabled: false,
     citizenshipFront: "/placeholder-id-front.jpg",
     citizenshipBack: "/placeholder-id-back.jpg",
   },
@@ -119,6 +139,7 @@ const mockUsers = [
     joinedOn: "2024-01-05",
     kycStatus: "verified",
     totalIssues: 8,
+    isDisabled: false,
     citizenshipFront: "/placeholder-id-front.jpg",
     citizenshipBack: "/placeholder-id-back.jpg",
   },
@@ -133,6 +154,7 @@ const mockUsers = [
     joinedOn: "2024-01-15",
     kycStatus: "pending",
     totalIssues: 3,
+    isDisabled: false,
     citizenshipFront: "/placeholder-id-front.jpg",
     citizenshipBack: "/placeholder-id-back.jpg",
   },
@@ -147,6 +169,7 @@ const mockUsers = [
     joinedOn: "2024-01-08",
     kycStatus: "rejected",
     totalIssues: 2,
+    isDisabled: false,
     rejectionReason: "Blurry citizenship image. Please resubmit.",
   },
   {
@@ -160,11 +183,28 @@ const mockUsers = [
     joinedOn: "2024-01-20",
     kycStatus: "notSubmitted",
     totalIssues: 1,
+    isDisabled: false,
+  },
+  {
+    id: 6,
+    name: "Krishna Karki",
+    email: "krishna.karki@example.com",
+    phone: "+977 9891234567",
+    address: "Biratnagar, Ward 2",
+    dob: "1991-04-22",
+    gender: "Male",
+    joinedOn: "2024-01-02",
+    kycStatus: "verified",
+    totalIssues: 4,
+    isDisabled: true,
+    disabledAt: "2024-02-15",
+    disabledReason: "Violation of community guidelines",
   },
 ];
 
 const AdminUserManagement = () => {
   const { language } = useLanguage();
+  const { disableUser, enableUser } = useAuth();
   const t = userManagementText[language];
 
   const [users, setUsers] = useState(mockUsers);
@@ -174,7 +214,10 @@ const AdminUserManagement = () => {
   const [selectedUser, setSelectedUser] = useState(null);
   const [showKycModal, setShowKycModal] = useState(false);
   const [showRejectModal, setShowRejectModal] = useState(false);
+  const [showDisableModal, setShowDisableModal] = useState(false);
+  const [showEnableModal, setShowEnableModal] = useState(false);
   const [rejectionReason, setRejectionReason] = useState("");
+  const [disableReason, setDisableReason] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
 
   const getKycStatusStyle = (status) => {
@@ -192,10 +235,11 @@ const AdminUserManagement = () => {
 
   const filteredUsers = users
     .filter((user) => {
-      if (filter === "all") return true;
-      if (filter === "verified") return user.kycStatus === "verified";
-      if (filter === "pending") return user.kycStatus === "pending";
-      if (filter === "rejected") return user.kycStatus === "rejected";
+      if (filter === "all") return !user.isDisabled;
+      if (filter === "verified") return user.kycStatus === "verified" && !user.isDisabled;
+      if (filter === "pending") return user.kycStatus === "pending" && !user.isDisabled;
+      if (filter === "rejected") return user.kycStatus === "rejected" && !user.isDisabled;
+      if (filter === "disabled") return user.isDisabled === true;
       return true;
     })
     .filter((user) => {
@@ -233,11 +277,67 @@ const AdminUserManagement = () => {
     setSelectedUser(null);
   };
 
+  const handleDisableUser = async (userId) => {
+    const user = users.find(u => u.id === userId);
+    if (!user) return;
+    
+    setIsProcessing(true);
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+    
+    // Update local state
+    setUsers(users.map((u) => 
+      u.id === userId 
+        ? { 
+            ...u, 
+            isDisabled: true, 
+            disabledAt: new Date().toISOString().split('T')[0],
+            disabledReason: disableReason || "Account disabled by administrator"
+          } 
+        : u
+    ));
+    
+    // Also add to AuthContext disabled list (for login blocking)
+    disableUser(user.email, disableReason || "Account disabled by administrator");
+    
+    setIsProcessing(false);
+    setShowDisableModal(false);
+    setDisableReason("");
+    setSelectedUser(null);
+  };
+
+  const handleEnableUser = async (userId) => {
+    const user = users.find(u => u.id === userId);
+    if (!user) return;
+    
+    setIsProcessing(true);
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+    
+    // Update local state
+    setUsers(users.map((u) => 
+      u.id === userId 
+        ? { 
+            ...u, 
+            isDisabled: false, 
+            disabledAt: null,
+            disabledReason: null
+          } 
+        : u
+    ));
+    
+    // Also remove from AuthContext disabled list
+    enableUser(user.email);
+    
+    setIsProcessing(false);
+    setShowEnableModal(false);
+    setSelectedUser(null);
+  };
+
   const filterTabs = [
-    { id: "all", label: t.all, count: users.length },
-    { id: "verified", label: t.verified, count: users.filter((u) => u.kycStatus === "verified").length },
-    { id: "pending", label: t.pendingKyc, count: users.filter((u) => u.kycStatus === "pending").length },
-    { id: "rejected", label: t.rejected, count: users.filter((u) => u.kycStatus === "rejected").length },
+    { id: "all", label: t.all, count: users.filter((u) => !u.isDisabled).length },
+    { id: "verified", label: t.verified, count: users.filter((u) => u.kycStatus === "verified" && !u.isDisabled).length },
+    { id: "pending", label: t.pendingKyc, count: users.filter((u) => u.kycStatus === "pending" && !u.isDisabled).length },
+    { id: "rejected", label: t.rejected, count: users.filter((u) => u.kycStatus === "rejected" && !u.isDisabled).length },
+    { id: "disabled", label: t.disabledUsers, count: users.filter((u) => u.isDisabled === true).length },
   ];
 
   return (
@@ -325,6 +425,12 @@ const AdminUserManagement = () => {
                             {kycStyle.icon}
                             {kycStyle.label}
                           </span>
+                          {user.isDisabled && (
+                            <span className="px-2 py-0.5 rounded-full text-xs font-medium flex items-center gap-1 bg-red-100 text-red-700">
+                              <Ban size={12} />
+                              {t.disabled}
+                            </span>
+                          )}
                         </div>
                         <div className="flex flex-wrap items-center gap-4 text-sm text-gray-500">
                           <span className="flex items-center gap-1">
@@ -411,31 +517,74 @@ const AdminUserManagement = () => {
                       </div>
                     )}
 
-                    {/* Action Buttons */}
-                    {user.kycStatus === "pending" && (
-                      <div className="mt-4 flex gap-3">
-                        <button
-                          onClick={() => {
-                            setSelectedUser(user.id);
-                            setShowKycModal(true);
-                          }}
-                          className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition flex items-center gap-2"
-                        >
-                          <UserCheck size={16} />
-                          {t.approveKyc}
-                        </button>
-                        <button
-                          onClick={() => {
-                            setSelectedUser(user.id);
-                            setShowRejectModal(true);
-                          }}
-                          className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition flex items-center gap-2"
-                        >
-                          <UserX size={16} />
-                          {t.rejectKyc}
-                        </button>
+                    {/* Disabled Reason */}
+                    {user.isDisabled && user.disabledReason && (
+                      <div className="mt-4 bg-gray-100 rounded-xl p-3">
+                        <p className="text-sm font-medium text-gray-700 mb-1">
+                          {language === "en" ? "Disabled Reason" : "अक्षम कारण"}
+                        </p>
+                        <p className="text-sm text-gray-600">{user.disabledReason}</p>
+                        {user.disabledAt && (
+                          <p className="text-xs text-gray-500 mt-1">
+                            {language === "en" ? "Disabled on" : "अक्षम मिति"}: {user.disabledAt}
+                          </p>
+                        )}
                       </div>
                     )}
+
+                    {/* Action Buttons */}
+                    <div className="mt-4 flex flex-wrap gap-3">
+                      {/* KYC Actions */}
+                      {user.kycStatus === "pending" && !user.isDisabled && (
+                        <>
+                          <button
+                            onClick={() => {
+                              setSelectedUser(user.id);
+                              setShowKycModal(true);
+                            }}
+                            className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition flex items-center gap-2"
+                          >
+                            <UserCheck size={16} />
+                            {t.approveKyc}
+                          </button>
+                          <button
+                            onClick={() => {
+                              setSelectedUser(user.id);
+                              setShowRejectModal(true);
+                            }}
+                            className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition flex items-center gap-2"
+                          >
+                            <UserX size={16} />
+                            {t.rejectKyc}
+                          </button>
+                        </>
+                      )}
+
+                      {/* Disable/Enable Actions */}
+                      {user.isDisabled ? (
+                        <button
+                          onClick={() => {
+                            setSelectedUser(user.id);
+                            setShowEnableModal(true);
+                          }}
+                          className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition flex items-center gap-2"
+                        >
+                          <RotateCcw size={16} />
+                          {t.enableUser}
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => {
+                            setSelectedUser(user.id);
+                            setShowDisableModal(true);
+                          }}
+                          className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition flex items-center gap-2"
+                        >
+                          <Ban size={16} />
+                          {t.disableUser}
+                        </button>
+                      )}
+                    </div>
                   </div>
                 )}
               </div>
@@ -510,6 +659,84 @@ const AdminUserManagement = () => {
                 className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 flex items-center justify-center gap-2"
               >
                 {isProcessing ? <Loader className="animate-spin" size={16} /> : <XCircle size={16} />}
+                {t.confirm}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Disable User Modal */}
+      {showDisableModal && selectedUser && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-gray-800">{t.disableUser}</h3>
+              <button onClick={() => setShowDisableModal(false)} className="p-2 hover:bg-gray-100 rounded-lg">
+                <X size={20} />
+              </button>
+            </div>
+            <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <Ban className="text-red-600" size={32} />
+            </div>
+            <p className="text-gray-500 text-center mb-4">{t.disableConfirm}</p>
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                {language === "en" ? "Reason (optional)" : "कारण (ऐच्छिक)"}
+              </label>
+              <textarea
+                value={disableReason}
+                onChange={(e) => setDisableReason(e.target.value)}
+                placeholder={language === "en" ? "Enter reason for disabling..." : "अक्षम गर्ने कारण लेख्नुहोस्..."}
+                rows={2}
+                className="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-red-500"
+              />
+            </div>
+            <div className="flex gap-3">
+              <button
+                onClick={() => {
+                  setShowDisableModal(false);
+                  setDisableReason("");
+                }}
+                className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
+              >
+                {t.cancel}
+              </button>
+              <button
+                onClick={() => handleDisableUser(selectedUser)}
+                disabled={isProcessing}
+                className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 flex items-center justify-center gap-2"
+              >
+                {isProcessing ? <Loader className="animate-spin" size={16} /> : <Ban size={16} />}
+                {t.confirm}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Enable User Modal */}
+      {showEnableModal && selectedUser && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 text-center">
+            <div className="w-16 h-16 bg-indigo-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <RotateCcw className="text-indigo-600" size={32} />
+            </div>
+            <h3 className="text-lg font-semibold text-gray-800 mb-2">{t.enableUser}</h3>
+            <p className="text-gray-500 mb-6">{t.enableConfirm}</p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowEnableModal(false)}
+                className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
+              >
+                {t.cancel}
+              </button>
+              <button
+                onClick={() => handleEnableUser(selectedUser)}
+                disabled={isProcessing}
+                className="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 flex items-center justify-center gap-2"
+              >
+                {isProcessing ? <Loader className="animate-spin" size={16} /> : <CheckCircle size={16} />}
                 {t.confirm}
               </button>
             </div>
