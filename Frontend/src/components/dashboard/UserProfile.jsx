@@ -1,6 +1,44 @@
+/**
+ * UserProfile Component
+ * 
+ * Displays and manages user profile information and KYC verification.
+ * Allows editing personal info and uploading citizenship documents.
+ * 
+ * @component
+ * 
+ * BACKEND INTEGRATION:
+ * - GET /api/users/:id - Fetch user profile
+ * - PATCH /api/users/:id - Update user profile
+ * - PATCH /api/users/:id/kyc - Submit KYC documents
+ * 
+ * KYC DOCUMENT UPLOAD:
+ * FormData with: citizenshipFront (File), citizenshipBack (File)
+ * 
+ * RESPONSE FORMAT:
+ * {
+ *   success: true,
+ *   data: {
+ *     id: string,
+ *     fullName: string,
+ *     email: string,
+ *     phone: string,
+ *     address: string,
+ *     dob: string,
+ *     gender: 'male' | 'female' | 'other',
+ *     ward: string,
+ *     municipality: string,
+ *     province: string,
+ *     profilePhoto: string (URL),
+ *     kycStatus: 'notSubmitted' | 'pending' | 'verified' | 'rejected'
+ *   }
+ * }
+ */
+
 import React, { useState, useRef } from "react";
 import { useLanguage } from "../../context/useLanguage";
 import { useAuth } from "../../context/useAuth";
+import { useUser } from "../../hooks/useData";
+import { usersAPI } from "../../services/api";
 import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import {
@@ -17,10 +55,12 @@ import {
   Edit,
   Save,
   X,
-  FileText,
-  Eye,
   Loader,
 } from "lucide-react";
+
+// ============================================================================
+// TRANSLATIONS
+// ============================================================================
 
 const profileText = {
   en: {
@@ -58,9 +98,14 @@ const profileText = {
     kycPendingMsg: "Your documents are being reviewed. This usually takes 24-48 hours.",
     kycVerifiedMsg: "Your identity has been verified. You have full access to all features.",
     kycRejectedMsg: "Your documents were rejected. Please resubmit with clear images.",
-    photoId: "Photo ID",
     uploadPhoto: "Upload Photo",
     changePhoto: "Change Photo",
+    loading: "Loading profile...",
+    error: "Failed to load profile",
+    retry: "Retry",
+    saveSuccess: "Profile updated successfully!",
+    saveError: "Failed to update profile",
+    uploadBothSides: "Please upload both sides of citizenship",
   },
   np: {
     title: "प्रोफाइल र KYC प्रमाणीकरण",
@@ -97,365 +142,721 @@ const profileText = {
     kycPendingMsg: "तपाईंको कागजातहरू समीक्षा भइरहेको छ। यो सामान्यतया 24-48 घण्टा लाग्छ।",
     kycVerifiedMsg: "तपाईंको पहिचान प्रमाणित भएको छ। तपाईंसँग सबै सुविधाहरूमा पूर्ण पहुँच छ।",
     kycRejectedMsg: "तपाईंको कागजातहरू अस्वीकार गरियो। कृपया स्पष्ट छविहरूसहित पुन: पेश गर्नुहोस्।",
-    photoId: "फोटो ID",
     uploadPhoto: "फोटो अपलोड गर्नुहोस्",
     changePhoto: "फोटो परिवर्तन गर्नुहोस्",
+    loading: "प्रोफाइल लोड हुँदैछ...",
+    error: "प्रोफाइल लोड गर्न असफल",
+    retry: "पुन: प्रयास",
+    saveSuccess: "प्रोफाइल सफलतापूर्वक अद्यावधिक भयो!",
+    saveError: "प्रोफाइल अद्यावधिक गर्न असफल",
+    uploadBothSides: "कृपया नागरिकताको दुवै पक्ष अपलोड गर्नुहोस्",
   },
 };
 
-const UserProfile = () => {
-  const { language } = useLanguage();
-  const { verifyKyc, isKycVerified } = useAuth();
+// ============================================================================
+// HELPER FUNCTIONS
+// ============================================================================
+
+/**
+ * Get styling for KYC verification status badge.
+ * 
+ * Returns color classes, icon component, label text, and status message
+ * based on the current KYC verification status.
+ * 
+ * @param {string} status - Current KYC status ('verified', 'pending', 'rejected', 'notSubmitted')
+ * @param {Object} t - Translation object
+ * @returns {Object} Style configuration with color, icon, label, and message
+ */
+function getStatusStyle(status, t) {
+  // Define all possible status styles
+  if (status === "verified") {
+    return {
+      color: "text-green-600 bg-green-100",
+      icon: CheckCircle,
+      label: t.verified,
+      message: t.kycVerifiedMsg
+    };
+  } else if (status === "pending") {
+    return {
+      color: "text-yellow-600 bg-yellow-100",
+      icon: Loader,
+      label: t.pending,
+      message: t.kycPendingMsg
+    };
+  } else if (status === "rejected") {
+    return {
+      color: "text-red-600 bg-red-100",
+      icon: X,
+      label: t.rejected,
+      message: t.kycRejectedMsg
+    };
+  } else {
+    // Default: not submitted
+    return {
+      color: "text-gray-600 bg-gray-100",
+      icon: AlertCircle,
+      label: t.notSubmitted,
+      message: ""
+    };
+  }
+}
+
+// ============================================================================
+// SUB-COMPONENTS
+// ============================================================================
+
+/**
+ * ProfilePhoto Component
+ * 
+ * Displays user's profile photo with upload functionality.
+ * Shows a camera icon button when in editing mode.
+ * 
+ * @param {Object} props - Component properties
+ * @param {string} props.photo - URL of the profile photo
+ * @param {boolean} props.isEditing - Whether profile is in edit mode
+ * @param {Function} props.onUpload - Function to handle photo upload
+ * @param {Object} props.t - Translation object
+ */
+function ProfilePhoto(props) {
+  const photo = props.photo;
+  const isEditing = props.isEditing;
+  const onUpload = props.onUpload;
+  const t = props.t;
+  
+  // Reference to hidden file input
+  const photoRef = useRef(null);
+  
+  /**
+   * Open file picker when camera button is clicked.
+   */
+  function handleButtonClick() {
+    if (photoRef.current) {
+      photoRef.current.click();
+    }
+  }
+
+  // Determine what to show inside the photo circle
+  let photoContent;
+  if (photo) {
+    photoContent = <img src={photo} alt="Profile" className="w-full h-full object-cover" />;
+  } else {
+    photoContent = <User className="text-emerald-600" size={48} />;
+  }
+
+  // Determine button text for upload link
+  let uploadText;
+  if (photo) {
+    uploadText = t.changePhoto;
+  } else {
+    uploadText = t.uploadPhoto;
+  }
+
+  return (
+    <div className="flex flex-col items-center">
+      <div className="relative">
+        {/* Photo Circle */}
+        <div className="w-32 h-32 rounded-full bg-emerald-100 flex items-center justify-center overflow-hidden">
+          {photoContent}
+        </div>
+        
+        {/* Camera Button - Only visible when editing */}
+        {isEditing && (
+          <button 
+            onClick={handleButtonClick} 
+            className="absolute bottom-0 right-0 p-2 bg-emerald-600 text-white rounded-full hover:bg-emerald-700 transition"
+          >
+            <Camera size={16} />
+          </button>
+        )}
+        
+        {/* Hidden File Input */}
+        <input 
+          ref={photoRef} 
+          type="file" 
+          accept="image/*" 
+          className="hidden" 
+          onChange={onUpload} 
+        />
+      </div>
+      
+      {/* Upload Link - Only visible when editing */}
+      {isEditing && (
+        <button 
+          onClick={handleButtonClick} 
+          className="mt-3 text-sm text-emerald-600 hover:underline"
+        >
+          {uploadText}
+        </button>
+      )}
+    </div>
+  );
+}
+
+/**
+ * KYCUploadBox Component
+ * 
+ * A clickable upload box for KYC citizenship documents.
+ * Shows uploaded image preview or upload prompt.
+ * 
+ * @param {Object} props - Component properties
+ * @param {string} props.label - Label text for the upload box
+ * @param {string} props.document - Base64 or URL of uploaded document image
+ * @param {Function} props.onUpload - Function to handle file selection
+ * @param {Object} props.inputRef - React ref for the hidden file input
+ */
+function KYCUploadBox(props) {
+  const label = props.label;
+  const document = props.document;
+  const onUpload = props.onUpload;
+  const inputRef = props.inputRef;
+  
+  /**
+   * Open file picker when box is clicked.
+   */
+  function handleBoxClick() {
+    if (inputRef.current) {
+      inputRef.current.click();
+    }
+  }
+  
+  // Determine what to display inside the box
+  let boxContent;
+  if (document) {
+    // Show uploaded document preview
+    boxContent = (
+      <img src={document} alt={label} className="w-full h-32 object-cover rounded-lg" />
+    );
+  } else {
+    // Show upload prompt
+    boxContent = (
+      <>
+        <Upload className="mx-auto text-gray-400 mb-2" size={32} />
+        <p className="text-sm font-medium text-gray-700">{label}</p>
+      </>
+    );
+  }
+  
+  return (
+    <div 
+      className="border-2 border-dashed border-gray-300 rounded-xl p-6 text-center hover:border-emerald-400 transition cursor-pointer" 
+      onClick={handleBoxClick}
+    >
+      {boxContent}
+      
+      {/* Hidden File Input */}
+      <input 
+        ref={inputRef} 
+        type="file" 
+        accept="image/*,.pdf" 
+        className="hidden" 
+        onChange={onUpload} 
+      />
+    </div>
+  );
+}
+
+/**
+ * LoadingState Component
+ * 
+ * Displays a loading spinner while profile data is being fetched.
+ * 
+ * @param {Object} props - Component properties
+ * @param {Object} props.t - Translation object
+ */
+function LoadingState(props) {
+  const t = props.t;
+  
+  return (
+    <div className="bg-white rounded-2xl shadow-sm p-12 text-center">
+      <Loader className="mx-auto text-emerald-500 animate-spin mb-4" size={48} />
+      <p className="text-gray-500">{t.loading}</p>
+    </div>
+  );
+}
+
+// ============================================================================
+// MAIN COMPONENT
+// ============================================================================
+
+/**
+ * UserProfile Component
+ * 
+ * Main component for displaying and managing user profile information.
+ * Handles personal info editing and KYC document submission.
+ * 
+ * Features:
+ * - View and edit personal information
+ * - Upload profile photo
+ * - Submit KYC documents (citizenship front and back)
+ * - View KYC verification status
+ */
+function UserProfile() {
+  // Get language and auth context
+  const languageContext = useLanguage();
+  const language = languageContext.language;
+  const authContext = useAuth();
+  const currentUser = authContext.currentUser;
+  const verifyKyc = authContext.verifyKyc;
+  const isKycVerified = authContext.isKycVerified;
   const t = profileText[language];
 
+  // Fetch user data from backend
+  // Backend: GET /api/users/:id
+  let userId = null;
+  if (currentUser) {
+    userId = currentUser.id;
+  }
+  const userData = useUser(userId);
+  const user = userData.user;
+  const loading = userData.loading;
+  const error = userData.error;
+  const refetch = userData.refetch;
+
+  // ----------------------------------------
+  // STATE MANAGEMENT
+  // ----------------------------------------
+  
+  // Whether profile is in edit mode
   const [isEditing, setIsEditing] = useState(false);
+  
+  // Whether a save/submit operation is in progress
   const [isSubmitting, setIsSubmitting] = useState(false);
-  // Use auth context for KYC status
-  const [kycStatus, setKycStatus] = useState(isKycVerified() ? "verified" : "notSubmitted");
-
-  const [userData, setUserData] = useState({
-    fullName: "Ram Bahadur Thapa",
-    email: "ram.bahadur@example.com",
-    phone: "+977 9841234567",
-    address: "Thamel, Kathmandu",
-    dob: "1990-05-15",
-    gender: "male",
-    ward: "5",
-    municipality: "Kathmandu Metropolitan City",
-    province: "Bagmati",
-    profilePhoto: null,
-  });
-
+  
+  // Temporary storage for edited profile data
+  const [editData, setEditData] = useState({});
+  
+  // Preview URLs for KYC document images
   const [kycDocuments, setKycDocuments] = useState({
     citizenshipFront: null,
-    citizenshipBack: null,
+    citizenshipBack: null
+  });
+  
+  // Actual file objects for KYC upload
+  const [kycFiles, setKycFiles] = useState({
+    citizenshipFront: null,
+    citizenshipBack: null
   });
 
-  const [editData, setEditData] = useState({ ...userData });
-
-  const profilePhotoRef = useRef(null);
+  // References for file inputs
   const citizenshipFrontRef = useRef(null);
   const citizenshipBackRef = useRef(null);
 
-  const handleEdit = () => {
-    setEditData({ ...userData });
+  // ----------------------------------------
+  // EFFECTS
+  // ----------------------------------------
+  
+  /**
+   * Effect: Sync editData with user data when user changes.
+   * This ensures editData has the latest user info.
+   */
+  React.useEffect(function syncEditData() {
+    if (user) {
+      setEditData(user);
+    }
+  }, [user]);
+
+  // ----------------------------------------
+  // PROFILE EDITING HANDLERS
+  // ----------------------------------------
+
+  /**
+   * Start editing mode.
+   * Copies current user data to editData for modification.
+   */
+  function handleEdit() {
+    // Create a copy of user data for editing
+    const userCopy = {};
+    if (user) {
+      userCopy.fullName = user.fullName;
+      userCopy.email = user.email;
+      userCopy.phone = user.phone;
+      userCopy.address = user.address;
+      userCopy.dob = user.dob;
+      userCopy.profilePhoto = user.profilePhoto;
+    }
+    setEditData(userCopy);
     setIsEditing(true);
-  };
+  }
 
-  const handleSave = () => {
-    setUserData({ ...editData });
+  /**
+   * Cancel editing mode.
+   * Reverts editData back to original user data.
+   */
+  function handleCancel() {
+    // Restore original user data
+    const userCopy = {};
+    if (user) {
+      userCopy.fullName = user.fullName;
+      userCopy.email = user.email;
+      userCopy.phone = user.phone;
+      userCopy.address = user.address;
+      userCopy.dob = user.dob;
+      userCopy.profilePhoto = user.profilePhoto;
+    }
+    setEditData(userCopy);
     setIsEditing(false);
-  };
+  }
 
-  const handleCancel = () => {
-    setEditData({ ...userData });
-    setIsEditing(false);
-  };
+  /**
+   * Save profile changes to backend.
+   * Backend: PATCH /api/users/:id
+   */
+  async function handleSave() {
+    setIsSubmitting(true);
+    
+    try {
+      // Send update request to backend
+      await usersAPI.updateProfile(userId, editData);
+      
+      // Show success message
+      toast.success(t.saveSuccess, { position: "top-right", autoClose: 3000 });
+      
+      // Exit editing mode and refresh data
+      setIsEditing(false);
+      refetch();
+      
+    } catch (error) {
+      // Show error message
+      toast.error(t.saveError, { position: "top-right", autoClose: 3000 });
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
 
-  const handleProfilePhotoUpload = (e) => {
+  /**
+   * Handle profile photo file selection.
+   * Reads the file and updates editData with base64 preview.
+   * 
+   * @param {Event} e - File input change event
+   */
+  function handleProfilePhotoUpload(e) {
     const file = e.target.files[0];
+    
     if (file) {
+      // Create a FileReader to convert file to base64
       const reader = new FileReader();
-      reader.onloadend = () => {
-        setEditData({ ...editData, profilePhoto: reader.result });
+      
+      // When file is loaded, update editData
+      reader.onloadend = function() {
+        const newEditData = {};
+        newEditData.fullName = editData.fullName;
+        newEditData.email = editData.email;
+        newEditData.phone = editData.phone;
+        newEditData.address = editData.address;
+        newEditData.dob = editData.dob;
+        newEditData.profilePhoto = reader.result;
+        setEditData(newEditData);
+      };
+      
+      // Read file as base64 data URL
+      reader.readAsDataURL(file);
+    }
+  }
+
+  /**
+   * Handle KYC document file selection.
+   * Stores both the file and a preview URL.
+   * 
+   * @param {string} field - Which document ('citizenshipFront' or 'citizenshipBack')
+   * @param {Event} e - File input change event
+   */
+  function handleKycUpload(field, e) {
+    const file = e.target.files[0];
+    
+    if (file) {
+      // Store the actual file for upload
+      const newKycFiles = {
+        citizenshipFront: kycFiles.citizenshipFront,
+        citizenshipBack: kycFiles.citizenshipBack
+      };
+      newKycFiles[field] = file;
+      setKycFiles(newKycFiles);
+      
+      // Create preview URL
+      const reader = new FileReader();
+      reader.onloadend = function() {
+        const newKycDocuments = {
+          citizenshipFront: kycDocuments.citizenshipFront,
+          citizenshipBack: kycDocuments.citizenshipBack
+        };
+        newKycDocuments[field] = reader.result;
+        setKycDocuments(newKycDocuments);
       };
       reader.readAsDataURL(file);
     }
-  };
+  }
 
-  const handleKycUpload = (field, e) => {
-    const file = e.target.files[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setKycDocuments({ ...kycDocuments, [field]: reader.result });
-      };
-      reader.readAsDataURL(file);
-    }
-  };
-
-  const handleSubmitKyc = async () => {
-    if (!kycDocuments.citizenshipFront || !kycDocuments.citizenshipBack) {
-      toast.warning(language === "en" ? "Please upload both sides of citizenship" : "कृपया नागरिकताको दुवै पक्ष अपलोड गर्नुहोस्", { position: "top-right", autoClose: 3000 });
+  /**
+   * Submit KYC documents to backend for verification.
+   * Backend: PATCH /api/users/:id/kyc
+   */
+  async function handleSubmitKyc() {
+    // Validate that both documents are uploaded
+    if (!kycFiles.citizenshipFront || !kycFiles.citizenshipBack) {
+      toast.warning(t.uploadBothSides, { position: "top-right", autoClose: 3000 });
       return;
     }
 
     setIsSubmitting(true);
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 2000));
     
-    // For demo: directly verify KYC
-    const result = verifyKyc();
-    if (result.success) {
-      setKycStatus("verified");
-    } else {
-      setKycStatus("pending");
+    try {
+      // Build FormData with both document files
+      const formData = new FormData();
+      formData.append("citizenshipFront", kycFiles.citizenshipFront);
+      formData.append("citizenshipBack", kycFiles.citizenshipBack);
+      
+      // Send to backend
+      await usersAPI.submitKYC(userId, formData);
+      
+      // Update auth context KYC status
+      if (verifyKyc) {
+        verifyKyc();
+      }
+      
+      // Show success and refresh
+      toast.success(t.kycSuccess, { position: "top-right", autoClose: 3000 });
+      refetch();
+      
+    } catch (error) {
+      toast.error(t.saveError, { position: "top-right", autoClose: 3000 });
+    } finally {
+      setIsSubmitting(false);
     }
-    setIsSubmitting(false);
-  };
+  }
 
-  const getStatusColor = (status) => {
-    switch (status) {
-      case "verified":
-        return "text-green-600 bg-green-100";
-      case "pending":
-        return "text-yellow-600 bg-yellow-100";
-      case "rejected":
-        return "text-red-600 bg-red-100";
-      default:
-        return "text-gray-600 bg-gray-100";
-    }
-  };
+  /**
+   * Update a single field in editData.
+   * 
+   * @param {string} fieldName - Name of the field to update
+   * @param {string} value - New value for the field
+   */
+  function updateEditField(fieldName, value) {
+    const newEditData = {
+      fullName: editData.fullName,
+      email: editData.email,
+      phone: editData.phone,
+      address: editData.address,
+      dob: editData.dob,
+      profilePhoto: editData.profilePhoto
+    };
+    newEditData[fieldName] = value;
+    setEditData(newEditData);
+  }
 
-  const getStatusIcon = (status) => {
-    switch (status) {
-      case "verified":
-        return <CheckCircle size={20} />;
-      case "pending":
-        return <Loader size={20} className="animate-spin" />;
-      case "rejected":
-        return <X size={20} />;
-      default:
-        return <AlertCircle size={20} />;
-    }
-  };
+  // ----------------------------------------
+  // COMPUTE KYC STATUS
+  // ----------------------------------------
+  
+  // Determine current KYC status
+  let kycStatus = "notSubmitted";
+  if (user && user.kycStatus) {
+    kycStatus = user.kycStatus;
+  } else if (isKycVerified && isKycVerified()) {
+    kycStatus = "verified";
+  }
+  
+  // Get status styling
+  const statusStyle = getStatusStyle(kycStatus, t);
+  const StatusIcon = statusStyle.icon;
+
+  // ----------------------------------------
+  // RENDER: Loading State
+  // ----------------------------------------
+  
+  if (loading) {
+    return <LoadingState t={t} />;
+  }
+
+  // ----------------------------------------
+  // RENDER: Error State
+  // ----------------------------------------
+  
+  if (error) {
+    return (
+      <div className="bg-white rounded-2xl shadow-sm p-12 text-center">
+        <AlertCircle className="mx-auto text-red-400 mb-4" size={48} />
+        <p className="text-gray-700 font-medium mb-2">{t.error}</p>
+        <button onClick={refetch} className="text-emerald-600 hover:underline">
+          {t.retry}
+        </button>
+      </div>
+    );
+  }
+
+  // ----------------------------------------
+  // RENDER: Determine Display Data
+  // ----------------------------------------
+  
+  // Use editData when editing, otherwise use user data
+  let displayData = {};
+  if (isEditing) {
+    displayData = editData;
+  } else if (user) {
+    displayData = user;
+  }
+
+  // ----------------------------------------
+  // RENDER: Determine Status Message Background
+  // ----------------------------------------
+  
+  let statusMessageBg = "bg-red-50";
+  let statusMessageTextColor = "text-red-700";
+  if (kycStatus === "verified") {
+    statusMessageBg = "bg-green-50";
+    statusMessageTextColor = "text-green-700";
+  } else if (kycStatus === "pending") {
+    statusMessageBg = "bg-yellow-50";
+    statusMessageTextColor = "text-yellow-700";
+  }
+
+  // ----------------------------------------
+  // RENDER: Main Profile UI
+  // ----------------------------------------
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
       <ToastContainer />
-      {/* Header */}
+
+      {/* Page Header */}
       <div className="bg-white rounded-2xl shadow-sm p-6">
         <h2 className="text-2xl font-bold text-gray-800 mb-2">{t.title}</h2>
         <p className="text-gray-500">{t.subtitle}</p>
       </div>
 
-      {/* Profile Photo & Basic Info Card */}
+      {/* Profile Section */}
       <div className="bg-white rounded-2xl shadow-sm p-6">
         <div className="flex flex-col md:flex-row items-start gap-6">
           {/* Profile Photo */}
-          <div className="flex flex-col items-center">
-            <div className="relative">
-              <div className="w-32 h-32 rounded-full bg-emerald-100 flex items-center justify-center overflow-hidden">
-                {(isEditing ? editData.profilePhoto : userData.profilePhoto) ? (
-                  <img
-                    src={isEditing ? editData.profilePhoto : userData.profilePhoto}
-                    alt="Profile"
-                    className="w-full h-full object-cover"
-                  />
-                ) : (
-                  <User className="text-emerald-600" size={48} />
-                )}
-              </div>
-              {isEditing && (
-                <button
-                  onClick={() => profilePhotoRef.current?.click()}
-                  className="absolute bottom-0 right-0 p-2 bg-emerald-600 text-white rounded-full hover:bg-emerald-700 transition"
-                >
-                  <Camera size={16} />
-                </button>
-              )}
-              <input
-                ref={profilePhotoRef}
-                type="file"
-                accept="image/*"
-                className="hidden"
-                onChange={handleProfilePhotoUpload}
-              />
-            </div>
-            {isEditing && (
-              <button
-                onClick={() => profilePhotoRef.current?.click()}
-                className="mt-3 text-sm text-emerald-600 hover:underline"
-              >
-                {userData.profilePhoto ? t.changePhoto : t.uploadPhoto}
-              </button>
-            )}
-          </div>
+          <ProfilePhoto 
+            photo={displayData.profilePhoto} 
+            isEditing={isEditing} 
+            onUpload={handleProfilePhotoUpload} 
+            t={t} 
+          />
 
-          {/* Basic Info */}
           <div className="flex-1">
+            {/* Section Header with Edit/Save Buttons */}
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-semibold text-gray-800">{t.personalInfo}</h3>
-              {!isEditing ? (
-                <button
-                  onClick={handleEdit}
+              
+              {/* Show Edit button when not editing */}
+              {!isEditing && (
+                <button 
+                  onClick={handleEdit} 
                   className="flex items-center gap-2 px-4 py-2 text-emerald-600 border border-emerald-600 rounded-lg hover:bg-emerald-50 transition"
                 >
                   <Edit size={16} />
                   {t.edit}
                 </button>
-              ) : (
+              )}
+              
+              {/* Show Cancel and Save buttons when editing */}
+              {isEditing && (
                 <div className="flex gap-2">
-                  <button
-                    onClick={handleCancel}
+                  <button 
+                    onClick={handleCancel} 
                     className="flex items-center gap-2 px-4 py-2 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition"
                   >
                     <X size={16} />
                     {t.cancel}
                   </button>
-                  <button
-                    onClick={handleSave}
-                    className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition"
+                  <button 
+                    onClick={handleSave} 
+                    disabled={isSubmitting} 
+                    className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition disabled:opacity-50"
                   >
-                    <Save size={16} />
+                    {isSubmitting ? (
+                      <Loader className="animate-spin" size={16} />
+                    ) : (
+                      <Save size={16} />
+                    )}
                     {t.save}
                   </button>
                 </div>
               )}
             </div>
 
+            {/* Personal Information Fields */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              
               {/* Full Name */}
               <div>
-                <label className="block text-sm font-medium text-gray-600 mb-1">
-                  {t.fullName}
-                </label>
+                <label className="block text-sm font-medium text-gray-600 mb-1">{t.fullName}</label>
                 {isEditing ? (
-                  <input
-                    type="text"
-                    value={editData.fullName}
-                    onChange={(e) => setEditData({ ...editData, fullName: e.target.value })}
-                    className="w-full p-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-emerald-500"
+                  <input 
+                    type="text" 
+                    value={editData.fullName || ""} 
+                    onChange={function(e) { updateEditField("fullName", e.target.value); }} 
+                    className="w-full p-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-emerald-500" 
                   />
                 ) : (
                   <p className="text-gray-800 flex items-center gap-2">
                     <User size={16} className="text-gray-400" />
-                    {userData.fullName}
+                    {displayData.fullName || "-"}
                   </p>
                 )}
               </div>
 
-              {/* Email */}
+              {/* Email (Read-only) */}
               <div>
-                <label className="block text-sm font-medium text-gray-600 mb-1">
-                  {t.email}
-                </label>
-                {isEditing ? (
-                  <input
-                    type="email"
-                    value={editData.email}
-                    onChange={(e) => setEditData({ ...editData, email: e.target.value })}
-                    className="w-full p-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-emerald-500"
-                  />
-                ) : (
-                  <p className="text-gray-800 flex items-center gap-2">
-                    <Mail size={16} className="text-gray-400" />
-                    {userData.email}
-                  </p>
-                )}
+                <label className="block text-sm font-medium text-gray-600 mb-1">{t.email}</label>
+                <p className="text-gray-800 flex items-center gap-2">
+                  <Mail size={16} className="text-gray-400" />
+                  {displayData.email || "-"}
+                </p>
               </div>
 
               {/* Phone */}
               <div>
-                <label className="block text-sm font-medium text-gray-600 mb-1">
-                  {t.phone}
-                </label>
+                <label className="block text-sm font-medium text-gray-600 mb-1">{t.phone}</label>
                 {isEditing ? (
-                  <input
-                    type="tel"
-                    value={editData.phone}
-                    onChange={(e) => setEditData({ ...editData, phone: e.target.value })}
-                    className="w-full p-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-emerald-500"
+                  <input 
+                    type="tel" 
+                    value={editData.phone || ""} 
+                    onChange={function(e) { updateEditField("phone", e.target.value); }} 
+                    className="w-full p-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-emerald-500" 
                   />
                 ) : (
                   <p className="text-gray-800 flex items-center gap-2">
                     <Phone size={16} className="text-gray-400" />
-                    {userData.phone}
+                    {displayData.phone || "-"}
                   </p>
                 )}
               </div>
 
               {/* Date of Birth */}
               <div>
-                <label className="block text-sm font-medium text-gray-600 mb-1">
-                  {t.dob}
-                </label>
+                <label className="block text-sm font-medium text-gray-600 mb-1">{t.dob}</label>
                 {isEditing ? (
-                  <input
-                    type="date"
-                    value={editData.dob}
-                    onChange={(e) => setEditData({ ...editData, dob: e.target.value })}
-                    className="w-full p-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-emerald-500"
+                  <input 
+                    type="date" 
+                    value={editData.dob || ""} 
+                    onChange={function(e) { updateEditField("dob", e.target.value); }} 
+                    className="w-full p-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-emerald-500" 
                   />
                 ) : (
                   <p className="text-gray-800 flex items-center gap-2">
                     <Calendar size={16} className="text-gray-400" />
-                    {userData.dob}
+                    {displayData.dob || "-"}
                   </p>
                 )}
               </div>
 
-              {/* Gender */}
-              <div>
-                <label className="block text-sm font-medium text-gray-600 mb-1">
-                  {t.gender}
-                </label>
-                {isEditing ? (
-                  <select
-                    value={editData.gender}
-                    onChange={(e) => setEditData({ ...editData, gender: e.target.value })}
-                    className="w-full p-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-emerald-500"
-                  >
-                    <option value="male">{t.male}</option>
-                    <option value="female">{t.female}</option>
-                    <option value="other">{t.other}</option>
-                  </select>
-                ) : (
-                  <p className="text-gray-800 capitalize">{t[userData.gender]}</p>
-                )}
-              </div>
-
-              {/* Ward */}
-              <div>
-                <label className="block text-sm font-medium text-gray-600 mb-1">
-                  {t.ward}
-                </label>
-                {isEditing ? (
-                  <input
-                    type="text"
-                    value={editData.ward}
-                    onChange={(e) => setEditData({ ...editData, ward: e.target.value })}
-                    className="w-full p-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-emerald-500"
-                  />
-                ) : (
-                  <p className="text-gray-800">Ward {userData.ward}</p>
-                )}
-              </div>
-
-              {/* Municipality */}
+              {/* Address (Full Width) */}
               <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-gray-600 mb-1">
-                  {t.municipality}
-                </label>
+                <label className="block text-sm font-medium text-gray-600 mb-1">{t.address}</label>
                 {isEditing ? (
-                  <input
-                    type="text"
-                    value={editData.municipality}
-                    onChange={(e) => setEditData({ ...editData, municipality: e.target.value })}
-                    className="w-full p-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-emerald-500"
+                  <input 
+                    type="text" 
+                    value={editData.address || ""} 
+                    onChange={function(e) { updateEditField("address", e.target.value); }} 
+                    className="w-full p-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-emerald-500" 
                   />
                 ) : (
                   <p className="text-gray-800 flex items-center gap-2">
                     <MapPin size={16} className="text-gray-400" />
-                    {userData.municipality}
+                    {displayData.address || "-"}
                   </p>
-                )}
-              </div>
-
-              {/* Address */}
-              <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-gray-600 mb-1">
-                  {t.address}
-                </label>
-                {isEditing ? (
-                  <textarea
-                    value={editData.address}
-                    onChange={(e) => setEditData({ ...editData, address: e.target.value })}
-                    className="w-full p-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-emerald-500"
-                    rows={2}
-                  />
-                ) : (
-                  <p className="text-gray-800">{userData.address}</p>
                 )}
               </div>
             </div>
@@ -465,168 +866,73 @@ const UserProfile = () => {
 
       {/* KYC Verification Section */}
       <div className="bg-white rounded-2xl shadow-sm p-6">
+        {/* Section Header with Status Badge */}
         <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center gap-3">
-            <Shield className="text-emerald-600" size={24} />
-            <h3 className="text-lg font-semibold text-gray-800">{t.kycVerification}</h3>
-          </div>
-          <div className={`flex items-center gap-2 px-3 py-1 rounded-full ${getStatusColor(kycStatus)}`}>
-            {getStatusIcon(kycStatus)}
-            <span className="font-medium">
-              {kycStatus === "verified"
-                ? t.verified
-                : kycStatus === "pending"
-                ? t.pending
-                : kycStatus === "rejected"
-                ? t.rejected
-                : t.notSubmitted}
-            </span>
-          </div>
+          <h3 className="text-lg font-semibold text-gray-800">{t.kycVerification}</h3>
+          <span className={"flex items-center gap-2 px-3 py-1 rounded-full text-sm font-medium " + statusStyle.color}>
+            {kycStatus === "pending" ? (
+              <StatusIcon size={16} className="animate-spin" />
+            ) : (
+              <StatusIcon size={16} />
+            )}
+            {statusStyle.label}
+          </span>
         </div>
 
         {/* Status Message */}
-        {kycStatus !== "notSubmitted" && (
-          <div
-            className={`p-4 rounded-xl mb-6 ${
-              kycStatus === "verified"
-                ? "bg-green-50 text-green-700"
-                : kycStatus === "pending"
-                ? "bg-yellow-50 text-yellow-700"
-                : "bg-red-50 text-red-700"
-            }`}
-          >
-            {kycStatus === "verified"
-              ? t.kycVerifiedMsg
-              : kycStatus === "pending"
-              ? t.kycPendingMsg
-              : t.kycRejectedMsg}
+        {statusStyle.message && (
+          <div className={"p-4 rounded-xl mb-6 " + statusMessageBg}>
+            <p className={"text-sm " + statusMessageTextColor}>
+              {statusStyle.message}
+            </p>
           </div>
         )}
 
-        {/* Upload Section - Only show if not verified */}
-        {kycStatus !== "verified" && (
+        {/* Document Upload - Only show if not verified and not pending */}
+        {kycStatus !== "verified" && kycStatus !== "pending" && (
           <>
+            {/* Upload Boxes for Citizenship Documents */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-              {/* Citizenship Front */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  {t.citizenshipFront}
-                </label>
-                <div
-                  onClick={() => citizenshipFrontRef.current?.click()}
-                  className={`border-2 border-dashed rounded-xl p-6 text-center cursor-pointer transition ${
-                    kycDocuments.citizenshipFront
-                      ? "border-emerald-300 bg-emerald-50"
-                      : "border-gray-300 hover:border-emerald-300 hover:bg-emerald-50"
-                  }`}
-                >
-                  {kycDocuments.citizenshipFront ? (
-                    <div className="relative">
-                      <img
-                        src={kycDocuments.citizenshipFront}
-                        alt="Citizenship Front"
-                        className="w-full h-40 object-cover rounded-lg"
-                      />
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setKycDocuments({ ...kycDocuments, citizenshipFront: null });
-                        }}
-                        className="absolute top-2 right-2 p-1 bg-red-500 text-white rounded-full"
-                      >
-                        <X size={16} />
-                      </button>
-                    </div>
-                  ) : (
-                    <>
-                      <Upload className="mx-auto text-gray-400 mb-2" size={32} />
-                      <p className="text-sm text-gray-600">{t.uploadInstruction}</p>
-                      <p className="text-xs text-gray-400 mt-1">{t.fileTypes}</p>
-                    </>
-                  )}
-                </div>
-                <input
-                  ref={citizenshipFrontRef}
-                  type="file"
-                  accept="image/*,.pdf"
-                  className="hidden"
-                  onChange={(e) => handleKycUpload("citizenshipFront", e)}
-                />
-              </div>
-
-              {/* Citizenship Back */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  {t.citizenshipBack}
-                </label>
-                <div
-                  onClick={() => citizenshipBackRef.current?.click()}
-                  className={`border-2 border-dashed rounded-xl p-6 text-center cursor-pointer transition ${
-                    kycDocuments.citizenshipBack
-                      ? "border-emerald-300 bg-emerald-50"
-                      : "border-gray-300 hover:border-emerald-300 hover:bg-emerald-50"
-                  }`}
-                >
-                  {kycDocuments.citizenshipBack ? (
-                    <div className="relative">
-                      <img
-                        src={kycDocuments.citizenshipBack}
-                        alt="Citizenship Back"
-                        className="w-full h-40 object-cover rounded-lg"
-                      />
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setKycDocuments({ ...kycDocuments, citizenshipBack: null });
-                        }}
-                        className="absolute top-2 right-2 p-1 bg-red-500 text-white rounded-full"
-                      >
-                        <X size={16} />
-                      </button>
-                    </div>
-                  ) : (
-                    <>
-                      <Upload className="mx-auto text-gray-400 mb-2" size={32} />
-                      <p className="text-sm text-gray-600">{t.uploadInstruction}</p>
-                      <p className="text-xs text-gray-400 mt-1">{t.fileTypes}</p>
-                    </>
-                  )}
-                </div>
-                <input
-                  ref={citizenshipBackRef}
-                  type="file"
-                  accept="image/*,.pdf"
-                  className="hidden"
-                  onChange={(e) => handleKycUpload("citizenshipBack", e)}
-                />
-              </div>
+              <KYCUploadBox 
+                label={t.citizenshipFront} 
+                document={kycDocuments.citizenshipFront} 
+                onUpload={function(e) { handleKycUpload("citizenshipFront", e); }} 
+                inputRef={citizenshipFrontRef} 
+              />
+              <KYCUploadBox 
+                label={t.citizenshipBack} 
+                document={kycDocuments.citizenshipBack} 
+                onUpload={function(e) { handleKycUpload("citizenshipBack", e); }} 
+                inputRef={citizenshipBackRef} 
+              />
             </div>
-
+            
+            {/* File Type Information */}
+            <p className="text-xs text-gray-500 text-center mb-4">{t.fileTypes}</p>
+            
             {/* Submit Button */}
-            {kycStatus !== "pending" && (
-              <button
-                onClick={handleSubmitKyc}
-                disabled={isSubmitting || !kycDocuments.citizenshipFront || !kycDocuments.citizenshipBack}
-                className="w-full py-3 bg-emerald-600 text-white rounded-xl font-semibold hover:bg-emerald-700 transition flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {isSubmitting ? (
-                  <>
-                    <Loader className="animate-spin" size={20} />
-                    {t.submitting}
-                  </>
-                ) : (
-                  <>
-                    <Shield size={20} />
-                    {t.submitKyc}
-                  </>
-                )}
-              </button>
-            )}
+            <button 
+              onClick={handleSubmitKyc} 
+              disabled={isSubmitting} 
+              className="w-full py-3 bg-emerald-600 text-white rounded-xl font-medium hover:bg-emerald-700 transition flex items-center justify-center gap-2 disabled:opacity-50"
+            >
+              {isSubmitting ? (
+                <>
+                  <Loader className="animate-spin" size={18} />
+                  {t.submitting}
+                </>
+              ) : (
+                <>
+                  <Shield size={18} />
+                  {t.submitKyc}
+                </>
+              )}
+            </button>
           </>
         )}
       </div>
     </div>
   );
-};
+}
 
 export default UserProfile;
