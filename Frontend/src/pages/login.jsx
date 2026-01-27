@@ -13,6 +13,10 @@ import { useAuth } from "../context/useAuth";
 import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 
+// ============================================================
+// TEXT TRANSLATIONS
+// Contains all text content in English and Nepali
+// ============================================================
 const loginText = {
   en: {
     brand: "NagarSewa",
@@ -56,12 +60,35 @@ const loginText = {
   },
 };
 
-const Login = () => {
-  const { language, toggleLanguage } = useLanguage();
-  const { login } = useAuth();
+// ============================================================
+// LOGIN COMPONENT
+// Handles user authentication and login form display.
+// ============================================================
+
+/**
+ * Login Component
+ * Handles user authentication with email and password.
+ * Displays login form with demo login options.
+ * @returns {JSX.Element} The login page
+ */
+function Login() {
+  // ============================================================
+  // HOOKS AND CONTEXT
+  // ============================================================
+  const languageContext = useLanguage();
+  const language = languageContext.language;
+  const toggleLanguage = languageContext.toggleLanguage;
+  
+  const authContext = useAuth();
+  const login = authContext.login;
+  
   const t = loginText[language];
   const navigate = useNavigate();
 
+  // ============================================================
+  // STATE VARIABLES
+  // ============================================================
+  
   // Form data state - stores email, password, and remember me checkbox
   const [formData, setFormData] = useState({
     email: "",
@@ -78,24 +105,49 @@ const Login = () => {
   // Error message state
   const [error, setError] = useState("");
 
-  // Handle input changes for text fields and checkboxes
-  const handleInputChange = (event) => {
-    const { name, value, type, checked } = event.target;
+  // ============================================================
+  // EVENT HANDLERS
+  // ============================================================
+
+  /**
+   * Handle input changes for text fields and checkboxes.
+   * Updates form data state and clears any existing error.
+   * @param {Event} event - The input change event
+   */
+  function handleInputChange(event) {
+    const eventTarget = event.target;
+    const fieldName = eventTarget.name;
+    const fieldValue = eventTarget.value;
+    const fieldType = eventTarget.type;
+    const isChecked = eventTarget.checked;
     
     // For checkboxes use 'checked', for other inputs use 'value'
-    const inputValue = type === 'checkbox' ? checked : value;
+    let inputValue;
+    if (fieldType === 'checkbox') {
+      inputValue = isChecked;
+    } else {
+      inputValue = fieldValue;
+    }
     
-    setFormData({
-      ...formData,
-      [name]: inputValue
-    });
+    // Create new form data object with updated field
+    const newFormData = {
+      email: formData.email,
+      password: formData.password,
+      rememberMe: formData.rememberMe
+    };
+    newFormData[fieldName] = inputValue;
+    
+    setFormData(newFormData);
     
     // Clear error when user starts typing
     setError('');
-  };
+  }
 
-  // Handle form submission
-  const handleSubmit = () => {
+  /**
+   * Handle form submission.
+   * Validates input and attempts to log in the user.
+   */
+  function handleSubmit() {
     // Check if email and password are filled
     if (!formData.email || !formData.password) {
       setError(t.errorRequired);
@@ -104,7 +156,7 @@ const Login = () => {
     
     setIsLoading(true);
     
-    setTimeout(() => {
+    setTimeout(function() {
       // Use auth context for login
       const result = login(formData.email, formData.password);
       
@@ -116,7 +168,7 @@ const Login = () => {
         });
         
         // Redirect based on user role
-        setTimeout(() => {
+        setTimeout(function() {
           navigate(result.redirectTo);
         }, 1500);
       } else {
@@ -128,22 +180,85 @@ const Login = () => {
             autoClose: 5000,
           });
         } else {
-          setError(result.error || "Login failed");
+          if (result.error) {
+            setError(result.error);
+          } else {
+            setError("Login failed");
+          }
         }
       }
       
       setIsLoading(false);
     }, 1000);
-  };
+  }
 
-
-  // Handle Enter key press on inputs
-  const handleKeyPress = (event) => {
+  /**
+   * Handle Enter key press on inputs.
+   * Submits the form when Enter is pressed.
+   * @param {KeyboardEvent} event - The keyboard event
+   */
+  function handleKeyPress(event) {
     if (event.key === 'Enter') {
       handleSubmit();
     }
-  };
+  }
 
+  // ============================================================
+  // HELPER FUNCTIONS
+  // ============================================================
+
+  /**
+   * Toggle password visibility on/off.
+   */
+  function togglePasswordVisibility() {
+    setShowPassword(!showPassword);
+  }
+
+  /**
+   * Set form data for demo login.
+   * @param {string} email - Demo email
+   * @param {string} password - Demo password
+   */
+  function setDemoCredentials(email, password) {
+    const newFormData = {
+      email: email,
+      password: password,
+      rememberMe: false
+    };
+    setFormData(newFormData);
+  }
+
+  /**
+   * Render the footer links with separators.
+   * @returns {JSX.Element[]} Array of footer link elements
+   */
+  function renderFooterLinks() {
+    const footerElements = [];
+    
+    for (let i = 0; i < t.footerLinks.length; i++) {
+      const item = t.footerLinks[i];
+      
+      // Add separator before items (except first)
+      if (i > 0) {
+        footerElements.push(
+          <span key={"sep-" + i} className="text-white/40">•</span>
+        );
+      }
+      
+      // Add the link item
+      footerElements.push(
+        <span key={item} className="hover:text-white transition-colors cursor-pointer px-1">
+          {item}
+        </span>
+      );
+    }
+    
+    return footerElements;
+  }
+
+  // ============================================================
+  // RENDER
+  // ============================================================
   return (
     <div className="h-screen overflow-hidden bg-linear-to-br from-emerald-950 via-emerald-900 to-teal-900 flex items-center justify-center p-3 sm:p-4 md:p-6">
       <ToastContainer />
@@ -235,7 +350,7 @@ const Login = () => {
                   {/* Toggle password visibility button */}
                   <button
                     type="button"
-                    onClick={() => setShowPassword(!showPassword)}
+                    onClick={togglePasswordVisibility}
                     className="absolute right-2.5 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
                     disabled={isLoading}
                   >
@@ -270,36 +385,28 @@ const Login = () => {
                 <div className="flex flex-wrap gap-2 justify-center">
                   <button
                     type="button"
-                    onClick={() => {
-                      setFormData({ email: 'superadmin@damak.gov.np', password: 'superadmin123', rememberMe: false });
-                    }}
+                    onClick={function() { setDemoCredentials('superadmin@damak.gov.np', 'superadmin123'); }}
                     className="px-3 py-1.5 text-xs bg-purple-100 text-purple-700 rounded-lg hover:bg-purple-200 transition"
                   >
                     Super Admin
                   </button>
                   <button
                     type="button"
-                    onClick={() => {
-                      setFormData({ email: 'ward1@damak.gov.np', password: 'admin123', rememberMe: false });
-                    }}
+                    onClick={function() { setDemoCredentials('ward1@damak.gov.np', 'admin123'); }}
                     className="px-3 py-1.5 text-xs bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition"
                   >
                     Ward 1 Admin
                   </button>
                   <button
                     type="button"
-                    onClick={() => {
-                      setFormData({ email: 'ward5@damak.gov.np', password: 'admin123', rememberMe: false });
-                    }}
+                    onClick={function() { setDemoCredentials('ward5@damak.gov.np', 'admin123'); }}
                     className="px-3 py-1.5 text-xs bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition"
                   >
                     Ward 5 Admin
                   </button>
                   <button
                     type="button"
-                    onClick={() => {
-                      setFormData({ email: 'user@example.com', password: 'user123', rememberMe: false });
-                    }}
+                    onClick={function() { setDemoCredentials('user@example.com', 'user123'); }}
                     className="px-3 py-1.5 text-xs bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition"
                   >
                     Regular User
@@ -323,20 +430,13 @@ const Login = () => {
         {/* Footer Links */}
         <div className="mt-3 sm:mt-4 text-center">
           <div className="flex flex-wrap justify-center gap-2 text-sm text-white/80">
-            {t.footerLinks.map((item, idx) => (
-              <React.Fragment key={item}>
-                {idx > 0 && <span className="text-white/40">•</span>}
-                <span className="hover:text-white transition-colors cursor-pointer px-1">
-                  {item}
-                </span>
-              </React.Fragment>
-            ))}
+            {renderFooterLinks()}
           </div>
           <p className="text-white/60 text-sm mt-2 px-4">{t.copyright}</p>
         </div>
       </div>
     </div>
   );
-};
+}
 
 export default Login;

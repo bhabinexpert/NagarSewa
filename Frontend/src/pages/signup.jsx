@@ -25,6 +25,11 @@ import {
   getMunicipalities,
 } from "../utils/nepalLocation";
 
+// ============================================================
+// TEXT TRANSLATIONS
+// Contains all text content in English and Nepali
+// ============================================================
+
 const signupText = {
   en: {
     brand: "NagarSewa",
@@ -191,16 +196,60 @@ const signupText = {
   },
 };
 
-// Simple component to show password requirements
-const PasswordRequirement = ({ met, text }) => (
-  <div className={`text-sm ${met ? "text-green-600" : "text-gray-400"}`}>
-    {text}
-  </div>
-);
+// ============================================================
+// PASSWORD REQUIREMENT COMPONENT
+// Simple component to display password requirement status
+// ============================================================
 
+/**
+ * PasswordRequirement Component
+ * Displays a single password requirement with met/unmet status.
+ * @param {Object} props - Component props
+ * @param {boolean} props.met - Whether the requirement is met
+ * @param {string} props.text - The requirement text to display
+ * @returns {JSX.Element} The requirement indicator
+ */
+function PasswordRequirement(props) {
+  const met = props.met;
+  const text = props.text;
+  
+  let colorClass = "text-gray-400";
+  if (met) {
+    colorClass = "text-green-600";
+  }
+  
+  return (
+    <div className={"text-sm " + colorClass}>
+      {text}
+    </div>
+  );
+}
+
+// ============================================================
+// SIGNUP COMPONENT
+// Handles user registration with location selection
+// ============================================================
+
+/**
+ * Signup Component
+ * Handles new user registration with form validation.
+ * Includes location selection (province, district, municipality, ward).
+ * @returns {JSX.Element} The signup page
+ */
 export default function Signup() {
-  const { language, toggleLanguage } = useLanguage();
+  // ============================================================
+  // HOOKS AND CONTEXT
+  // ============================================================
+  const languageContext = useLanguage();
+  const language = languageContext.language;
+  const toggleLanguage = languageContext.toggleLanguage;
+  
   const t = signupText[language];
+  
+  // ============================================================
+  // STATE VARIABLES
+  // ============================================================
+  
   // Form data state - stores all user inputs
   const [formData, setFormData] = useState({
     fullName: "",
@@ -215,46 +264,6 @@ export default function Signup() {
     acceptTerms: false,
   });
 
-  // Load all provinces (static data)
-  const provinces = useMemo(() => getProvinces(), []);
-
-  // Derive districts based on selected province
-  const districts = useMemo(() => {
-    if (formData.province) {
-      return getDistricts(formData.province);
-    }
-    return [];
-  }, [formData.province]);
-
-  // Derive municipalities based on selected district
-  const municipalities = useMemo(() => {
-    if (formData.district) {
-      return getMunicipalities(formData.district);
-    }
-    return [];
-  }, [formData.district]);
-
-  // Get selected municipality's total wards
-  const selectedMunicipality = useMemo(() => {
-    if (formData.municipality) {
-      return municipalities.find(
-        (m) => String(m.id) === String(formData.municipality),
-      );
-    }
-    return null;
-  }, [formData.municipality, municipalities]);
-
-  // Generate ward options based on selected municipality
-  const wardOptions = useMemo(() => {
-    if (selectedMunicipality && selectedMunicipality.totalWard) {
-      return Array.from(
-        { length: selectedMunicipality.totalWard },
-        (_, i) => i + 1,
-      );
-    }
-    return [];
-  }, [selectedMunicipality]);
-
   // Toggle visibility for password fields
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -262,23 +271,69 @@ export default function Signup() {
   // Location detection loading state
   const [isDetectingLocation, setIsDetectingLocation] = useState(false);
 
-  // Calculate password strength based on length
-  const getPasswordStrength = () => {
-    const length = formData.password.length;
-    if (length === 0) return { score: 0, message: t.strengthLabels[0] };
-    if (length < 3) return { score: 1, message: t.strengthLabels[1] };
-    if (length < 5) return { score: 2, message: t.strengthLabels[2] };
-    if (length < 8) return { score: 3, message: t.strengthLabels[3] };
-    return { score: 4, message: t.strengthLabels[4] };
-  };
+  // ============================================================
+  // DERIVED DATA (using useMemo for expensive computations)
+  // ============================================================
 
-  // Get color for strength indicator bar
-  const getStrengthColor = (score) => {
-    if (score <= 1) return "bg-red-600";
-    if (score === 2) return "bg-yellow-600";
-    if (score === 3) return "bg-teal-600";
-    return "bg-emerald-600";
-  };
+  // Load all provinces (static data)
+  const provinces = useMemo(function() {
+    return getProvinces();
+  }, []);
+
+  // Derive districts based on selected province
+  const districts = useMemo(function() {
+    if (formData.province) {
+      return getDistricts(formData.province);
+    }
+    return [];
+  }, [formData.province]);
+
+  // Derive municipalities based on selected district
+  const municipalities = useMemo(function() {
+    if (formData.district) {
+      return getMunicipalities(formData.district);
+    }
+    return [];
+  }, [formData.district]);
+
+  // Get selected municipality's total wards
+  const selectedMunicipality = useMemo(function() {
+    if (formData.municipality) {
+      // Find municipality by ID
+      for (let i = 0; i < municipalities.length; i++) {
+        const m = municipalities[i];
+        if (String(m.id) === String(formData.municipality)) {
+          return m;
+        }
+      }
+    }
+    return null;
+  }, [formData.municipality, municipalities]);
+
+  // Generate ward options based on selected municipality
+  const wardOptions = useMemo(function() {
+    if (selectedMunicipality && selectedMunicipality.totalWard) {
+      const options = [];
+      for (let i = 1; i <= selectedMunicipality.totalWard; i++) {
+        options.push(i);
+      }
+      return options;
+    }
+    return [];
+  }, [selectedMunicipality]);
+
+  // ============================================================
+  // CONSTANTS
+  // ============================================================
+  
+  // Allowed province and district codes
+  const ALLOWED_PROVINCE_CODE = "1"; // Koshi Province
+  const ALLOWED_DISTRICT_CODE = "111"; // Jhapa District
+  const ALLOWED_MUNICIPALITY_CODE = "11107"; // Damak Municipality
+
+  // ============================================================
+  // PASSWORD VALIDATION
+  // ============================================================
 
   // Check if passwords match
   const passwordsMatch = formData.password === formData.confirmPassword;
@@ -289,13 +344,58 @@ export default function Signup() {
   const hasLowercase = /[a-z]/.test(formData.password);
   const hasNumber = /[0-9]/.test(formData.password);
 
-  // Allowed province and district codes
-  const ALLOWED_PROVINCE_CODE = "1"; // Koshi Province
-  const ALLOWED_DISTRICT_CODE = "111"; // Jhapa District
-  const ALLOWED_MUNICIPALITY_CODE = "11107"; // Damak Municipality
+  /**
+   * Calculate password strength based on length.
+   * @returns {Object} Object with score (0-4) and message
+   */
+  function getPasswordStrength() {
+    const length = formData.password.length;
+    
+    if (length === 0) {
+      return { score: 0, message: t.strengthLabels[0] };
+    }
+    if (length < 3) {
+      return { score: 1, message: t.strengthLabels[1] };
+    }
+    if (length < 5) {
+      return { score: 2, message: t.strengthLabels[2] };
+    }
+    if (length < 8) {
+      return { score: 3, message: t.strengthLabels[3] };
+    }
+    return { score: 4, message: t.strengthLabels[4] };
+  }
 
-  // Handle geolocation to auto-fill location fields
-  const handleUseMyLocation = () => {
+  /**
+   * Get CSS class for strength indicator bar color.
+   * @param {number} score - Password strength score (0-4)
+   * @returns {string} CSS class name for the color
+   */
+  function getStrengthColor(score) {
+    if (score <= 1) {
+      return "bg-red-600";
+    }
+    if (score === 2) {
+      return "bg-yellow-600";
+    }
+    if (score === 3) {
+      return "bg-teal-600";
+    }
+    return "bg-emerald-600";
+  }
+
+  const passwordStrength = getPasswordStrength();
+
+  // ============================================================
+  // GEOLOCATION HANDLER
+  // ============================================================
+
+  /**
+   * Handle geolocation to auto-fill location fields.
+   * Uses browser's geolocation API and OpenStreetMap for reverse geocoding.
+   */
+  function handleUseMyLocation() {
+    // Check if geolocation is available
     if (!navigator.geolocation) {
       toast.error(t.alerts.locationError, {
         position: "top-right",
@@ -306,26 +406,31 @@ export default function Signup() {
 
     setIsDetectingLocation(true);
 
-    navigator.geolocation.getCurrentPosition(
-      async (position) => {
-        const { latitude, longitude } = position.coords;
+    /**
+     * Success callback for geolocation.
+     * @param {GeolocationPosition} position - The position object
+     */
+    function onLocationSuccess(position) {
+      const latitude = position.coords.latitude;
+      const longitude = position.coords.longitude;
 
-        try {
-          // Use OpenStreetMap's Nominatim for reverse geocoding
-          const response = await fetch(
-            `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&addressdetails=1&accept-language=en`,
-            {
-              headers: {
-                "User-Agent": "NagarSewa/1.0",
-              },
-            },
-          );
+      // Build the geocoding URL
+      const geocodeUrl = "https://nominatim.openstreetmap.org/reverse?format=json&lat=" + 
+        latitude + "&lon=" + longitude + "&addressdetails=1&accept-language=en";
 
-          if (!response.ok) throw new Error("Geocoding failed");
-
-          const data = await response.json();
-          const _address = data.address || {};
-
+      // Fetch location data
+      fetch(geocodeUrl, {
+        headers: {
+          "User-Agent": "NagarSewa/1.0",
+        },
+      })
+        .then(function(response) {
+          if (!response.ok) {
+            throw new Error("Geocoding failed");
+          }
+          return response.json();
+        })
+        .then(function(data) {
           // Check if user is in Jhapa District area (approximate bounds)
           // Jhapa District approximate bounds: lat 26.3-26.9, lon 87.6-88.2
           const isInJhapa =
@@ -345,156 +450,269 @@ export default function Signup() {
           }
 
           // Auto-fill with Damak Municipality (the only allowed municipality)
-          // Auto-fill the location fields
-          setFormData((prev) => ({
-            ...prev,
+          const newFormData = {
+            fullName: formData.fullName,
+            email: formData.email,
+            phone: formData.phone,
             province: ALLOWED_PROVINCE_CODE,
             district: ALLOWED_DISTRICT_CODE,
             municipality: ALLOWED_MUNICIPALITY_CODE,
             wardNumber: "",
-          }));
+            password: formData.password,
+            confirmPassword: formData.confirmPassword,
+            acceptTerms: formData.acceptTerms,
+          };
+          setFormData(newFormData);
 
           toast.success(t.alerts.locationDetected, {
             position: "top-right",
             autoClose: 3000,
             icon: "📍",
           });
-        } catch (error) {
+          setIsDetectingLocation(false);
+        })
+        .catch(function(error) {
           console.error("Geocoding error:", error);
           // Even if geocoding fails, set province, district, and municipality since we're targeting Damak
-          setFormData((prev) => ({
-            ...prev,
+          const newFormData = {
+            fullName: formData.fullName,
+            email: formData.email,
+            phone: formData.phone,
             province: ALLOWED_PROVINCE_CODE,
             district: ALLOWED_DISTRICT_CODE,
             municipality: ALLOWED_MUNICIPALITY_CODE,
             wardNumber: "",
-          }));
+            password: formData.password,
+            confirmPassword: formData.confirmPassword,
+            acceptTerms: formData.acceptTerms,
+          };
+          setFormData(newFormData);
+          
           toast.info(t.alerts.locationDetected, {
             position: "top-right",
             autoClose: 3000,
             icon: "📍",
           });
-        }
+          setIsDetectingLocation(false);
+        });
+    }
 
-        setIsDetectingLocation(false);
-      },
-      (error) => {
-        setIsDetectingLocation(false);
-        if (error.code === error.PERMISSION_DENIED) {
-          toast.error(t.alerts.locationPermissionDenied, {
-            position: "top-right",
-            autoClose: 3000,
-          });
-        } else {
-          toast.error(t.alerts.locationError, {
-            position: "top-right",
-            autoClose: 3000,
-          });
-        }
-      },
-      {
-        enableHighAccuracy: true,
-        timeout: 10000,
-        maximumAge: 0,
-      },
+    /**
+     * Error callback for geolocation.
+     * @param {GeolocationPositionError} error - The error object
+     */
+    function onLocationError(error) {
+      setIsDetectingLocation(false);
+      
+      if (error.code === error.PERMISSION_DENIED) {
+        toast.error(t.alerts.locationPermissionDenied, {
+          position: "top-right",
+          autoClose: 3000,
+        });
+      } else {
+        toast.error(t.alerts.locationError, {
+          position: "top-right",
+          autoClose: 3000,
+        });
+      }
+    }
+
+    // Request location with high accuracy
+    const locationOptions = {
+      enableHighAccuracy: true,
+      timeout: 10000,
+      maximumAge: 0,
+    };
+
+    navigator.geolocation.getCurrentPosition(
+      onLocationSuccess,
+      onLocationError,
+      locationOptions
     );
-  };
+  }
+  // ============================================================
+  // INPUT HANDLERS
+  // ============================================================
 
-  // Handle input changes - reset dependent fields when location changes
-  const handleInputChange = (event) => {
-    const { name, value } = event.target;
+  /**
+   * Handle input changes - reset dependent fields when location changes.
+   * @param {Event} event - The input change event
+   */
+  function handleInputChange(event) {
+    const fieldName = event.target.name;
+    const fieldValue = event.target.value;
 
     // When province changes, reset district, municipality and ward
-    if (name === "province") {
+    if (fieldName === "province") {
       // Check if selected province is allowed (Koshi Province = 1)
-      if (value && value !== ALLOWED_PROVINCE_CODE) {
+      if (fieldValue && fieldValue !== ALLOWED_PROVINCE_CODE) {
         toast.warning(t.alerts.provinceRestricted, {
           position: "top-right",
           autoClose: 4000,
           icon: "🚧",
         });
         // Reset province selection
-        setFormData((prev) => ({
-          ...prev,
+        const resetFormData = {
+          fullName: formData.fullName,
+          email: formData.email,
+          phone: formData.phone,
           province: "",
           district: "",
           municipality: "",
           wardNumber: "",
-        }));
+          password: formData.password,
+          confirmPassword: formData.confirmPassword,
+          acceptTerms: formData.acceptTerms,
+        };
+        setFormData(resetFormData);
         return;
       }
-      setFormData((prev) => ({
-        ...prev,
-        province: value,
+      
+      const newFormData = {
+        fullName: formData.fullName,
+        email: formData.email,
+        phone: formData.phone,
+        province: fieldValue,
         district: "",
         municipality: "",
         wardNumber: "",
-      }));
+        password: formData.password,
+        confirmPassword: formData.confirmPassword,
+        acceptTerms: formData.acceptTerms,
+      };
+      setFormData(newFormData);
       return;
     }
 
     // When district changes, reset municipality and ward
-    if (name === "district") {
+    if (fieldName === "district") {
       // Check if selected district is allowed (Jhapa = 111)
-      if (value && value !== ALLOWED_DISTRICT_CODE) {
+      if (fieldValue && fieldValue !== ALLOWED_DISTRICT_CODE) {
         toast.warning(t.alerts.districtRestricted, {
           position: "top-right",
           autoClose: 4000,
           icon: "🚧",
         });
         // Reset district selection
-        setFormData((prev) => ({
-          ...prev,
+        const resetFormData = {
+          fullName: formData.fullName,
+          email: formData.email,
+          phone: formData.phone,
+          province: formData.province,
           district: "",
           municipality: "",
           wardNumber: "",
-        }));
+          password: formData.password,
+          confirmPassword: formData.confirmPassword,
+          acceptTerms: formData.acceptTerms,
+        };
+        setFormData(resetFormData);
         return;
       }
-      setFormData((prev) => ({
-        ...prev,
-        district: value,
+      
+      const newFormData = {
+        fullName: formData.fullName,
+        email: formData.email,
+        phone: formData.phone,
+        province: formData.province,
+        district: fieldValue,
         municipality: "",
         wardNumber: "",
-      }));
+        password: formData.password,
+        confirmPassword: formData.confirmPassword,
+        acceptTerms: formData.acceptTerms,
+      };
+      setFormData(newFormData);
       return;
     }
 
     // When municipality changes, reset ward and check if allowed
-    if (name === "municipality") {
+    if (fieldName === "municipality") {
       // Check if selected municipality is allowed (Damak = 11103)
-      if (value && value !== ALLOWED_MUNICIPALITY_CODE) {
+      if (fieldValue && fieldValue !== ALLOWED_MUNICIPALITY_CODE) {
         toast.warning(t.alerts.municipalityRestricted, {
           position: "top-right",
           autoClose: 4000,
           icon: "🚧",
         });
         // Reset municipality selection
-        setFormData((prev) => ({
-          ...prev,
+        const resetFormData = {
+          fullName: formData.fullName,
+          email: formData.email,
+          phone: formData.phone,
+          province: formData.province,
+          district: formData.district,
           municipality: "",
           wardNumber: "",
-        }));
+          password: formData.password,
+          confirmPassword: formData.confirmPassword,
+          acceptTerms: formData.acceptTerms,
+        };
+        setFormData(resetFormData);
         return;
       }
-      setFormData((prev) => ({
-        ...prev,
-        municipality: value,
+      
+      const newFormData = {
+        fullName: formData.fullName,
+        email: formData.email,
+        phone: formData.phone,
+        province: formData.province,
+        district: formData.district,
+        municipality: fieldValue,
         wardNumber: "",
-      }));
+        password: formData.password,
+        confirmPassword: formData.confirmPassword,
+        acceptTerms: formData.acceptTerms,
+      };
+      setFormData(newFormData);
       return;
     }
 
-    setFormData((prev) => ({ ...prev, [name]: value }));
-  };
+    // For other fields, just update the value
+    const newFormData = {
+      fullName: formData.fullName,
+      email: formData.email,
+      phone: formData.phone,
+      province: formData.province,
+      district: formData.district,
+      municipality: formData.municipality,
+      wardNumber: formData.wardNumber,
+      password: formData.password,
+      confirmPassword: formData.confirmPassword,
+      acceptTerms: formData.acceptTerms,
+    };
+    newFormData[fieldName] = fieldValue;
+    setFormData(newFormData);
+  }
 
-  // Toggle terms acceptance
-  const toggleTerms = () => {
-    setFormData({ ...formData, acceptTerms: !formData.acceptTerms });
-  };
+  /**
+   * Toggle terms acceptance checkbox.
+   */
+  function toggleTerms() {
+    const newFormData = {
+      fullName: formData.fullName,
+      email: formData.email,
+      phone: formData.phone,
+      province: formData.province,
+      district: formData.district,
+      municipality: formData.municipality,
+      wardNumber: formData.wardNumber,
+      password: formData.password,
+      confirmPassword: formData.confirmPassword,
+      acceptTerms: !formData.acceptTerms,
+    };
+    setFormData(newFormData);
+  }
 
-  // Handle form submission
-  const handleSubmit = () => {
+  // ============================================================
+  // FORM SUBMISSION
+  // ============================================================
+
+  /**
+   * Handle form submission with validation.
+   * Validates all required fields before submitting.
+   */
+  function handleSubmit() {
     // Basic validation
     if (!formData.fullName) {
       toast.error(t.alerts.name, { position: "top-right", autoClose: 3000 });
@@ -508,9 +726,18 @@ export default function Signup() {
       toast.error(t.alerts.phone, { position: "top-right", autoClose: 3000 });
       return;
     }
+    
     // Validate phone number (Nepal format: 10 digits starting with 9)
     const phoneRegex = /^9[0-9]{9}$/;
-    const cleanPhone = formData.phone.replace(/[^0-9]/g, "");
+    // Remove non-numeric characters from phone
+    let cleanPhone = "";
+    for (let i = 0; i < formData.phone.length; i++) {
+      const char = formData.phone[i];
+      if (char >= "0" && char <= "9") {
+        cleanPhone = cleanPhone + char;
+      }
+    }
+    
     if (!phoneRegex.test(cleanPhone)) {
       toast.error(t.alerts.phoneInvalid, {
         position: "top-right",
@@ -565,9 +792,77 @@ export default function Signup() {
     // Submit the form
     console.log("Form submitted:", formData);
     toast.success(t.alerts.success, { position: "top-right", autoClose: 3000 });
-  };
+  }
 
-  const passwordStrength = getPasswordStrength();
+  // ============================================================
+  // HELPER RENDER FUNCTIONS
+  // ============================================================
+
+  /**
+   * Render the password strength indicator bars.
+   * @returns {JSX.Element[]} Array of strength bar elements
+   */
+  function renderStrengthBars() {
+    const bars = [];
+    for (let bar = 1; bar <= 4; bar++) {
+      let barClass = "bg-gray-200";
+      if (bar <= passwordStrength.score) {
+        barClass = getStrengthColor(passwordStrength.score);
+      }
+      bars.push(
+        <div
+          key={bar}
+          className={"h-1 rounded-full flex-1 " + barClass}
+        />
+      );
+    }
+    return bars;
+  }
+
+  /**
+   * Get the CSS class for password strength text color.
+   * @returns {string} CSS class for the color
+   */
+  function getStrengthTextColor() {
+    if (passwordStrength.score <= 1) {
+      return "text-red-600";
+    }
+    if (passwordStrength.score === 2) {
+      return "text-yellow-600";
+    }
+    if (passwordStrength.score === 3) {
+      return "text-teal-600";
+    }
+    return "text-green-600";
+  }
+
+  /**
+   * Render footer links with separators.
+   * @returns {JSX.Element[]} Array of footer link elements
+   */
+  function renderFooterLinks() {
+    const elements = [];
+    for (let i = 0; i < t.footerLinks.length; i++) {
+      const item = t.footerLinks[i];
+      
+      if (i > 0) {
+        elements.push(
+          <span key={"sep-" + i} className="text-white/40">•</span>
+        );
+      }
+      
+      elements.push(
+        <span key={item} className="hover:text-white transition-colors cursor-pointer">
+          {item}
+        </span>
+      );
+    }
+    return elements;
+  }
+
+  // ============================================================
+  // RENDER
+  // ============================================================
 
   return (
     <div className="min-h-screen overflow-y-auto lg:h-screen lg:overflow-hidden bg-linear-to-br from-emerald-950 via-emerald-900 to-teal-900 py-2 px-4">
@@ -816,7 +1111,7 @@ export default function Signup() {
                       />
                       <button
                         type="button"
-                        onClick={() => setShowPassword(!showPassword)}
+                        onClick={function() { setShowPassword(!showPassword); }}
                         className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
                       >
                         {showPassword ? (
@@ -833,31 +1128,12 @@ export default function Signup() {
                           <span className="text-xs text-gray-600">
                             {t.strength}
                           </span>
-                          <span
-                            className={`text-xs font-medium ${
-                              passwordStrength.score <= 1
-                                ? "text-red-600"
-                                : passwordStrength.score === 2
-                                  ? "text-yellow-600"
-                                  : passwordStrength.score === 3
-                                    ? "text-teal-600"
-                                    : "text-green-600"
-                            }`}
-                          >
+                          <span className={"text-xs font-medium " + getStrengthTextColor()}>
                             {passwordStrength.message}
                           </span>
                         </div>
                         <div className="flex gap-1 mb-1">
-                          {[1, 2, 3, 4].map((bar) => (
-                            <div
-                              key={bar}
-                              className={`h-1 rounded-full flex-1 ${
-                                bar <= passwordStrength.score
-                                  ? getStrengthColor(passwordStrength.score)
-                                  : "bg-gray-200"
-                              }`}
-                            />
-                          ))}
+                          {renderStrengthBars()}
                         </div>
                         <div className="grid grid-cols-2 gap-1 text-xs">
                           <PasswordRequirement
@@ -899,9 +1175,7 @@ export default function Signup() {
                       />
                       <button
                         type="button"
-                        onClick={() =>
-                          setShowConfirmPassword(!showConfirmPassword)
-                        }
+                        onClick={function() { setShowConfirmPassword(!showConfirmPassword); }}
                         className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
                       >
                         {showConfirmPassword ? (
@@ -1063,14 +1337,7 @@ export default function Signup() {
         {/* Footer */}
         <footer className="mt-2 text-center">
           <div className="flex flex-wrap justify-center gap-2 text-sm text-white/80">
-            {t.footerLinks.map((item, idx) => (
-              <React.Fragment key={item}>
-                {idx > 0 && <span className="text-white/40">•</span>}
-                <span className="hover:text-white transition-colors cursor-pointer">
-                  {item}
-                </span>
-              </React.Fragment>
-            ))}
+            {renderFooterLinks()}
           </div>
           <p className="text-white/60 text-xs mt-1">{t.copyright}</p>
         </footer>
