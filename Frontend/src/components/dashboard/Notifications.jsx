@@ -1,19 +1,53 @@
-import React, { useState } from "react";
+/**
+ * Notifications Component
+ * 
+ * Displays user notifications including announcements and issue updates.
+ * Supports filtering, marking as read, and deletion.
+ * 
+ * @component
+ * 
+ * BACKEND INTEGRATION:
+ * - GET /api/notifications - Fetches user notifications
+ * - PATCH /api/notifications/:id/read - Mark notification as read
+ * - PATCH /api/notifications/read-all - Mark all as read
+ * - DELETE /api/notifications/:id - Delete notification
+ * 
+ * REQUIRED RESPONSE FORMAT:
+ * {
+ *   success: true,
+ *   data: [{
+ *     id: number,
+ *     type: 'update' | 'announcement',
+ *     title: string,
+ *     titleNp: string,
+ *     message: string,
+ *     messageNp: string,
+ *     timestamp: string (ISO date),
+ *     isRead: boolean,
+ *     from: string
+ *   }]
+ * }
+ */
+
+import React, { useState, useMemo } from "react";
 import { useLanguage } from "../../context/useLanguage";
+import { useNotifications } from "../../hooks/useData";
+import { notificationsAPI } from "../../services/api";
 import {
   Bell,
-  AlertTriangle,
-  Info,
-  CheckCircle,
-  Calendar,
   Clock,
   Trash2,
   CheckCheck,
-  Filter,
   MessageSquare,
   Megaphone,
   FileText,
+  Loader,
+  AlertCircle,
 } from "lucide-react";
+
+// ============================================================================
+// TRANSLATIONS
+// ============================================================================
 
 const notificationText = {
   en: {
@@ -30,8 +64,9 @@ const notificationText = {
     yesterday: "Yesterday",
     earlier: "Earlier",
     from: "From",
-    deleteAll: "Delete All",
-    readMore: "Read More",
+    loading: "Loading notifications...",
+    error: "Failed to load notifications",
+    retry: "Retry",
   },
   np: {
     title: "सूचनाहरू",
@@ -47,160 +82,507 @@ const notificationText = {
     yesterday: "हिजो",
     earlier: "पहिले",
     from: "बाट",
-    deleteAll: "सबै मेट्नुहोस्",
-    readMore: "थप पढ्नुहोस्",
+    loading: "सूचनाहरू लोड हुँदैछ...",
+    error: "सूचनाहरू लोड गर्न असफल",
+    retry: "पुन: प्रयास",
   },
 };
 
-// Mock notifications data
-const mockNotifications = [
-  {
-    id: 1,
-    type: "update",
-    title: "Issue Status Updated",
-    titleNp: "समस्या स्थिति अद्यावधिक",
-    message: "Your road damage report (ISS-2024-001) has been assigned to a repair team. Expected completion: 3 days.",
-    messageNp: "तपाईंको सडक क्षति रिपोर्ट (ISS-2024-001) मर्मत टोलीलाई तोकिएको छ। अपेक्षित समापन: 3 दिन।",
-    timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000), // 2 hours ago
-    isRead: false,
-    from: "Ward 5 Office",
-  },
-  {
-    id: 2,
-    type: "announcement",
-    title: "Water Supply Schedule Change",
-    titleNp: "पानी आपूर्ति तालिका परिवर्तन",
-    message: "Due to maintenance work, water supply will be available from 6 AM to 10 AM and 5 PM to 8 PM starting from tomorrow.",
-    messageNp: "मर्मत कार्यको कारण, भोलिदेखि बिहान 6 देखि 10 बजे र साँझ 5 देखि 8 बजेसम्म पानी आपूर्ति उपलब्ध हुनेछ।",
-    timestamp: new Date(Date.now() - 5 * 60 * 60 * 1000), // 5 hours ago
-    isRead: false,
-    from: "Kathmandu Metropolitan City",
-  },
-  {
-    id: 3,
-    type: "update",
-    title: "Issue Resolved",
-    titleNp: "समस्या समाधान भयो",
-    message: "Your water supply issue (ISS-2024-002) has been resolved. Pipeline has been repaired successfully.",
-    messageNp: "तपाईंको पानी आपूर्ति समस्या (ISS-2024-002) समाधान भएको छ। पाइपलाइन सफलतापूर्वक मर्मत गरिएको छ।",
-    timestamp: new Date(Date.now() - 24 * 60 * 60 * 1000), // 1 day ago
-    isRead: true,
-    from: "Water Supply Department",
-  },
-  {
-    id: 4,
-    type: "announcement",
-    title: "Community Meeting Announcement",
-    titleNp: "सामुदायिक बैठक घोषणा",
-    message: "Ward 5 community meeting scheduled for January 28, 2024 at 3 PM. Topics: Road development, sanitation improvement.",
-    messageNp: "वडा 5 सामुदायिक बैठक जनवरी 28, 2024 को दिउँसो 3 बजे तय गरिएको छ। विषयहरू: सडक विकास, सरसफाई सुधार।",
-    timestamp: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000), // 2 days ago
-    isRead: true,
-    from: "Ward 5 Office",
-  },
-  {
-    id: 5,
-    type: "announcement",
-    title: "New Garbage Collection Schedule",
-    titleNp: "नयाँ फोहोर संकलन तालिका",
-    message: "Starting next week, garbage collection will be done on Monday, Wednesday, and Friday at 7 AM.",
-    messageNp: "अर्को हप्तादेखि, फोहोर संकलन सोमबार, बुधबार र शुक्रबार बिहान 7 बजे गरिनेछ।",
-    timestamp: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000), // 5 days ago
-    isRead: true,
-    from: "Sanitation Department",
-  },
-];
+// ============================================================================
+// HELPER FUNCTIONS
+// ============================================================================
 
-const Notifications = () => {
+/**
+ * Calculate how long ago a timestamp occurred and return a human-readable string.
+ * 
+ * @param {string} timestamp - ISO date string
+ * @param {string} language - Current language ('en' or 'np')
+ * @returns {string} Human-readable time ago string
+ */
+function getTimeAgo(timestamp, language) {
+  // Get current time
+  const now = new Date();
+  
+  // Calculate difference in milliseconds
+  const notificationTime = new Date(timestamp);
+  const differenceMs = now - notificationTime;
+  
+  // Convert to different time units
+  const minutes = Math.floor(differenceMs / 60000);
+  const hours = Math.floor(differenceMs / 3600000);
+  const days = Math.floor(differenceMs / 86400000);
+
+  // Return appropriate string based on how long ago
+  if (minutes < 60) {
+    if (language === "en") {
+      return minutes + " min ago";
+    } else {
+      return minutes + " मिनेट अगाडि";
+    }
+  } else if (hours < 24) {
+    if (language === "en") {
+      return hours + " hours ago";
+    } else {
+      return hours + " घण्टा अगाडि";
+    }
+  } else if (days === 1) {
+    if (language === "en") {
+      return "Yesterday";
+    } else {
+      return "हिजो";
+    }
+  } else {
+    if (language === "en") {
+      return days + " days ago";
+    } else {
+      return days + " दिन अगाडि";
+    }
+  }
+}
+
+/**
+ * Get the group label for date-based grouping (Today, Yesterday, Earlier).
+ * 
+ * @param {string} timestamp - ISO date string
+ * @param {Object} t - Translation object
+ * @returns {string} Group label
+ */
+function getGroupLabel(timestamp, t) {
+  // Calculate days difference
+  const now = new Date();
+  const notificationTime = new Date(timestamp);
+  const differenceMs = now - notificationTime;
+  const days = Math.floor(differenceMs / 86400000);
+  
+  // Return appropriate label
+  if (days === 0) {
+    return t.today;
+  } else if (days === 1) {
+    return t.yesterday;
+  } else {
+    return t.earlier;
+  }
+}
+
+/**
+ * Get the appropriate icon component based on notification type.
+ * 
+ * @param {string} type - The notification type ('announcement' or 'update')
+ * @returns {JSX.Element} Icon component
+ */
+function getNotificationIcon(type) {
+  if (type === "announcement") {
+    return <Megaphone className="text-blue-600" size={20} />;
+  } else {
+    return <FileText className="text-emerald-600" size={20} />;
+  }
+}
+
+// ============================================================================
+// SUB-COMPONENTS
+// ============================================================================
+
+/**
+ * NotificationCard Component
+ * 
+ * Displays a single notification with title, message, time, and delete button.
+ * Unread notifications have a green left border.
+ * 
+ * @param {Object} props - Component properties
+ * @param {Object} props.notification - The notification data
+ * @param {string} props.language - Current language
+ * @param {Object} props.t - Translation object
+ * @param {Function} props.onDelete - Delete handler
+ * @param {boolean} props.isExpanded - Whether this card is expanded
+ * @param {Function} props.onToggle - Toggle expand/collapse
+ */
+function NotificationCard(props) {
+  // Destructure props
+  const notification = props.notification;
+  const language = props.language;
+  const t = props.t;
+  const onDelete = props.onDelete;
+  const isExpanded = props.isExpanded;
+  const onToggle = props.onToggle;
+  
+  // Determine text content based on language
+  const title = language === "en" ? notification.title : notification.titleNp;
+  const message = language === "en" ? notification.message : notification.messageNp;
+  
+  // Calculate time ago
+  const timeAgo = getTimeAgo(notification.timestamp, language);
+  
+  // Determine if notification is unread
+  const isUnread = !notification.isRead;
+  
+  // Build CSS classes
+  let cardClass = "bg-white rounded-xl shadow-sm overflow-hidden transition ";
+  if (isUnread) {
+    cardClass = cardClass + "border-l-4 border-l-emerald-500";
+  }
+  
+  let titleClass = "font-semibold ";
+  if (isUnread) {
+    titleClass = titleClass + "text-gray-900";
+  } else {
+    titleClass = titleClass + "text-gray-700";
+  }
+  
+  let messageClass = "text-sm ";
+  if (!isExpanded) {
+    messageClass = messageClass + "line-clamp-2 ";
+  }
+  if (isUnread) {
+    messageClass = messageClass + "text-gray-700";
+  } else {
+    messageClass = messageClass + "text-gray-500";
+  }
+  
+  // Get icon background class
+  let iconBgClass = "p-2 rounded-lg ";
+  if (notification.type === "announcement") {
+    iconBgClass = iconBgClass + "bg-blue-100";
+  } else {
+    iconBgClass = iconBgClass + "bg-emerald-100";
+  }
+  
+  /**
+   * Handle delete button click.
+   * Stops propagation to prevent card toggle.
+   */
+  function handleDeleteClick(event) {
+    event.stopPropagation();
+    onDelete(notification.id);
+  }
+
+  return (
+    <div className={cardClass} onClick={onToggle}>
+      <div className="p-4 cursor-pointer">
+        <div className="flex items-start gap-4">
+          {/* Notification Icon */}
+          <div className={iconBgClass}>
+            {getNotificationIcon(notification.type)}
+          </div>
+          
+          {/* Notification Content */}
+          <div className="flex-1 min-w-0">
+            {/* Title Row */}
+            <div className="flex items-center justify-between mb-1">
+              <h4 className={titleClass}>{title}</h4>
+              {isUnread && <span className="w-2 h-2 bg-emerald-500 rounded-full" />}
+            </div>
+            
+            {/* Message */}
+            <p className={messageClass}>{message}</p>
+            
+            {/* Footer Row - Time, From, Delete */}
+            <div className="flex items-center justify-between mt-2">
+              <div className="flex items-center gap-3 text-xs text-gray-400">
+                <span className="flex items-center gap-1">
+                  <Clock size={12} />
+                  {timeAgo}
+                </span>
+                <span>{t.from}: {notification.from}</span>
+              </div>
+              
+              {/* Delete Button */}
+              <button 
+                onClick={handleDeleteClick} 
+                className="p-1 text-gray-400 hover:text-red-500 transition"
+              >
+                <Trash2 size={14} />
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * LoadingState Component
+ */
+function LoadingState(props) {
+  const t = props.t;
+  
+  return (
+    <div className="bg-white rounded-2xl shadow-sm p-12 text-center">
+      <Loader className="mx-auto text-emerald-500 animate-spin mb-4" size={48} />
+      <p className="text-gray-500">{t.loading}</p>
+    </div>
+  );
+}
+
+/**
+ * ErrorState Component
+ */
+function ErrorState(props) {
+  const t = props.t;
+  const onRetry = props.onRetry;
+  
+  return (
+    <div className="bg-white rounded-2xl shadow-sm p-12 text-center">
+      <AlertCircle className="mx-auto text-red-400 mb-4" size={48} />
+      <p className="text-gray-700 font-medium mb-2">{t.error}</p>
+      <button onClick={onRetry} className="text-emerald-600 hover:underline">{t.retry}</button>
+    </div>
+  );
+}
+
+/**
+ * EmptyState Component
+ */
+function EmptyState(props) {
+  const t = props.t;
+  
+  return (
+    <div className="bg-white rounded-2xl shadow-sm p-12 text-center">
+      <Bell className="mx-auto text-gray-300 mb-4" size={48} />
+      <h3 className="text-lg font-semibold text-gray-700 mb-2">{t.noNotifications}</h3>
+      <p className="text-gray-500">{t.noNotificationsDesc}</p>
+    </div>
+  );
+}
+
+// ============================================================================
+// MAIN COMPONENT
+// ============================================================================
+
+/**
+ * Notifications Component
+ * 
+ * The main component that displays user notifications.
+ * Shows announcements and issue updates with filtering options.
+ * 
+ * Features:
+ * - Filter by type (all, unread, announcements, updates)
+ * - Mark individual notifications as read
+ * - Mark all as read
+ * - Delete notifications
+ * - Group by date (Today, Yesterday, Earlier)
+ */
+function Notifications() {
+  // -------------------------------------------------------------------------
+  // HOOKS AND CONTEXT
+  // -------------------------------------------------------------------------
+  
   const { language } = useLanguage();
   const t = notificationText[language];
 
-  const [notifications, setNotifications] = useState(mockNotifications);
+  // -------------------------------------------------------------------------
+  // STATE VARIABLES
+  // -------------------------------------------------------------------------
+  
+  // Current filter selection
   const [filter, setFilter] = useState("all");
+  
+  // ID of currently expanded notification (null if none)
   const [expandedNotification, setExpandedNotification] = useState(null);
+  
+  // Local copy of notifications (for optimistic updates)
+  const [localNotifications, setLocalNotifications] = useState([]);
 
-  const getTimeAgo = (timestamp) => {
-    const now = new Date();
-    const diff = now - timestamp;
-    const minutes = Math.floor(diff / 60000);
-    const hours = Math.floor(diff / 3600000);
-    const days = Math.floor(diff / 86400000);
+  // -------------------------------------------------------------------------
+  // DATA FETCHING
+  // -------------------------------------------------------------------------
+  
+  const { 
+    notifications: apiNotifications, 
+    unreadCount, 
+    loading, 
+    error, 
+    refetch 
+  } = useNotifications();
 
-    if (minutes < 60) {
-      return language === "en" ? `${minutes} min ago` : `${minutes} मिनेट अगाडि`;
-    } else if (hours < 24) {
-      return language === "en" ? `${hours} hours ago` : `${hours} घण्टा अगाडि`;
-    } else if (days === 1) {
-      return language === "en" ? "Yesterday" : "हिजो";
-    } else {
-      return language === "en" ? `${days} days ago` : `${days} दिन अगाडि`;
+  // -------------------------------------------------------------------------
+  // SYNC LOCAL STATE WITH API DATA
+  // -------------------------------------------------------------------------
+  
+  // When API data changes, update local state
+  React.useEffect(function() {
+    if (apiNotifications.length > 0) {
+      setLocalNotifications(apiNotifications);
     }
-  };
+  }, [apiNotifications]);
 
-  const getGroupLabel = (timestamp) => {
-    const now = new Date();
-    const diff = now - timestamp;
-    const days = Math.floor(diff / 86400000);
-
-    if (days === 0) return t.today;
-    if (days === 1) return t.yesterday;
-    return t.earlier;
-  };
-
-  const markAsRead = (id) => {
-    setNotifications(
-      notifications.map((n) => (n.id === id ? { ...n, isRead: true } : n))
-    );
-  };
-
-  const markAllAsRead = () => {
-    setNotifications(notifications.map((n) => ({ ...n, isRead: true })));
-  };
-
-  const deleteNotification = (id) => {
-    setNotifications(notifications.filter((n) => n.id !== id));
-  };
-
-  const filteredNotifications = notifications.filter((n) => {
-    if (filter === "all") return true;
-    if (filter === "unread") return !n.isRead;
-    if (filter === "announcements") return n.type === "announcement";
-    if (filter === "updates") return n.type === "update";
-    return true;
-  });
-
-  const unreadCount = notifications.filter((n) => !n.isRead).length;
-
-  // Group notifications by date
-  const groupedNotifications = filteredNotifications.reduce((groups, notification) => {
-    const label = getGroupLabel(notification.timestamp);
-    if (!groups[label]) {
-      groups[label] = [];
+  // -------------------------------------------------------------------------
+  // FILTERED NOTIFICATIONS
+  // -------------------------------------------------------------------------
+  
+  // Filter notifications based on current filter selection
+  const filteredNotifications = useMemo(function() {
+    const filtered = [];
+    
+    for (let i = 0; i < localNotifications.length; i++) {
+      const notification = localNotifications[i];
+      
+      // Check if notification matches current filter
+      let shouldInclude = false;
+      
+      if (filter === "all") {
+        shouldInclude = true;
+      } else if (filter === "unread") {
+        shouldInclude = !notification.isRead;
+      } else if (filter === "announcements") {
+        shouldInclude = notification.type === "announcement";
+      } else if (filter === "updates") {
+        shouldInclude = notification.type === "update";
+      }
+      
+      if (shouldInclude) {
+        filtered.push(notification);
+      }
     }
-    groups[label].push(notification);
+    
+    return filtered;
+  }, [localNotifications, filter]);
+
+  // -------------------------------------------------------------------------
+  // GROUPED NOTIFICATIONS
+  // -------------------------------------------------------------------------
+  
+  // Group filtered notifications by date (Today, Yesterday, Earlier)
+  const groupedNotifications = useMemo(function() {
+    const groups = {};
+    
+    for (let i = 0; i < filteredNotifications.length; i++) {
+      const notification = filteredNotifications[i];
+      const label = getGroupLabel(notification.timestamp, t);
+      
+      // Create group if it doesn't exist
+      if (!groups[label]) {
+        groups[label] = [];
+      }
+      
+      // Add notification to group
+      groups[label].push(notification);
+    }
+    
     return groups;
-  }, {});
+  }, [filteredNotifications, t]);
 
-  const getNotificationIcon = (type) => {
-    switch (type) {
-      case "announcement":
-        return <Megaphone className="text-blue-600" size={20} />;
-      case "update":
-        return <FileText className="text-emerald-600" size={20} />;
-      default:
-        return <Bell className="text-gray-600" size={20} />;
+  // -------------------------------------------------------------------------
+  // EVENT HANDLERS
+  // -------------------------------------------------------------------------
+  
+  /**
+   * Mark a single notification as read.
+   * Updates local state immediately (optimistic update) then syncs with API.
+   */
+  async function handleMarkRead(id) {
+    // Update local state immediately
+    const updatedNotifications = [];
+    for (let i = 0; i < localNotifications.length; i++) {
+      const notification = localNotifications[i];
+      if (notification.id === id) {
+        // Create a new object with isRead set to true
+        const updatedNotification = {
+          ...notification,
+          isRead: true
+        };
+        updatedNotifications.push(updatedNotification);
+      } else {
+        updatedNotifications.push(notification);
+      }
     }
-  };
+    setLocalNotifications(updatedNotifications);
+    
+    // Sync with API
+    try {
+      await notificationsAPI.markAsRead(id);
+    } catch (err) {
+      console.error("Failed to mark as read:", err);
+    }
+  }
+
+  /**
+   * Mark all notifications as read.
+   */
+  async function handleMarkAllRead() {
+    // Update local state immediately
+    const updatedNotifications = [];
+    for (let i = 0; i < localNotifications.length; i++) {
+      const notification = localNotifications[i];
+      const updatedNotification = {
+        ...notification,
+        isRead: true
+      };
+      updatedNotifications.push(updatedNotification);
+    }
+    setLocalNotifications(updatedNotifications);
+    
+    // Sync with API
+    try {
+      await notificationsAPI.markAllAsRead();
+    } catch (err) {
+      console.error("Failed to mark all as read:", err);
+    }
+  }
+
+  /**
+   * Delete a notification.
+   */
+  async function handleDelete(id) {
+    // Remove from local state immediately
+    const updatedNotifications = [];
+    for (let i = 0; i < localNotifications.length; i++) {
+      const notification = localNotifications[i];
+      if (notification.id !== id) {
+        updatedNotifications.push(notification);
+      }
+    }
+    setLocalNotifications(updatedNotifications);
+    
+    // Sync with API
+    try {
+      await notificationsAPI.delete(id);
+    } catch (err) {
+      console.error("Failed to delete:", err);
+    }
+  }
+
+  /**
+   * Toggle notification expand/collapse and mark as read.
+   */
+  function handleToggle(id) {
+    // Mark as read when expanded
+    handleMarkRead(id);
+    
+    // Toggle expand state
+    if (expandedNotification === id) {
+      setExpandedNotification(null);
+    } else {
+      setExpandedNotification(id);
+    }
+  }
+
+  // -------------------------------------------------------------------------
+  // FILTER TABS CONFIGURATION
+  // -------------------------------------------------------------------------
+  
+  const filterTabs = [
+    { id: "all", label: t.all },
+    { id: "unread", label: t.unread },
+    { id: "announcements", label: t.announcements },
+    { id: "updates", label: t.updates },
+  ];
+
+  // -------------------------------------------------------------------------
+  // RENDER
+  // -------------------------------------------------------------------------
 
   return (
     <div className="max-w-3xl mx-auto">
-      {/* Header */}
+      {/* Header Section */}
       <div className="bg-white rounded-2xl shadow-sm p-6 mb-6">
         <div className="flex items-center justify-between">
           <div>
             <h2 className="text-2xl font-bold text-gray-800 mb-2">{t.title}</h2>
             <p className="text-gray-500">{t.subtitle}</p>
           </div>
+          
+          {/* Unread Badge */}
           {unreadCount > 0 && (
             <span className="bg-red-500 text-white text-sm font-bold px-3 py-1 rounded-full">
               {unreadCount}
@@ -209,32 +591,35 @@ const Notifications = () => {
         </div>
       </div>
 
-      {/* Filter Tabs */}
+      {/* Filter Tabs Section */}
       <div className="bg-white rounded-2xl shadow-sm p-4 mb-6">
         <div className="flex flex-wrap items-center justify-between gap-4">
+          {/* Filter Buttons */}
           <div className="flex flex-wrap gap-2">
-            {[
-              { id: "all", label: t.all },
-              { id: "unread", label: t.unread },
-              { id: "announcements", label: t.announcements },
-              { id: "updates", label: t.updates },
-            ].map((tab) => (
-              <button
-                key={tab.id}
-                onClick={() => setFilter(tab.id)}
-                className={`px-4 py-2 rounded-lg font-medium transition ${
-                  filter === tab.id
-                    ? "bg-emerald-600 text-white"
-                    : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-                }`}
-              >
-                {tab.label}
-              </button>
-            ))}
+            {filterTabs.map(function(tab) {
+              let buttonClass = "px-4 py-2 rounded-lg font-medium transition ";
+              if (filter === tab.id) {
+                buttonClass = buttonClass + "bg-emerald-600 text-white";
+              } else {
+                buttonClass = buttonClass + "bg-gray-100 text-gray-600 hover:bg-gray-200";
+              }
+              
+              return (
+                <button 
+                  key={tab.id} 
+                  onClick={function() { setFilter(tab.id); }} 
+                  className={buttonClass}
+                >
+                  {tab.label}
+                </button>
+              );
+            })}
           </div>
+          
+          {/* Mark All Read Button */}
           {unreadCount > 0 && (
-            <button
-              onClick={markAllAsRead}
+            <button 
+              onClick={handleMarkAllRead} 
               className="flex items-center gap-2 text-emerald-600 hover:text-emerald-700 font-medium text-sm"
             >
               <CheckCheck size={16} />
@@ -244,95 +629,66 @@ const Notifications = () => {
         </div>
       </div>
 
-      {/* Notifications List */}
-      {filteredNotifications.length === 0 ? (
-        <div className="bg-white rounded-2xl shadow-sm p-12 text-center">
-          <Bell className="mx-auto text-gray-300 mb-4" size={48} />
-          <h3 className="text-lg font-semibold text-gray-700 mb-2">{t.noNotifications}</h3>
-          <p className="text-gray-500">{t.noNotificationsDesc}</p>
-        </div>
-      ) : (
-        Object.entries(groupedNotifications).map(([group, items]) => (
-          <div key={group} className="mb-6">
-            <h3 className="text-sm font-semibold text-gray-500 mb-3 px-2">{group}</h3>
-            <div className="space-y-3">
-              {items.map((notification) => (
-                <div
-                  key={notification.id}
-                  className={`bg-white rounded-xl shadow-sm overflow-hidden transition ${
-                    !notification.isRead ? "border-l-4 border-l-emerald-500" : ""
-                  }`}
-                  onClick={() => {
-                    markAsRead(notification.id);
-                    setExpandedNotification(
-                      expandedNotification === notification.id ? null : notification.id
-                    );
-                  }}
-                >
-                  <div className="p-4 cursor-pointer">
-                    <div className="flex items-start gap-4">
-                      <div
-                        className={`p-2 rounded-lg ${
-                          notification.type === "announcement"
-                            ? "bg-blue-100"
-                            : "bg-emerald-100"
-                        }`}
-                      >
-                        {getNotificationIcon(notification.type)}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center justify-between mb-1">
-                          <h4
-                            className={`font-semibold ${
-                              !notification.isRead ? "text-gray-900" : "text-gray-700"
-                            }`}
-                          >
-                            {language === "en" ? notification.title : notification.titleNp}
-                          </h4>
-                          {!notification.isRead && (
-                            <span className="w-2 h-2 bg-emerald-500 rounded-full" />
-                          )}
-                        </div>
-                        <p
-                          className={`text-sm ${
-                            expandedNotification === notification.id
-                              ? ""
-                              : "line-clamp-2"
-                          } ${!notification.isRead ? "text-gray-700" : "text-gray-500"}`}
-                        >
-                          {language === "en" ? notification.message : notification.messageNp}
-                        </p>
-                        <div className="flex items-center justify-between mt-2">
-                          <div className="flex items-center gap-3 text-xs text-gray-400">
-                            <span className="flex items-center gap-1">
-                              <Clock size={12} />
-                              {getTimeAgo(notification.timestamp)}
-                            </span>
-                            <span>
-                              {t.from}: {notification.from}
-                            </span>
-                          </div>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              deleteNotification(notification.id);
-                            }}
-                            className="p-1 text-gray-400 hover:text-red-500 transition"
-                          >
-                            <Trash2 size={14} />
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        ))
-      )}
+      {/* Notifications List Section */}
+      {renderNotificationsList()}
     </div>
   );
-};
+  
+  /**
+   * Helper function to render the notifications list.
+   */
+  function renderNotificationsList() {
+    // Show loading state
+    if (loading) {
+      return <LoadingState t={t} />;
+    }
+    
+    // Show error state
+    if (error) {
+      return <ErrorState t={t} onRetry={refetch} />;
+    }
+    
+    // Show empty state
+    if (filteredNotifications.length === 0) {
+      return <EmptyState t={t} />;
+    }
+    
+    // Render grouped notifications
+    const groupElements = [];
+    const groupKeys = Object.keys(groupedNotifications);
+    
+    for (let i = 0; i < groupKeys.length; i++) {
+      const groupLabel = groupKeys[i];
+      const groupItems = groupedNotifications[groupLabel];
+      
+      // Create notification cards for this group
+      const notificationCards = [];
+      for (let j = 0; j < groupItems.length; j++) {
+        const notification = groupItems[j];
+        notificationCards.push(
+          <NotificationCard
+            key={notification.id}
+            notification={notification}
+            language={language}
+            t={t}
+            onDelete={handleDelete}
+            isExpanded={expandedNotification === notification.id}
+            onToggle={function() { handleToggle(notification.id); }}
+          />
+        );
+      }
+      
+      // Create group element
+      groupElements.push(
+        <div key={groupLabel} className="mb-6">
+          <h3 className="text-sm font-semibold text-gray-500 mb-3 px-2">{groupLabel}</h3>
+          <div className="space-y-3">{notificationCards}</div>
+        </div>
+      );
+    }
+    
+    return groupElements;
+  }
+}
 
 export default Notifications;

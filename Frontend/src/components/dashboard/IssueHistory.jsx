@@ -1,7 +1,46 @@
-import React, { useState } from "react";
+/**
+ * IssueHistory Component
+ * 
+ * Displays a list of reported issues with filtering, searching, and sorting capabilities.
+ * Users see their ward's issues, while admins can view all wards.
+ * 
+ * @component
+ * 
+ * BACKEND INTEGRATION:
+ * - GET /api/issues - Fetches issues list with filters
+ * - Query params: status, ward, search, sort, page, limit
+ * 
+ * REQUIRED RESPONSE FORMAT:
+ * {
+ *   success: true,
+ *   data: {
+ *     issues: [{
+ *       id: string,
+ *       type: string,
+ *       typeNp: string,
+ *       description: string,
+ *       descriptionNp: string,
+ *       location: string,
+ *       wardNumber: number,
+ *       priority: 'low' | 'medium' | 'high' | 'urgent',
+ *       status: 'pending' | 'inProgress' | 'resolved' | 'rejected',
+ *       reportedOn: string (ISO date),
+ *       lastUpdated: string (ISO date),
+ *       images: number,
+ *       adminResponse?: string,
+ *       adminResponseNp?: string
+ *     }],
+ *     total: number,
+ *     page: number
+ *   }
+ * }
+ */
+
+import React, { useState, useMemo } from "react";
 import { useLanguage } from "../../context/useLanguage";
 import { useAuth } from "../../context/useAuth";
 import { DAMAK_TOTAL_WARDS, ROLES } from "../../context/authConstants";
+import { useIssues } from "../../hooks/useData";
 import {
   Clock,
   CheckCircle,
@@ -9,34 +48,33 @@ import {
   XCircle,
   MapPin,
   Calendar,
-  Eye,
   MessageSquare,
-  Filter,
   Search,
   ChevronDown,
   ChevronUp,
   Image,
   FileText,
-  Building,
+  Loader,
 } from "lucide-react";
+
+// ============================================================================
+// TRANSLATIONS
+// ============================================================================
 
 const historyText = {
   en: {
     title: "Issue History",
     subtitle: "Track all reported issues and their status",
-    myIssues: "My Issues",
     allIssues: "All Issues",
     pending: "Pending",
     inProgress: "In Progress",
     resolved: "Resolved",
     rejected: "Rejected",
     searchPlaceholder: "Search issues...",
-    filterBy: "Filter by",
-    sortBy: "Sort by",
     newest: "Newest First",
     oldest: "Oldest First",
     noIssues: "No issues found",
-    viewDetails: "View Details",
+    noIssuesDesc: "Issues reported in your area will appear here.",
     status: "Status",
     reportedOn: "Reported On",
     lastUpdated: "Last Updated",
@@ -44,7 +82,6 @@ const historyText = {
     priority: "Priority",
     adminResponse: "Admin Response",
     attachments: "Attachments",
-    issueId: "Issue ID",
     low: "Low",
     medium: "Medium",
     high: "High",
@@ -52,23 +89,24 @@ const historyText = {
     ward: "Ward",
     allWards: "All Wards",
     yourWard: "Your Ward",
+    loading: "Loading issues...",
+    error: "Failed to load issues",
+    retry: "Retry",
+    images: "image(s)",
   },
   np: {
     title: "समस्या इतिहास",
     subtitle: "सबै रिपोर्ट गरिएका समस्याहरू र तिनीहरूको स्थिति ट्र्याक गर्नुहोस्",
-    myIssues: "मेरो समस्याहरू",
     allIssues: "सबै समस्याहरू",
     pending: "पेन्डिङ",
     inProgress: "प्रगतिमा",
     resolved: "समाधान भएको",
     rejected: "अस्वीकृत",
     searchPlaceholder: "समस्याहरू खोज्नुहोस्...",
-    filterBy: "फिल्टर गर्नुहोस्",
-    sortBy: "क्रमबद्ध गर्नुहोस्",
     newest: "नयाँ पहिले",
     oldest: "पुरानो पहिले",
     noIssues: "कुनै समस्या भेटिएन",
-    viewDetails: "विवरण हेर्नुहोस्",
+    noIssuesDesc: "तपाईंको क्षेत्रमा रिपोर्ट गरिएका समस्याहरू यहाँ देखिनेछ।",
     status: "स्थिति",
     reportedOn: "रिपोर्ट गरिएको मिति",
     lastUpdated: "अन्तिम अद्यावधिक",
@@ -76,7 +114,6 @@ const historyText = {
     priority: "प्राथमिकता",
     adminResponse: "प्रशासक प्रतिक्रिया",
     attachments: "संलग्नकहरू",
-    issueId: "समस्या ID",
     low: "कम",
     medium: "मध्यम",
     high: "उच्च",
@@ -84,299 +121,563 @@ const historyText = {
     ward: "वडा",
     allWards: "सबै वडाहरू",
     yourWard: "तपाईंको वडा",
+    loading: "समस्याहरू लोड हुँदैछ...",
+    error: "समस्याहरू लोड गर्न असफल",
+    retry: "पुन: प्रयास",
+    images: "तस्बिर(हरू)",
   },
 };
 
-// Mock data for issues with ward numbers
-const mockIssues = [
-  {
-    id: "ISS-2024-001",
-    type: "Road Damage",
-    typeNp: "सडक क्षति",
-    wardNumber: 5,
-    description: "Large pothole causing accidents near the main market area. Multiple vehicles have been damaged.",
-    descriptionNp: "मुख्य बजार क्षेत्र नजिक ठूलो खाल्डोले दुर्घटना गराउँदै। धेरै गाडीहरू क्षतिग्रस्त भएका छन्।",
-    location: "Ward 5, Damak",
-    priority: "high",
-    status: "inProgress",
-    reportedOn: "2024-01-15",
-    lastUpdated: "2024-01-18",
-    images: 2,
-    adminResponse: "Team has been dispatched. Expected completion within 3 days.",
-    adminResponseNp: "टोली पठाइएको छ। 3 दिन भित्र पूरा हुने अपेक्षा।",
-  },
-  {
-    id: "ISS-2024-002",
-    type: "Water Supply",
-    typeNp: "पानी आपूर्ति",
-    wardNumber: 4,
-    description: "No water supply for the past 3 days in our area. Urgent attention needed.",
-    descriptionNp: "हाम्रो क्षेत्रमा गत 3 दिनदेखि पानी आपूर्ति छैन। तत्काल ध्यान चाहिन्छ।",
-    location: "Ward 4, Damak",
-    priority: "urgent",
-    status: "resolved",
-    reportedOn: "2024-01-10",
-    lastUpdated: "2024-01-12",
-    images: 1,
-    adminResponse: "Issue has been resolved. Pipeline repaired successfully.",
-    adminResponseNp: "समस्या समाधान भएको छ। पाइपलाइन सफलतापूर्वक मर्मत गरियो।",
-  },
-  {
-    id: "ISS-2024-003",
-    type: "Street Light",
-    typeNp: "सडक बत्ती",
-    wardNumber: 3,
-    description: "Street light not working for 2 weeks. Area is very dark at night.",
-    descriptionNp: "सडक बत्ती २ हप्तादेखि काम गरिरहेको छैन। राति क्षेत्र धेरै अँध्यारो हुन्छ।",
-    location: "Ward 3, Damak",
-    priority: "medium",
-    status: "pending",
-    reportedOn: "2024-01-20",
-    lastUpdated: "2024-01-20",
-    images: 3,
-    adminResponse: null,
-  },
-  {
-    id: "ISS-2024-004",
-    type: "Garbage/Sanitation",
-    typeNp: "फोहोर/सरसफाई",
-    wardNumber: 5,
-    description: "Garbage not collected for a week. Causing health hazards.",
-    descriptionNp: "एक हप्तादेखि फोहोर संकलन भएको छैन। स्वास्थ्य जोखिम उत्पन्न गर्दै।",
-    location: "Ward 5, Damak",
-    priority: "high",
-    status: "rejected",
-    reportedOn: "2024-01-05",
-    lastUpdated: "2024-01-06",
-    images: 2,
-    adminResponse: "This area is under different municipality jurisdiction. Please contact concerned authority.",
-    adminResponseNp: "यो क्षेत्र फरक नगरपालिका क्षेत्राधिकार अन्तर्गत छ। कृपया सम्बन्धित अधिकारीलाई सम्पर्क गर्नुहोस्।",
-  },
-  {
-    id: "ISS-2024-005",
-    type: "Drainage",
-    typeNp: "ढल निकास",
-    wardNumber: 7,
-    description: "Blocked drainage causing water logging during rain. Health hazard.",
-    descriptionNp: "अवरुद्ध ढल निकासले पानी जमाव गर्दै। स्वास्थ्य जोखिम।",
-    location: "Ward 7, Damak",
-    priority: "high",
-    status: "pending",
-    reportedOn: "2024-01-22",
-    lastUpdated: "2024-01-22",
-    images: 1,
-    adminResponse: null,
-  },
-];
+// ============================================================================
+// HELPER FUNCTIONS
+// ============================================================================
 
-const IssueHistory = () => {
+/**
+ * Get the styling configuration for an issue's status badge.
+ * 
+ * Each status has a different color and icon to help users quickly
+ * identify the state of their reported issue.
+ * 
+ * @param {string} status - The issue status ('pending', 'inProgress', 'resolved', 'rejected')
+ * @param {Object} t - Translation object containing status labels
+ * @returns {Object} Object containing bg, text, icon, and label properties
+ * 
+ * EXAMPLE:
+ *   const style = getStatusStyle('pending', translations);
+ *   // Returns: { bg: "bg-yellow-100", text: "text-yellow-700", icon: Clock, label: "Pending" }
+ */
+function getStatusStyle(status, t) {
+  // Define all possible status styles
+  const styles = {
+    pending: { 
+      bg: "bg-yellow-100", 
+      text: "text-yellow-700", 
+      icon: Clock, 
+      label: t.pending 
+    },
+    inProgress: { 
+      bg: "bg-blue-100", 
+      text: "text-blue-700", 
+      icon: AlertCircle, 
+      label: t.inProgress 
+    },
+    resolved: { 
+      bg: "bg-green-100", 
+      text: "text-green-700", 
+      icon: CheckCircle, 
+      label: t.resolved 
+    },
+    rejected: { 
+      bg: "bg-red-100", 
+      text: "text-red-700", 
+      icon: XCircle, 
+      label: t.rejected 
+    },
+  };
+  
+  // Return the matching style, or a default gray style if status is unknown
+  const matchedStyle = styles[status];
+  if (matchedStyle) {
+    return matchedStyle;
+  }
+  
+  // Default fallback for unknown statuses
+  const defaultStyle = { 
+    bg: "bg-gray-100", 
+    text: "text-gray-700", 
+    icon: Clock, 
+    label: status 
+  };
+  return defaultStyle;
+}
+
+/**
+ * Get the styling configuration for an issue's priority badge.
+ * 
+ * Priority levels are color-coded:
+ * - Low: Green (not urgent)
+ * - Medium: Yellow (needs attention)
+ * - High: Orange (important)
+ * - Urgent: Red (needs immediate action)
+ * 
+ * @param {string} priority - The priority level ('low', 'medium', 'high', 'urgent')
+ * @param {Object} t - Translation object containing priority labels
+ * @returns {Object} Object containing color and label properties
+ */
+function getPriorityStyle(priority, t) {
+  // Define all possible priority styles
+  const styles = {
+    low: { 
+      color: "text-green-600", 
+      label: t.low 
+    },
+    medium: { 
+      color: "text-yellow-600", 
+      label: t.medium 
+    },
+    high: { 
+      color: "text-orange-600", 
+      label: t.high 
+    },
+    urgent: { 
+      color: "text-red-600", 
+      label: t.urgent 
+    },
+  };
+  
+  // Return the matching style, or a default gray style if priority is unknown
+  const matchedStyle = styles[priority];
+  if (matchedStyle) {
+    return matchedStyle;
+  }
+  
+  // Default fallback for unknown priorities
+  const defaultStyle = { 
+    color: "text-gray-600", 
+    label: priority 
+  };
+  return defaultStyle;
+}
+
+// ============================================================================
+// SUB-COMPONENTS
+// ============================================================================
+
+/**
+ * IssueCard Component
+ * 
+ * Displays a single issue as an expandable card. Clicking on the card
+ * expands/collapses additional details like admin response and attachments.
+ * 
+ * @param {Object} props - Component properties
+ * @param {Object} props.issue - The issue data object
+ * @param {boolean} props.isExpanded - Whether this card is currently expanded
+ * @param {Function} props.onToggle - Function to call when card is clicked
+ * @param {string} props.language - Current language ('en' or 'np')
+ * @param {Object} props.t - Translation object
+ */
+function IssueCard(props) {
+  // Destructure props for easier access
+  const issue = props.issue;
+  const isExpanded = props.isExpanded;
+  const onToggle = props.onToggle;
+  const language = props.language;
+  const t = props.t;
+  
+  // Get styling for status and priority badges
+  const statusStyle = getStatusStyle(issue.status, t);
+  const priorityStyle = getPriorityStyle(issue.priority, t);
+  
+  // Get the icon component for the status
+  const StatusIcon = statusStyle.icon;
+  
+  // Determine which text to show based on language
+  const issueType = language === "en" ? issue.type : issue.typeNp;
+  const issueDescription = language === "en" ? issue.description : issue.descriptionNp;
+  const adminResponseText = language === "en" ? issue.adminResponse : issue.adminResponseNp;
+  
+  // Format dates for display
+  const reportedDate = new Date(issue.reportedOn).toLocaleDateString();
+  const updatedDate = new Date(issue.lastUpdated).toLocaleDateString();
+
+  return (
+    <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
+      {/* Clickable Header Section */}
+      <div className="p-6 cursor-pointer" onClick={onToggle}>
+        <div className="flex items-start justify-between">
+          <div className="flex-1">
+            {/* Issue ID, Status Badge, and Ward Badge */}
+            <div className="flex items-center gap-3 mb-2">
+              <span className="text-sm text-gray-500 font-mono">{issue.id}</span>
+              <span className={`px-3 py-1 rounded-full text-sm font-medium flex items-center gap-1 ${statusStyle.bg} ${statusStyle.text}`}>
+                <StatusIcon size={14} />
+                {statusStyle.label}
+              </span>
+              <span className="px-2 py-1 rounded-full text-xs font-medium flex items-center gap-1 bg-indigo-100 text-indigo-700">
+                <MapPin size={10} />
+                {t.ward} {issue.wardNumber}
+              </span>
+            </div>
+            
+            {/* Issue Type Title */}
+            <h3 className="text-lg font-semibold text-gray-800 mb-2">
+              {issueType}
+            </h3>
+            
+            {/* Issue Description (truncated to 2 lines) */}
+            <p className="text-gray-600 line-clamp-2">
+              {issueDescription}
+            </p>
+            
+            {/* Location, Date, and Priority Info */}
+            <div className="flex flex-wrap items-center gap-4 mt-3 text-sm text-gray-500">
+              <span className="flex items-center gap-1">
+                <MapPin size={14} />
+                {issue.location}
+              </span>
+              <span className="flex items-center gap-1">
+                <Calendar size={14} />
+                {reportedDate}
+              </span>
+              <span className={`font-medium ${priorityStyle.color}`}>
+                {t.priority}: {priorityStyle.label}
+              </span>
+            </div>
+          </div>
+          
+          {/* Expand/Collapse Button */}
+          <button className="p-2 hover:bg-gray-100 rounded-lg transition">
+            {isExpanded ? <ChevronUp className="text-gray-400" size={20} /> : <ChevronDown className="text-gray-400" size={20} />}
+          </button>
+        </div>
+      </div>
+
+      {/* Expanded Details Section - Only shown when card is expanded */}
+      {isExpanded && (
+        <div className="px-6 pb-6 border-t border-gray-100 pt-4">
+          {/* Date Information Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+            <div>
+              <p className="text-sm text-gray-500 mb-1">{t.reportedOn}</p>
+              <p className="font-medium text-gray-800">{reportedDate}</p>
+            </div>
+            <div>
+              <p className="text-sm text-gray-500 mb-1">{t.lastUpdated}</p>
+              <p className="font-medium text-gray-800">{updatedDate}</p>
+            </div>
+          </div>
+          
+          {/* Attachments Section - Only shown if there are images */}
+          {issue.images > 0 && (
+            <div className="mb-4">
+              <p className="text-sm text-gray-500 mb-2">{t.attachments}</p>
+              <div className="flex items-center gap-2">
+                <Image className="text-gray-400" size={16} />
+                <span className="text-gray-600">{issue.images} {t.images}</span>
+              </div>
+            </div>
+          )}
+          
+          {/* Admin Response Section - Only shown if admin has responded */}
+          {issue.adminResponse && (
+            <div className="bg-gray-50 rounded-xl p-4">
+              <div className="flex items-center gap-2 mb-2">
+                <MessageSquare className="text-emerald-600" size={16} />
+                <p className="text-sm font-medium text-gray-700">{t.adminResponse}</p>
+              </div>
+              <p className="text-gray-600">{adminResponseText}</p>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/**
+ * LoadingState Component
+ * 
+ * Displays a loading spinner while issues are being fetched from the server.
+ * 
+ * @param {Object} props - Component properties
+ * @param {Object} props.t - Translation object
+ */
+function LoadingState(props) {
+  const t = props.t;
+  
+  return (
+    <div className="bg-white rounded-2xl shadow-sm p-12 text-center">
+      <Loader className="mx-auto text-emerald-500 animate-spin mb-4" size={48} />
+      <p className="text-gray-500">{t.loading}</p>
+    </div>
+  );
+}
+
+/**
+ * ErrorState Component
+ * 
+ * Displays an error message with a retry button when issues fail to load.
+ * 
+ * @param {Object} props - Component properties
+ * @param {Object} props.t - Translation object
+ * @param {Function} props.onRetry - Function to call when retry button is clicked
+ */
+function ErrorState(props) {
+  const t = props.t;
+  const onRetry = props.onRetry;
+  
+  return (
+    <div className="bg-white rounded-2xl shadow-sm p-12 text-center">
+      <AlertCircle className="mx-auto text-red-400 mb-4" size={48} />
+      <p className="text-gray-700 font-medium mb-2">{t.error}</p>
+      <button onClick={onRetry} className="text-emerald-600 hover:underline">{t.retry}</button>
+    </div>
+  );
+}
+
+/**
+ * EmptyState Component
+ * 
+ * Displays a message when there are no issues to show.
+ * 
+ * @param {Object} props - Component properties
+ * @param {Object} props.t - Translation object
+ */
+function EmptyState(props) {
+  const t = props.t;
+  
+  return (
+    <div className="bg-white rounded-2xl shadow-sm p-12 text-center">
+      <FileText className="mx-auto text-gray-300 mb-4" size={48} />
+      <p className="text-gray-700 font-medium mb-1">{t.noIssues}</p>
+      <p className="text-gray-500 text-sm">{t.noIssuesDesc}</p>
+    </div>
+  );
+}
+
+
+// ============================================================================
+// MAIN COMPONENT
+// ============================================================================
+
+/**
+ * IssueHistory Component
+ * 
+ * The main component that displays a filterable, searchable list of issues.
+ * - Regular users see only their ward's issues
+ * - Super admins can filter by any ward
+ * 
+ * Features:
+ * - Filter by status (all, pending, in progress, resolved, rejected)
+ * - Search issues by text
+ * - Sort by newest or oldest first
+ * - Ward filter (super admin only)
+ * - Expandable issue cards for detailed view
+ */
+function IssueHistory() {
+  // -------------------------------------------------------------------------
+  // HOOKS AND CONTEXT
+  // -------------------------------------------------------------------------
+  
+  // Get language settings from context
   const { language } = useLanguage();
+  
+  // Get current user from auth context
   const { user } = useAuth();
+  
+  // Get translations for current language
   const t = historyText[language];
 
-  // Get user's ward - for regular users this filters content
-  const userWard = user?.ward || 5; // Default to ward 5 for demo
-  const isSuperAdmin = user?.role === ROLES.SUPER_ADMIN;
-  const isWardAdmin = user?.role === ROLES.WARD_ADMIN;
-  const isAdmin = isSuperAdmin || isWardAdmin;
+  // -------------------------------------------------------------------------
+  // USER INFO
+  // -------------------------------------------------------------------------
+  
+  // Get user's ward number (default to 5 if not set)
+  let userWard = 5;
+  if (user && user.ward) {
+    userWard = user.ward;
+  }
+  
+  // Check if user is a super admin (can see all wards)
+  let isSuperAdmin = false;
+  if (user && user.role === ROLES.SUPER_ADMIN) {
+    isSuperAdmin = true;
+  }
 
+  // -------------------------------------------------------------------------
+  // STATE VARIABLES
+  // -------------------------------------------------------------------------
+  
+  // Current filter selection ('all', 'pending', 'inProgress', 'resolved', 'rejected')
   const [filter, setFilter] = useState("all");
+  
+  // Search query text entered by user
   const [searchQuery, setSearchQuery] = useState("");
+  
+  // Sort order ('newest' or 'oldest')
   const [sortOrder, setSortOrder] = useState("newest");
+  
+  // ID of the currently expanded issue card (null if none expanded)
   const [expandedIssue, setExpandedIssue] = useState(null);
-  const [wardFilter, setWardFilter] = useState(isSuperAdmin ? "all" : userWard.toString());
+  
+  // Ward filter (super admin can change this, regular users see only their ward)
+  const [wardFilter, setWardFilter] = useState(
+    isSuperAdmin ? "all" : userWard.toString()
+  );
 
-  const getStatusStyle = (status) => {
-    switch (status) {
-      case "pending":
-        return {
-          bg: "bg-yellow-100",
-          text: "text-yellow-700",
-          icon: <Clock size={16} />,
-          label: t.pending,
-        };
-      case "inProgress":
-        return {
-          bg: "bg-blue-100",
-          text: "text-blue-700",
-          icon: <AlertCircle size={16} />,
-          label: t.inProgress,
-        };
-      case "resolved":
-        return {
-          bg: "bg-green-100",
-          text: "text-green-700",
-          icon: <CheckCircle size={16} />,
-          label: t.resolved,
-        };
-      case "rejected":
-        return {
-          bg: "bg-red-100",
-          text: "text-red-700",
-          icon: <XCircle size={16} />,
-          label: t.rejected,
-        };
-      default:
-        return {
-          bg: "bg-gray-100",
-          text: "text-gray-700",
-          icon: <Clock size={16} />,
-          label: status,
-        };
+  // -------------------------------------------------------------------------
+  // API PARAMETERS
+  // -------------------------------------------------------------------------
+  
+  // Build API parameters from current filter/search/sort state
+  // useMemo ensures this only recalculates when dependencies change
+  const apiParams = useMemo(function() {
+    const params = {};
+    
+    // Add status filter if not 'all'
+    if (filter !== "all") {
+      params.status = filter;
     }
-  };
-
-  const getPriorityStyle = (priority) => {
-    switch (priority) {
-      case "low":
-        return { color: "text-green-600", label: t.low };
-      case "medium":
-        return { color: "text-yellow-600", label: t.medium };
-      case "high":
-        return { color: "text-orange-600", label: t.high };
-      case "urgent":
-        return { color: "text-red-600", label: t.urgent };
-      default:
-        return { color: "text-gray-600", label: priority };
+    
+    // Add ward filter if not 'all'
+    if (wardFilter !== "all") {
+      params.ward = wardFilter;
     }
-  };
+    
+    // Add search query if not empty
+    if (searchQuery) {
+      params.search = searchQuery;
+    }
+    
+    // Always include sort order
+    params.sort = sortOrder;
+    
+    return params;
+  }, [filter, wardFilter, searchQuery, sortOrder]);
 
-  const filteredIssues = mockIssues
-    // First, filter by ward
-    .filter((issue) => {
-      // For super admin with "all" filter, show all
-      if (isSuperAdmin && wardFilter === "all") return true;
-      
-      // For ward admin, only show their ward's issues
-      if (isWardAdmin) {
-        return issue.wardNumber === userWard;
+  // -------------------------------------------------------------------------
+  // DATA FETCHING
+  // -------------------------------------------------------------------------
+  
+  // Fetch issues from API using our custom hook
+  const { issues, loading, error, refetch } = useIssues(apiParams);
+
+  // -------------------------------------------------------------------------
+  // FILTER TABS
+  // -------------------------------------------------------------------------
+  
+  // Calculate counts for each filter tab
+  // useMemo ensures this only recalculates when issues change
+  const filterTabs = useMemo(function() {
+    // Count issues for each status
+    let pendingCount = 0;
+    let inProgressCount = 0;
+    let resolvedCount = 0;
+    let rejectedCount = 0;
+    
+    for (let i = 0; i < issues.length; i++) {
+      const issue = issues[i];
+      if (issue.status === "pending") {
+        pendingCount = pendingCount + 1;
+      } else if (issue.status === "inProgress") {
+        inProgressCount = inProgressCount + 1;
+      } else if (issue.status === "resolved") {
+        resolvedCount = resolvedCount + 1;
+      } else if (issue.status === "rejected") {
+        rejectedCount = rejectedCount + 1;
       }
-      
-      // For regular users, only show their ward's issues
-      if (!isAdmin) {
-        return issue.wardNumber === userWard;
-      }
-      
-      // For super admin with specific ward filter
-      return issue.wardNumber.toString() === wardFilter;
-    })
-    .filter((issue) => {
-      if (filter === "all") return true;
-      return issue.status === filter;
-    })
-    .filter((issue) => {
-      if (!searchQuery) return true;
-      const type = language === "en" ? issue.type : issue.typeNp;
-      const desc = language === "en" ? issue.description : issue.descriptionNp;
-      return (
-        type.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        desc.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        issue.id.toLowerCase().includes(searchQuery.toLowerCase())
-      );
-    })
-    .sort((a, b) => {
-      if (sortOrder === "newest") {
-        return new Date(b.reportedOn) - new Date(a.reportedOn);
-      }
-      return new Date(a.reportedOn) - new Date(b.reportedOn);
-    });
+    }
+    
+    // Return array of tab configurations
+    return [
+      { id: "all", label: t.allIssues, count: issues.length },
+      { id: "pending", label: t.pending, count: pendingCount },
+      { id: "inProgress", label: t.inProgress, count: inProgressCount },
+      { id: "resolved", label: t.resolved, count: resolvedCount },
+      { id: "rejected", label: t.rejected, count: rejectedCount },
+    ];
+  }, [issues, t]);
 
-  // Calculate counts based on current ward filter
-  const getWardFilteredIssues = () => {
-    return mockIssues.filter((issue) => {
-      if (isSuperAdmin && wardFilter === "all") return true;
-      if (isWardAdmin) return issue.wardNumber === userWard;
-      if (!isAdmin) return issue.wardNumber === userWard;
-      return issue.wardNumber.toString() === wardFilter;
-    });
-  };
+  // -------------------------------------------------------------------------
+  // EVENT HANDLERS
+  // -------------------------------------------------------------------------
+  
+  /**
+   * Handle clicking on an issue card to expand/collapse it.
+   * If the clicked issue is already expanded, collapse it.
+   * Otherwise, expand the clicked issue and collapse any other.
+   * 
+   * @param {string} issueId - The ID of the clicked issue
+   */
+  function handleToggleExpand(issueId) {
+    // Check if this issue is already expanded
+    if (expandedIssue === issueId) {
+      // Collapse it
+      setExpandedIssue(null);
+    } else {
+      // Expand this issue (and collapse any other)
+      setExpandedIssue(issueId);
+    }
+  }
 
-  const wardFilteredIssues = getWardFilteredIssues();
-
-  const filterTabs = [
-    { id: "all", label: t.allIssues, count: wardFilteredIssues.length },
-    { id: "pending", label: t.pending, count: wardFilteredIssues.filter((i) => i.status === "pending").length },
-    { id: "inProgress", label: t.inProgress, count: wardFilteredIssues.filter((i) => i.status === "inProgress").length },
-    { id: "resolved", label: t.resolved, count: wardFilteredIssues.filter((i) => i.status === "resolved").length },
-    { id: "rejected", label: t.rejected, count: wardFilteredIssues.filter((i) => i.status === "rejected").length },
-  ];
+  // -------------------------------------------------------------------------
+  // RENDER
+  // -------------------------------------------------------------------------
 
   return (
     <div className="max-w-4xl mx-auto">
-      {/* Header */}
+      {/* Header Section */}
       <div className="bg-white rounded-2xl shadow-sm p-6 mb-6">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
             <h2 className="text-2xl font-bold text-gray-800 mb-2">{t.title}</h2>
             <p className="text-gray-500">{t.subtitle}</p>
           </div>
-          {/* Ward Indicator */}
-          {!isSuperAdmin && (
+          {!isSuperAdmin ? (
             <div className="flex items-center gap-2 px-4 py-2 bg-emerald-50 text-emerald-700 rounded-lg border border-emerald-200">
               <MapPin size={16} />
               <span className="font-medium">{t.yourWard}: {userWard}</span>
             </div>
-          )}
-          {/* Super Admin Ward Filter */}
-          {isSuperAdmin && (
-            <select
-              value={wardFilter}
-              onChange={(e) => setWardFilter(e.target.value)}
-              className="px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-emerald-500 bg-white"
-            >
-              <option value="all">{t.allWards}</option>
-              {Array.from({ length: DAMAK_TOTAL_WARDS }, (_, i) => i + 1).map((ward) => (
-                <option key={ward} value={ward}>
-                  {t.ward} {ward}
-                </option>
-              ))}
-            </select>
+          ) : (
+            // Super Admin Ward Selector
+            <WardSelector 
+              wardFilter={wardFilter} 
+              setWardFilter={setWardFilter} 
+              t={t} 
+            />
           )}
         </div>
       </div>
 
-      {/* Filter Tabs */}
+      {/* Filter Tabs Section */}
       <div className="bg-white rounded-2xl shadow-sm p-4 mb-6">
         <div className="flex flex-wrap gap-2">
-          {filterTabs.map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => setFilter(tab.id)}
-              className={`px-4 py-2 rounded-lg font-medium transition flex items-center gap-2 ${
-                filter === tab.id
-                  ? "bg-emerald-600 text-white"
-                  : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-              }`}
-            >
-              {tab.label}
-              <span
-                className={`text-xs px-2 py-0.5 rounded-full ${
-                  filter === tab.id ? "bg-white/20" : "bg-gray-200"
-                }`}
+          {filterTabs.map(function(tab) {
+            // Determine button styling based on whether this tab is active
+            let buttonClass = "px-4 py-2 rounded-lg font-medium transition flex items-center gap-2 ";
+            let countClass = "text-xs px-2 py-0.5 rounded-full ";
+            
+            if (filter === tab.id) {
+              buttonClass = buttonClass + "bg-emerald-600 text-white";
+              countClass = countClass + "bg-white/20";
+            } else {
+              buttonClass = buttonClass + "bg-gray-100 text-gray-600 hover:bg-gray-200";
+              countClass = countClass + "bg-gray-200";
+            }
+            
+            return (
+              <button 
+                key={tab.id} 
+                onClick={function() { setFilter(tab.id); }} 
+                className={buttonClass}
               >
-                {tab.count}
-              </span>
-            </button>
-          ))}
+                {tab.label}
+                <span className={countClass}>{tab.count}</span>
+              </button>
+            );
+          })}
         </div>
       </div>
 
-      {/* Search and Sort */}
+      {/* Search and Sort Section */}
       <div className="bg-white rounded-2xl shadow-sm p-4 mb-6">
         <div className="flex flex-col md:flex-row gap-4">
+          {/* Search Input */}
           <div className="flex-1 relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
-            <input
-              type="text"
-              placeholder={t.searchPlaceholder}
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+            <input 
+              type="text" 
+              placeholder={t.searchPlaceholder} 
+              value={searchQuery} 
+              onChange={function(e) { setSearchQuery(e.target.value); }} 
+              className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent" 
             />
           </div>
-          <select
-            value={sortOrder}
-            onChange={(e) => setSortOrder(e.target.value)}
+          
+          {/* Sort Order Dropdown */}
+          <select 
+            value={sortOrder} 
+            onChange={function(e) { setSortOrder(e.target.value); }} 
             className="px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-emerald-500"
           >
             <option value="newest">{t.newest}</option>
@@ -385,123 +686,88 @@ const IssueHistory = () => {
         </div>
       </div>
 
-      {/* Issues List */}
+      {/* Issues List Section */}
       <div className="space-y-4">
-        {filteredIssues.length === 0 ? (
-          <div className="bg-white rounded-2xl shadow-sm p-12 text-center">
-            <FileText className="mx-auto text-gray-300 mb-4" size={48} />
-            <p className="text-gray-500">{t.noIssues}</p>
-          </div>
-        ) : (
-          filteredIssues.map((issue) => {
-            const statusStyle = getStatusStyle(issue.status);
-            const priorityStyle = getPriorityStyle(issue.priority);
-            const isExpanded = expandedIssue === issue.id;
-
-            return (
-              <div
-                key={issue.id}
-                className="bg-white rounded-2xl shadow-sm overflow-hidden"
-              >
-                {/* Issue Header */}
-                <div
-                  className="p-6 cursor-pointer"
-                  onClick={() => setExpandedIssue(isExpanded ? null : issue.id)}
-                >
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-3 mb-2">
-                        <span className="text-sm text-gray-500 font-mono">{issue.id}</span>
-                        <span
-                          className={`px-3 py-1 rounded-full text-sm font-medium flex items-center gap-1 ${statusStyle.bg} ${statusStyle.text}`}
-                        >
-                          {statusStyle.icon}
-                          {statusStyle.label}
-                        </span>
-                        {/* Ward Badge */}
-                        <span className="px-2 py-1 rounded-full text-xs font-medium flex items-center gap-1 bg-indigo-100 text-indigo-700">
-                          <MapPin size={10} />
-                          {t.ward} {issue.wardNumber}
-                        </span>
-                      </div>
-                      <h3 className="text-lg font-semibold text-gray-800 mb-2">
-                        {language === "en" ? issue.type : issue.typeNp}
-                      </h3>
-                      <p className="text-gray-600 line-clamp-2">
-                        {language === "en" ? issue.description : issue.descriptionNp}
-                      </p>
-                      <div className="flex flex-wrap items-center gap-4 mt-3 text-sm text-gray-500">
-                        <span className="flex items-center gap-1">
-                          <MapPin size={14} />
-                          {issue.location}
-                        </span>
-                        <span className="flex items-center gap-1">
-                          <Calendar size={14} />
-                          {issue.reportedOn}
-                        </span>
-                        <span className={`font-medium ${priorityStyle.color}`}>
-                          {t.priority}: {priorityStyle.label}
-                        </span>
-                      </div>
-                    </div>
-                    <button className="p-2 hover:bg-gray-100 rounded-lg transition">
-                      {isExpanded ? (
-                        <ChevronUp className="text-gray-400" size={20} />
-                      ) : (
-                        <ChevronDown className="text-gray-400" size={20} />
-                      )}
-                    </button>
-                  </div>
-                </div>
-
-                {/* Expanded Details */}
-                {isExpanded && (
-                  <div className="px-6 pb-6 border-t border-gray-100 pt-4">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                      <div>
-                        <p className="text-sm text-gray-500 mb-1">{t.reportedOn}</p>
-                        <p className="font-medium text-gray-800">{issue.reportedOn}</p>
-                      </div>
-                      <div>
-                        <p className="text-sm text-gray-500 mb-1">{t.lastUpdated}</p>
-                        <p className="font-medium text-gray-800">{issue.lastUpdated}</p>
-                      </div>
-                    </div>
-
-                    {/* Attachments */}
-                    {issue.images > 0 && (
-                      <div className="mb-4">
-                        <p className="text-sm text-gray-500 mb-2">{t.attachments}</p>
-                        <div className="flex items-center gap-2">
-                          <Image className="text-gray-400" size={16} />
-                          <span className="text-gray-600">
-                            {issue.images} {language === "en" ? "image(s)" : "तस्बिर(हरू)"}
-                          </span>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Admin Response */}
-                    {issue.adminResponse && (
-                      <div className="bg-gray-50 rounded-xl p-4">
-                        <div className="flex items-center gap-2 mb-2">
-                          <MessageSquare className="text-emerald-600" size={16} />
-                          <p className="text-sm font-medium text-gray-700">{t.adminResponse}</p>
-                        </div>
-                        <p className="text-gray-600">
-                          {language === "en" ? issue.adminResponse : issue.adminResponseNp}
-                        </p>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-            );
-          })
-        )}
+        {renderIssuesList()}
       </div>
     </div>
   );
-};
+  
+  /**
+   * Helper function to render the issues list based on current state.
+   * Shows loading, error, empty, or the actual list of issues.
+   */
+  function renderIssuesList() {
+    // Show loading state while fetching
+    if (loading) {
+      return <LoadingState t={t} />;
+    }
+    
+    // Show error state if fetch failed
+    if (error) {
+      return <ErrorState t={t} onRetry={refetch} />;
+    }
+    
+    // Show empty state if no issues
+    if (issues.length === 0) {
+      return <EmptyState t={t} />;
+    }
+    
+    // Render the list of issue cards
+    const issueCards = [];
+    for (let i = 0; i < issues.length; i++) {
+      const issue = issues[i];
+      const isExpanded = expandedIssue === issue.id;
+      
+      issueCards.push(
+        <IssueCard 
+          key={issue.id} 
+          issue={issue} 
+          isExpanded={isExpanded} 
+          onToggle={function() { handleToggleExpand(issue.id); }} 
+          language={language} 
+          t={t} 
+        />
+      );
+    }
+    
+    return issueCards;
+  }
+}
+
+/**
+ * WardSelector Component
+ * 
+ * Dropdown for super admins to filter issues by ward.
+ * 
+ * @param {Object} props - Component properties
+ * @param {string} props.wardFilter - Current ward filter value
+ * @param {Function} props.setWardFilter - Function to update ward filter
+ * @param {Object} props.t - Translation object
+ */
+function WardSelector(props) {
+  const wardFilter = props.wardFilter;
+  const setWardFilter = props.setWardFilter;
+  const t = props.t;
+  
+  // Build ward options array
+  const wardOptions = [];
+  for (let ward = 1; ward <= DAMAK_TOTAL_WARDS; ward++) {
+    wardOptions.push(
+      <option key={ward} value={ward}>{t.ward} {ward}</option>
+    );
+  }
+  
+  return (
+    <select 
+      value={wardFilter} 
+      onChange={function(e) { setWardFilter(e.target.value); }} 
+      className="px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-emerald-500 bg-white"
+    >
+      <option value="all">{t.allWards}</option>
+      {wardOptions}
+    </select>
+  );
+}
 
 export default IssueHistory;
