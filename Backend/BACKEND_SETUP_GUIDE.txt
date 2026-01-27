@@ -336,7 +336,7 @@ DB_PASSWORD=YOUR_POSTGRES_PASSWORD_HERE
 JWT_SECRET=nagarsewa-super-secret-key-2024
 
 # Frontend URL
-FRONTEND_URL=http://localhost:5174
+FRONTEND_URL=http://localhost:5173
 
 
 ---------------------------------------------------------
