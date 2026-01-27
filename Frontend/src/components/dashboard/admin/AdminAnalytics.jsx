@@ -1,5 +1,37 @@
+/**
+ * AdminAnalytics Component
+ *
+ * Dashboard showing analytics and statistics for issue management.
+ * Displays overview metrics, charts by type/status/ward, and trends.
+ *
+ * @component
+ *
+ * BACKEND INTEGRATION:
+ * - GET /api/analytics/overview - Overview statistics
+ *   Query params: ward, period (week, month, year)
+ *   Response: { totalReports, resolvedRate, avgResTime, activeUsers, changes }
+ *
+ * - GET /api/analytics/issues - Issue breakdown stats
+ *   Response: { byType: [], byStatus: [], byWard: [] }
+ *
+ * - GET /api/analytics/trends - Monthly trend data
+ *   Response: [{ month, reports, resolved }]
+ *
+ * RESPONSE FORMAT (GET /api/analytics/overview):
+ * {
+ *   success: true,
+ *   data: {
+ *     totalReports: { value: number, change: number, trend: 'up' | 'down' },
+ *     resolvedRate: { value: number, change: number, trend: 'up' | 'down' },
+ *     avgResTime: { value: number, change: number, trend: 'up' | 'down' },
+ *     activeUsers: { value: number, change: number, trend: 'up' | 'down' }
+ *   }
+ * }
+ */
+
 import React from "react";
 import { useLanguage } from "../../../context/useLanguage";
+import { useAnalytics } from "../../../hooks/useData";
 import {
   BarChart3,
   TrendingUp,
@@ -10,11 +42,12 @@ import {
   Clock,
   AlertCircle,
   XCircle,
-  Calendar,
-  MapPin,
-  PieChart,
-  Activity,
+  Loader,
 } from "lucide-react";
+
+// ============================================================================
+// TRANSLATIONS
+// ============================================================================
 
 const analyticsText = {
   en: {
@@ -24,21 +57,22 @@ const analyticsText = {
     issuesByType: "Issues by Type",
     issuesByStatus: "Issues by Status",
     issuesByWard: "Issues by Ward",
-    resolutionTime: "Resolution Time",
     monthlyTrends: "Monthly Trends",
-    topIssues: "Top Issue Categories",
-    userGrowth: "User Growth",
     thisMonth: "This Month",
-    lastMonth: "Last Month",
     change: "Change",
     avgResTime: "Avg. Resolution Time",
     totalReports: "Total Reports",
     resolvedRate: "Resolution Rate",
     activeUsers: "Active Users",
-    newUsers: "New Users",
     days: "days",
     issues: "issues",
     users: "users",
+    loading: "Loading analytics...",
+    error: "Failed to load analytics",
+    retry: "Retry",
+    noData: "No analytics data available",
+    reports: "Reports",
+    resolved: "Resolved",
   },
   np: {
     title: "विश्लेषण ड्यासबोर्ड",
@@ -47,339 +81,557 @@ const analyticsText = {
     issuesByType: "प्रकार अनुसार समस्याहरू",
     issuesByStatus: "स्थिति अनुसार समस्याहरू",
     issuesByWard: "वडा अनुसार समस्याहरू",
-    resolutionTime: "समाधान समय",
     monthlyTrends: "मासिक प्रवृत्तिहरू",
-    topIssues: "शीर्ष समस्या श्रेणीहरू",
-    userGrowth: "प्रयोगकर्ता वृद्धि",
     thisMonth: "यो महिना",
-    lastMonth: "गत महिना",
     change: "परिवर्तन",
     avgResTime: "औसत समाधान समय",
     totalReports: "कुल रिपोर्टहरू",
     resolvedRate: "समाधान दर",
     activeUsers: "सक्रिय प्रयोगकर्ताहरू",
-    newUsers: "नयाँ प्रयोगकर्ताहरू",
     days: "दिन",
     issues: "समस्याहरू",
     users: "प्रयोगकर्ताहरू",
+    loading: "विश्लेषण लोड हुँदैछ...",
+    error: "विश्लेषण लोड गर्न असफल",
+    retry: "पुन: प्रयास",
+    noData: "कुनै विश्लेषण डेटा उपलब्ध छैन",
+    reports: "रिपोर्टहरू",
+    resolved: "समाधान",
   },
 };
 
-// Mock analytics data
-const analyticsData = {
-  overview: {
-    totalReports: { value: 156, change: 12, trend: "up" },
-    resolvedRate: { value: 78, change: 5, trend: "up" },
-    avgResTime: { value: 2.5, change: -0.5, trend: "down" },
-    activeUsers: { value: 1250, change: 8, trend: "up" },
-  },
-  issuesByType: [
-    { type: "Road Damage", typeNp: "सडक क्षति", count: 45, percentage: 29 },
-    { type: "Water Supply", typeNp: "पानी आपूर्ति", count: 38, percentage: 24 },
-    { type: "Street Light", typeNp: "सडक बत्ती", count: 28, percentage: 18 },
-    { type: "Garbage", typeNp: "फोहोर", count: 25, percentage: 16 },
-    { type: "Drainage", typeNp: "ढल निकास", count: 12, percentage: 8 },
-    { type: "Other", typeNp: "अन्य", count: 8, percentage: 5 },
-  ],
-  issuesByStatus: [
-    { status: "Pending", statusNp: "पेन्डिङ", count: 34, color: "yellow" },
-    { status: "In Progress", statusNp: "प्रगतिमा", count: 28, color: "blue" },
-    { status: "Resolved", statusNp: "समाधान", count: 89, color: "green" },
-    { status: "Rejected", statusNp: "अस्वीकृत", count: 5, color: "red" },
-  ],
-  issuesByWard: [
-    { ward: "Ward 3", count: 32 },
-    { ward: "Ward 4", count: 28 },
-    { ward: "Ward 5", count: 45 },
-    { ward: "Ward 6", count: 25 },
-    { ward: "Ward 7", count: 18 },
-    { ward: "Ward 8", count: 8 },
-  ],
-  monthlyTrends: [
-    { month: "Aug", reports: 85, resolved: 72 },
-    { month: "Sep", reports: 92, resolved: 78 },
-    { month: "Oct", reports: 110, resolved: 95 },
-    { month: "Nov", reports: 128, resolved: 105 },
-    { month: "Dec", reports: 145, resolved: 120 },
-    { month: "Jan", reports: 156, resolved: 135 },
-  ],
-};
+// ============================================================================
+// HELPER FUNCTIONS
+// ============================================================================
 
-const AdminAnalytics = () => {
-  const { language } = useLanguage();
-  const t = analyticsText[language];
+/**
+ * Get status icon component based on status string.
+ * @param {string} status - The status type
+ * @returns {JSX.Element} Icon component
+ */
+function getStatusIcon(status) {
+  const statusLower = status ? status.toLowerCase() : "";
 
-  const getStatusIcon = (status) => {
-    switch (status.toLowerCase()) {
-      case "pending":
-        return <Clock className="text-yellow-500" size={16} />;
-      case "in progress":
-        return <AlertCircle className="text-blue-500" size={16} />;
-      case "resolved":
-        return <CheckCircle className="text-green-500" size={16} />;
-      case "rejected":
-        return <XCircle className="text-red-500" size={16} />;
-      default:
-        return <FileText className="text-gray-500" size={16} />;
-    }
-  };
+  if (statusLower === "pending") {
+    return <Clock className="text-yellow-500" size={16} />;
+  } else if (statusLower === "in progress") {
+    return <AlertCircle className="text-blue-500" size={16} />;
+  } else if (statusLower === "resolved") {
+    return <CheckCircle className="text-green-500" size={16} />;
+  } else if (statusLower === "rejected") {
+    return <XCircle className="text-red-500" size={16} />;
+  } else {
+    return <FileText className="text-gray-500" size={16} />;
+  }
+}
 
-  // Helper function for status colors - used in status badges
-  const _getStatusColor = (color) => {
-    switch (color) {
-      case "yellow":
-        return "bg-yellow-500";
-      case "blue":
-        return "bg-blue-500";
-      case "green":
-        return "bg-green-500";
-      case "red":
-        return "bg-red-500";
-      default:
-        return "bg-gray-500";
-    }
-  };
+/**
+ * Get status bar color class based on color string.
+ * @param {string} color - The color name
+ * @returns {string} CSS class for the color
+ */
+function getStatusBarColor(color) {
+  if (color === "yellow") {
+    return "bg-yellow-500";
+  } else if (color === "blue") {
+    return "bg-blue-500";
+  } else if (color === "green") {
+    return "bg-green-500";
+  } else if (color === "red") {
+    return "bg-red-500";
+  } else {
+    return "bg-gray-500";
+  }
+}
 
-  const maxWardCount = Math.max(...analyticsData.issuesByWard.map((w) => w.count));
+// ============================================================================
+// SUB-COMPONENTS
+// ============================================================================
+
+/**
+ * Loading state component.
+ * @param {Object} props - Component props
+ * @param {Object} props.t - Translation object
+ * @returns {JSX.Element} Loading state element
+ */
+function LoadingState(props) {
+  const t = props.t;
 
   return (
-    <div className="max-w-6xl mx-auto">
+    <div className="bg-white rounded-2xl shadow-sm p-12 text-center">
+      <Loader className="mx-auto text-emerald-500 animate-spin mb-4" size={48} />
+      <p className="text-gray-500">{t.loading}</p>
+    </div>
+  );
+}
+
+/**
+ * Stat card component for overview metrics.
+ * @param {Object} props - Component props
+ * @returns {JSX.Element} Stat card element
+ */
+function StatCard(props) {
+  const Icon = props.icon;
+  const iconBg = props.iconBg;
+  const title = props.title;
+  const value = props.value;
+  const unit = props.unit;
+  const change = props.change;
+  const trend = props.trend;
+
+  // Render trend indicator
+  let trendElement = null;
+  if (change !== undefined) {
+    let trendClass = "flex items-center gap-1 text-sm ";
+    if (trend === "up") {
+      trendClass = trendClass + "text-green-600";
+    } else {
+      trendClass = trendClass + "text-red-600";
+    }
+
+    let trendIcon;
+    if (trend === "up") {
+      trendIcon = <TrendingUp size={16} />;
+    } else {
+      trendIcon = <TrendingDown size={16} />;
+    }
+
+    trendElement = (
+      <div className={trendClass}>
+        {trendIcon}
+        {Math.abs(change)}%
+      </div>
+    );
+  }
+
+  // Render unit if provided
+  let unitElement = null;
+  if (unit) {
+    unitElement = <span className="text-lg font-normal text-gray-500 ml-1">{unit}</span>;
+  }
+
+  return (
+    <div className="bg-white rounded-xl p-6 shadow-sm">
+      <div className="flex items-center justify-between mb-4">
+        <div className={"p-3 rounded-xl " + iconBg}>
+          <Icon className="text-white" size={24} />
+        </div>
+        {trendElement}
+      </div>
+      <p className="text-gray-500 text-sm mb-1">{title}</p>
+      <p className="text-2xl font-bold text-gray-800">
+        {value}
+        {unitElement}
+      </p>
+    </div>
+  );
+}
+
+/**
+ * Simple bar chart component.
+ * @param {Object} props - Component props
+ * @returns {JSX.Element} Bar chart element
+ */
+function SimpleBarChart(props) {
+  const data = props.data;
+  const labelKey = props.labelKey;
+  const valueKey = props.valueKey;
+  const labelKeyNp = props.labelKeyNp;
+  const language = props.language;
+  const maxValueProp = props.maxValue;
+
+  // Find max value
+  let maxValue = maxValueProp;
+  if (!maxValue) {
+    maxValue = 0;
+    for (let i = 0; i < data.length; i++) {
+      if (data[i][valueKey] > maxValue) {
+        maxValue = data[i][valueKey];
+      }
+    }
+  }
+
+  // Render bars
+  const bars = [];
+  for (let i = 0; i < data.length; i++) {
+    const item = data[i];
+
+    // Determine label text based on language
+    let labelText;
+    if (language === "np" && item[labelKeyNp]) {
+      labelText = item[labelKeyNp];
+    } else {
+      labelText = item[labelKey];
+    }
+
+    // Calculate bar width percentage
+    const widthPercent = (item[valueKey] / maxValue) * 100;
+
+    bars.push(
+      <div key={i}>
+        <div className="flex justify-between text-sm mb-1">
+          <span className="text-gray-700">{labelText}</span>
+          <span className="font-medium text-gray-800">{item[valueKey]}</span>
+        </div>
+        <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
+          <div
+            className="h-full bg-emerald-500 rounded-full transition-all"
+            style={{ width: widthPercent + "%" }}
+          />
+        </div>
+      </div>
+    );
+  }
+
+  return <div className="space-y-3">{bars}</div>;
+}
+
+/**
+ * Status distribution component.
+ * @param {Object} props - Component props
+ * @returns {JSX.Element} Status distribution element
+ */
+function StatusDistribution(props) {
+  const data = props.data;
+  const language = props.language;
+
+  // Calculate total
+  let total = 0;
+  for (let i = 0; i < data.length; i++) {
+    total = total + data[i].count;
+  }
+
+  // Render status bars
+  const statusBars = [];
+  for (let i = 0; i < data.length; i++) {
+    const item = data[i];
+
+    // Determine label text based on language
+    let labelText;
+    if (language === "np" && item.statusNp) {
+      labelText = item.statusNp;
+    } else {
+      labelText = item.status;
+    }
+
+    // Calculate width percentage
+    const widthPercent = (item.count / total) * 100;
+
+    // Get color class
+    const colorClass = getStatusBarColor(item.color);
+
+    statusBars.push(
+      <div key={i} className="flex items-center gap-3">
+        {getStatusIcon(item.status)}
+        <div className="flex-1">
+          <div className="flex justify-between text-sm mb-1">
+            <span className="text-gray-700">{labelText}</span>
+            <span className="font-medium text-gray-800">{item.count}</span>
+          </div>
+          <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
+            <div
+              className={"h-full rounded-full " + colorClass}
+              style={{ width: widthPercent + "%" }}
+            />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return <div className="space-y-4">{statusBars}</div>;
+}
+
+/**
+ * Trend chart component.
+ * @param {Object} props - Component props
+ * @returns {JSX.Element} Trend chart element
+ */
+function TrendChart(props) {
+  const data = props.data;
+  const t = props.t;
+
+  // Find max reports value
+  let maxReports = 0;
+  for (let i = 0; i < data.length; i++) {
+    if (data[i].reports > maxReports) {
+      maxReports = data[i].reports;
+    }
+  }
+
+  // Render bars
+  const bars = [];
+  for (let i = 0; i < data.length; i++) {
+    const item = data[i];
+
+    // Calculate heights
+    const reportsHeight = (item.reports / maxReports) * 100;
+    const resolvedHeight = (item.resolved / maxReports) * 100;
+
+    bars.push(
+      <div key={i} className="flex-1 flex flex-col items-center gap-1">
+        <div className="w-full flex gap-1 justify-center items-end h-24">
+          <div
+            className="w-3 bg-emerald-500 rounded-t"
+            style={{ height: reportsHeight + "%" }}
+          />
+          <div
+            className="w-3 bg-blue-500 rounded-t"
+            style={{ height: resolvedHeight + "%" }}
+          />
+        </div>
+        <span className="text-xs text-gray-500">{item.month}</span>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex gap-4 text-sm mb-2">
+        <span className="flex items-center gap-1">
+          <span className="w-3 h-3 bg-emerald-500 rounded" />
+          {t.reports}
+        </span>
+        <span className="flex items-center gap-1">
+          <span className="w-3 h-3 bg-blue-500 rounded" />
+          {t.resolved}
+        </span>
+      </div>
+      <div className="flex items-end gap-2 h-32">{bars}</div>
+    </div>
+  );
+}
+
+// ============================================================================
+// MAIN COMPONENT
+// ============================================================================
+
+/**
+ * AdminAnalytics - Main component for analytics dashboard.
+ * @returns {JSX.Element} The rendered component
+ */
+function AdminAnalytics() {
+  // ============================================================================
+  // HOOKS AND CONTEXT
+  // ============================================================================
+
+  const languageContext = useLanguage();
+  const language = languageContext.language;
+  const t = analyticsText[language];
+
+  // Fetch analytics data from API
+  const analyticsData = useAnalytics();
+  const analytics = analyticsData.analytics;
+  const loading = analyticsData.loading;
+  const error = analyticsData.error;
+  const refetch = analyticsData.refetch;
+
+  // ============================================================================
+  // CONDITIONAL RENDERS
+  // ============================================================================
+
+  // Loading state
+  if (loading) {
+    return <LoadingState t={t} />;
+  }
+
+  // Error state
+  if (error) {
+    return (
+      <div className="bg-white rounded-2xl shadow-sm p-12 text-center">
+        <AlertCircle className="mx-auto text-red-400 mb-4" size={48} />
+        <p className="text-gray-700 font-medium mb-2">{t.error}</p>
+        <button onClick={refetch} className="text-emerald-600 hover:underline">
+          {t.retry}
+        </button>
+      </div>
+    );
+  }
+
+  // No data state
+  if (!analytics) {
+    return (
+      <div className="bg-white rounded-2xl shadow-sm p-12 text-center">
+        <BarChart3 className="mx-auto text-gray-300 mb-4" size={48} />
+        <p className="text-gray-500">{t.noData}</p>
+      </div>
+    );
+  }
+
+  // ============================================================================
+  // DATA EXTRACTION
+  // ============================================================================
+
+  const overview = analytics.overview;
+  const issuesByType = analytics.issuesByType;
+  const issuesByStatus = analytics.issuesByStatus;
+  const issuesByWard = analytics.issuesByWard;
+  const monthlyTrends = analytics.monthlyTrends;
+
+  // ============================================================================
+  // RENDER
+  // ============================================================================
+
+  // Render overview stats cards
+  let overviewSection = null;
+  if (overview) {
+    // Extract overview values with defaults
+    let totalReportsValue = 0;
+    let totalReportsChange;
+    let totalReportsTrend;
+    if (overview.totalReports) {
+      totalReportsValue = overview.totalReports.value || 0;
+      totalReportsChange = overview.totalReports.change;
+      totalReportsTrend = overview.totalReports.trend;
+    }
+
+    let resolvedRateValue = 0;
+    let resolvedRateChange;
+    let resolvedRateTrend;
+    if (overview.resolvedRate) {
+      resolvedRateValue = overview.resolvedRate.value || 0;
+      resolvedRateChange = overview.resolvedRate.change;
+      resolvedRateTrend = overview.resolvedRate.trend;
+    }
+
+    let avgResTimeValue = 0;
+    let avgResTimeChange;
+    let avgResTimeTrend;
+    if (overview.avgResTime) {
+      avgResTimeValue = overview.avgResTime.value || 0;
+      avgResTimeChange = overview.avgResTime.change;
+      // Invert trend for resolution time (lower is better)
+      if (overview.avgResTime.trend === "down") {
+        avgResTimeTrend = "up";
+      } else {
+        avgResTimeTrend = "down";
+      }
+    }
+
+    let activeUsersValue = 0;
+    let activeUsersChange;
+    let activeUsersTrend;
+    if (overview.activeUsers) {
+      activeUsersValue = overview.activeUsers.value || 0;
+      activeUsersChange = overview.activeUsers.change;
+      activeUsersTrend = overview.activeUsers.trend;
+    }
+
+    overviewSection = (
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <StatCard
+          icon={FileText}
+          iconBg="bg-blue-500"
+          title={t.totalReports}
+          value={totalReportsValue}
+          change={totalReportsChange}
+          trend={totalReportsTrend}
+        />
+        <StatCard
+          icon={CheckCircle}
+          iconBg="bg-green-500"
+          title={t.resolvedRate}
+          value={resolvedRateValue}
+          unit="%"
+          change={resolvedRateChange}
+          trend={resolvedRateTrend}
+        />
+        <StatCard
+          icon={Clock}
+          iconBg="bg-orange-500"
+          title={t.avgResTime}
+          value={avgResTimeValue}
+          unit={t.days}
+          change={avgResTimeChange}
+          trend={avgResTimeTrend}
+        />
+        <StatCard
+          icon={Users}
+          iconBg="bg-purple-500"
+          title={t.activeUsers}
+          value={activeUsersValue}
+          change={activeUsersChange}
+          trend={activeUsersTrend}
+        />
+      </div>
+    );
+  }
+
+  // Render issues by type chart
+  let issuesByTypeSection = null;
+  if (issuesByType && issuesByType.length > 0) {
+    issuesByTypeSection = (
+      <div className="bg-white rounded-2xl shadow-sm p-6">
+        <h3 className="text-lg font-semibold text-gray-800 mb-4">{t.issuesByType}</h3>
+        <SimpleBarChart
+          data={issuesByType}
+          labelKey="type"
+          labelKeyNp="typeNp"
+          valueKey="count"
+          language={language}
+        />
+      </div>
+    );
+  }
+
+  // Render issues by status chart
+  let issuesByStatusSection = null;
+  if (issuesByStatus && issuesByStatus.length > 0) {
+    issuesByStatusSection = (
+      <div className="bg-white rounded-2xl shadow-sm p-6">
+        <h3 className="text-lg font-semibold text-gray-800 mb-4">{t.issuesByStatus}</h3>
+        <StatusDistribution data={issuesByStatus} language={language} />
+      </div>
+    );
+  }
+
+  // Render issues by ward chart
+  let issuesByWardSection = null;
+  if (issuesByWard && issuesByWard.length > 0) {
+    issuesByWardSection = (
+      <div className="bg-white rounded-2xl shadow-sm p-6">
+        <h3 className="text-lg font-semibold text-gray-800 mb-4">{t.issuesByWard}</h3>
+        <SimpleBarChart
+          data={issuesByWard}
+          labelKey="ward"
+          valueKey="count"
+          language={language}
+        />
+      </div>
+    );
+  }
+
+  // Render monthly trends chart
+  let monthlyTrendsSection = null;
+  if (monthlyTrends && monthlyTrends.length > 0) {
+    monthlyTrendsSection = (
+      <div className="bg-white rounded-2xl shadow-sm p-6">
+        <h3 className="text-lg font-semibold text-gray-800 mb-4">{t.monthlyTrends}</h3>
+        <TrendChart data={monthlyTrends} t={t} />
+      </div>
+    );
+  }
+
+  return (
+    <div className="max-w-6xl mx-auto space-y-6">
       {/* Header */}
-      <div className="bg-white rounded-2xl shadow-sm p-6 mb-6">
+      <div className="bg-white rounded-2xl shadow-sm p-6">
         <h2 className="text-2xl font-bold text-gray-800 mb-2">{t.title}</h2>
         <p className="text-gray-500">{t.subtitle}</p>
       </div>
 
-      {/* Overview Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-        <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
-          <div className="flex items-center justify-between mb-3">
-            <div className="p-2 bg-blue-100 rounded-lg">
-              <FileText className="text-blue-600" size={20} />
-            </div>
-            <span
-              className={`flex items-center text-sm ${
-                analyticsData.overview.totalReports.trend === "up" ? "text-green-500" : "text-red-500"
-              }`}
-            >
-              {analyticsData.overview.totalReports.trend === "up" ? (
-                <TrendingUp size={14} />
-              ) : (
-                <TrendingDown size={14} />
-              )}
-              {analyticsData.overview.totalReports.change}%
-            </span>
-          </div>
-          <p className="text-2xl font-bold text-gray-800">{analyticsData.overview.totalReports.value}</p>
-          <p className="text-gray-500 text-sm">{t.totalReports}</p>
-        </div>
+      {/* Overview Stats */}
+      {overviewSection}
 
-        <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
-          <div className="flex items-center justify-between mb-3">
-            <div className="p-2 bg-green-100 rounded-lg">
-              <CheckCircle className="text-green-600" size={20} />
-            </div>
-            <span
-              className={`flex items-center text-sm ${
-                analyticsData.overview.resolvedRate.trend === "up" ? "text-green-500" : "text-red-500"
-              }`}
-            >
-              {analyticsData.overview.resolvedRate.trend === "up" ? (
-                <TrendingUp size={14} />
-              ) : (
-                <TrendingDown size={14} />
-              )}
-              {analyticsData.overview.resolvedRate.change}%
-            </span>
-          </div>
-          <p className="text-2xl font-bold text-gray-800">{analyticsData.overview.resolvedRate.value}%</p>
-          <p className="text-gray-500 text-sm">{t.resolvedRate}</p>
-        </div>
-
-        <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
-          <div className="flex items-center justify-between mb-3">
-            <div className="p-2 bg-orange-100 rounded-lg">
-              <Clock className="text-orange-600" size={20} />
-            </div>
-            <span
-              className={`flex items-center text-sm ${
-                analyticsData.overview.avgResTime.trend === "down" ? "text-green-500" : "text-red-500"
-              }`}
-            >
-              {analyticsData.overview.avgResTime.trend === "down" ? (
-                <TrendingDown size={14} />
-              ) : (
-                <TrendingUp size={14} />
-              )}
-              {Math.abs(analyticsData.overview.avgResTime.change)} {t.days}
-            </span>
-          </div>
-          <p className="text-2xl font-bold text-gray-800">
-            {analyticsData.overview.avgResTime.value} {t.days}
-          </p>
-          <p className="text-gray-500 text-sm">{t.avgResTime}</p>
-        </div>
-
-        <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
-          <div className="flex items-center justify-between mb-3">
-            <div className="p-2 bg-purple-100 rounded-lg">
-              <Users className="text-purple-600" size={20} />
-            </div>
-            <span
-              className={`flex items-center text-sm ${
-                analyticsData.overview.activeUsers.trend === "up" ? "text-green-500" : "text-red-500"
-              }`}
-            >
-              {analyticsData.overview.activeUsers.trend === "up" ? (
-                <TrendingUp size={14} />
-              ) : (
-                <TrendingDown size={14} />
-              )}
-              {analyticsData.overview.activeUsers.change}%
-            </span>
-          </div>
-          <p className="text-2xl font-bold text-gray-800">{analyticsData.overview.activeUsers.value}</p>
-          <p className="text-gray-500 text-sm">{t.activeUsers}</p>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-        {/* Issues by Type */}
-        <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
-          <div className="flex items-center gap-2 mb-4">
-            <PieChart className="text-indigo-600" size={20} />
-            <h3 className="font-semibold text-gray-800">{t.issuesByType}</h3>
-          </div>
-          <div className="space-y-3">
-            {analyticsData.issuesByType.map((item, index) => (
-              <div key={index}>
-                <div className="flex items-center justify-between mb-1">
-                  <span className="text-sm text-gray-700">
-                    {language === "en" ? item.type : item.typeNp}
-                  </span>
-                  <span className="text-sm font-medium text-gray-800">
-                    {item.count} ({item.percentage}%)
-                  </span>
-                </div>
-                <div className="w-full bg-gray-100 rounded-full h-2">
-                  <div
-                    className="bg-indigo-600 rounded-full h-2 transition-all duration-500"
-                    style={{ width: `${item.percentage}%` }}
-                  />
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Issues by Status */}
-        <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
-          <div className="flex items-center gap-2 mb-4">
-            <Activity className="text-indigo-600" size={20} />
-            <h3 className="font-semibold text-gray-800">{t.issuesByStatus}</h3>
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            {analyticsData.issuesByStatus.map((item, index) => (
-              <div
-                key={index}
-                className={`p-4 rounded-xl border-l-4 ${
-                  item.color === "yellow"
-                    ? "bg-yellow-50 border-yellow-500"
-                    : item.color === "blue"
-                    ? "bg-blue-50 border-blue-500"
-                    : item.color === "green"
-                    ? "bg-green-50 border-green-500"
-                    : "bg-red-50 border-red-500"
-                }`}
-              >
-                <div className="flex items-center gap-2 mb-2">
-                  {getStatusIcon(item.status)}
-                  <span className="text-sm text-gray-600">
-                    {language === "en" ? item.status : item.statusNp}
-                  </span>
-                </div>
-                <p className="text-2xl font-bold text-gray-800">{item.count}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-
+      {/* Charts Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Issues by Ward */}
-        <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
-          <div className="flex items-center gap-2 mb-4">
-            <MapPin className="text-indigo-600" size={20} />
-            <h3 className="font-semibold text-gray-800">{t.issuesByWard}</h3>
-          </div>
-          <div className="space-y-3">
-            {analyticsData.issuesByWard.map((item, index) => (
-              <div key={index} className="flex items-center gap-3">
-                <span className="text-sm text-gray-600 w-16">{item.ward}</span>
-                <div className="flex-1 bg-gray-100 rounded-full h-6 overflow-hidden">
-                  <div
-                    className="bg-linear-to-r from-indigo-500 to-purple-500 h-full rounded-full flex items-center justify-end pr-2 transition-all duration-500"
-                    style={{ width: `${(item.count / maxWardCount) * 100}%` }}
-                  >
-                    <span className="text-xs text-white font-medium">{item.count}</span>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Monthly Trends */}
-        <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
-          <div className="flex items-center gap-2 mb-4">
-            <BarChart3 className="text-indigo-600" size={20} />
-            <h3 className="font-semibold text-gray-800">{t.monthlyTrends}</h3>
-          </div>
-          <div className="flex items-end justify-between h-48 gap-2">
-            {analyticsData.monthlyTrends.map((item, index) => {
-              const maxReports = Math.max(...analyticsData.monthlyTrends.map((m) => m.reports));
-              const reportHeight = (item.reports / maxReports) * 100;
-              const resolvedHeight = (item.resolved / maxReports) * 100;
-
-              return (
-                <div key={index} className="flex-1 flex flex-col items-center gap-1">
-                  <div className="w-full flex gap-1 h-40">
-                    <div className="flex-1 flex flex-col justify-end">
-                      <div
-                        className="bg-indigo-500 rounded-t"
-                        style={{ height: `${reportHeight}%` }}
-                      />
-                    </div>
-                    <div className="flex-1 flex flex-col justify-end">
-                      <div
-                        className="bg-green-500 rounded-t"
-                        style={{ height: `${resolvedHeight}%` }}
-                      />
-                    </div>
-                  </div>
-                  <span className="text-xs text-gray-500">{item.month}</span>
-                </div>
-              );
-            })}
-          </div>
-          <div className="flex items-center justify-center gap-6 mt-4">
-            <div className="flex items-center gap-2">
-              <div className="w-3 h-3 bg-indigo-500 rounded" />
-              <span className="text-xs text-gray-600">
-                {language === "en" ? "Reports" : "रिपोर्टहरू"}
-              </span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="w-3 h-3 bg-green-500 rounded" />
-              <span className="text-xs text-gray-600">
-                {language === "en" ? "Resolved" : "समाधान"}
-              </span>
-            </div>
-          </div>
-        </div>
+        {issuesByTypeSection}
+        {issuesByStatusSection}
+        {issuesByWardSection}
+        {monthlyTrendsSection}
       </div>
     </div>
   );
-};
+}
 
 export default AdminAnalytics;

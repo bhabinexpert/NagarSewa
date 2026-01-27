@@ -1,636 +1,960 @@
+/**
+ * AdminNotificationBroadcast Component
+ *
+ * Admin interface for creating and managing broadcast notifications.
+ * Supports targeting specific wards, scheduling broadcasts, and viewing history.
+ *
+ * @component
+ *
+ * BACKEND INTEGRATION:
+ * - GET /api/broadcasts - List broadcast history
+ *   Query params: page, limit, type, status
+ *
+ * - POST /api/broadcasts - Create new broadcast
+ *   Body: { title, message, titleNp?, messageNp?, type, targetAudience, targetWard?, scheduledFor? }
+ *
+ * - DELETE /api/broadcasts/:id - Delete a broadcast
+ */
+
 import React, { useState } from "react";
 import { useLanguage } from "../../../context/useLanguage";
 import { useAuth } from "../../../context/useAuth";
-import { toast, ToastContainer } from 'react-toastify';
-import 'react-toastify/dist/ReactToastify.css';
+import { DAMAK_TOTAL_WARDS, ROLES } from "../../../context/authConstants";
+import { useBroadcasts } from "../../../hooks/useData";
+import { broadcastsAPI } from "../../../services/api";
+import { toast, ToastContainer } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
 import {
-  Megaphone,
   Send,
+  Bell,
+  Clock,
+  Calendar,
   Users,
   MapPin,
-  Bell,
   AlertTriangle,
   Info,
   CheckCircle,
-  Calendar,
-  Clock,
+  Megaphone,
   Trash2,
-  Edit,
-  Eye,
+  X,
   Loader,
-  Zap,
-  Target,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react";
-import { DAMAK_TOTAL_WARDS } from "../../../context/authConstants";
+
+// ============================================================================
+// TRANSLATIONS
+// ============================================================================
 
 const broadcastText = {
   en: {
     title: "Notification Broadcast",
-    subtitle: "Send important announcements to citizens",
-    subtitleWardAdmin: "Send announcements to your ward citizens",
+    subtitle: "Send announcements and updates to citizens",
     newBroadcast: "New Broadcast",
-    recentBroadcasts: "Recent Broadcasts",
-    messageTitle: "Title",
-    titlePlaceholder: "Enter notification title...",
-    message: "Message",
-    messagePlaceholder: "Enter your announcement message...",
+    broadcastHistory: "Broadcast History",
+    titleLabel: "Title (English)",
+    titleNpLabel: "Title (Nepali)",
+    messageLabel: "Message (English)",
+    messageNpLabel: "Message (Nepali)",
+    titlePlaceholder: "Enter announcement title...",
+    messagePlaceholder: "Enter your message to citizens...",
+    type: "Notification Type",
+    general: "General",
+    urgent: "Urgent",
+    event: "Event",
+    maintenance: "Maintenance",
     targetAudience: "Target Audience",
-    allWards: "All Wards",
+    allCitizens: "All Citizens",
     specificWard: "Specific Ward",
-    myWard: "My Ward",
     selectWard: "Select Ward",
     ward: "Ward",
-    verifiedOnly: "Verified Users Only",
-    notificationType: "Notification Type",
-    announcement: "Announcement",
-    alert: "Alert",
-    info: "Information",
-    urgentIssue: "Urgent Issue Resolution",
     schedule: "Schedule",
-    sendNow: "Send Now",
+    sendNow: "Send Immediately",
     scheduleLater: "Schedule for Later",
-    scheduleDate: "Schedule Date & Time",
+    scheduleDate: "Scheduled Date & Time",
+    preview: "Preview",
     send: "Send Broadcast",
     sending: "Sending...",
-    preview: "Preview",
     cancel: "Cancel",
-    success: "Broadcast sent successfully!",
-    history: "Broadcast History",
-    noHistory: "No broadcasts yet",
-    sentTo: "Sent to",
-    citizens: "citizens",
-    viewDetails: "View Details",
     delete: "Delete",
-    edit: "Edit",
+    confirmDelete: "Are you sure you want to delete this broadcast?",
+    sentAt: "Sent at",
+    scheduledFor: "Scheduled for",
+    recipients: "Recipients",
     status: "Status",
     sent: "Sent",
     scheduled: "Scheduled",
     draft: "Draft",
-    issueReference: "Related Issue",
-    issueReferencePlaceholder: "Enter issue ID or title...",
-    quickAction: "Quick Action Notice",
-    quickActionDesc: "Send urgent notice to ward admin about an issue",
+    noHistory: "No broadcasts yet",
+    broadcastSent: "Broadcast sent successfully",
+    broadcastScheduled: "Broadcast scheduled successfully",
+    broadcastDeleted: "Broadcast deleted successfully",
+    error: "Something went wrong",
+    loading: "Loading broadcasts...",
+    allWards: "All Wards",
+    yourWard: "Your Ward",
+    wardAdmin: "Ward Admin",
+    superAdmin: "Super Admin",
+    typeGeneral: "General Announcement",
+    typeUrgent: "Urgent Alert",
+    typeEvent: "Event Notice",
+    typeMaintenance: "Maintenance Notice",
   },
   np: {
     title: "सूचना प्रसारण",
-    subtitle: "नागरिकहरूलाई महत्त्वपूर्ण घोषणाहरू पठाउनुहोस्",
-    subtitleWardAdmin: "तपाईंको वडाका नागरिकहरूलाई घोषणाहरू पठाउनुहोस्",
+    subtitle: "नागरिकहरूलाई घोषणा र अपडेटहरू पठाउनुहोस्",
     newBroadcast: "नयाँ प्रसारण",
-    recentBroadcasts: "हालका प्रसारणहरू",
-    messageTitle: "शीर्षक",
-    titlePlaceholder: "सूचना शीर्षक प्रविष्ट गर्नुहोस्...",
-    message: "सन्देश",
-    messagePlaceholder: "तपाईंको घोषणा सन्देश प्रविष्ट गर्नुहोस्...",
+    broadcastHistory: "प्रसारण इतिहास",
+    titleLabel: "शीर्षक (अंग्रेजी)",
+    titleNpLabel: "शीर्षक (नेपाली)",
+    messageLabel: "सन्देश (अंग्रेजी)",
+    messageNpLabel: "सन्देश (नेपाली)",
+    titlePlaceholder: "घोषणा शीर्षक प्रविष्ट गर्नुहोस्...",
+    messagePlaceholder: "नागरिकहरूलाई तपाईंको सन्देश प्रविष्ट गर्नुहोस्...",
+    type: "सूचना प्रकार",
+    general: "सामान्य",
+    urgent: "अत्यावश्यक",
+    event: "कार्यक्रम",
+    maintenance: "मर्मत",
     targetAudience: "लक्षित दर्शक",
-    allWards: "सबै वडाहरू",
+    allCitizens: "सबै नागरिकहरू",
     specificWard: "विशेष वडा",
-    myWard: "मेरो वडा",
-    selectWard: "वडा छान्नुहोस्",
+    selectWard: "वडा चयन गर्नुहोस्",
     ward: "वडा",
-    verifiedOnly: "प्रमाणित प्रयोगकर्ताहरू मात्र",
-    notificationType: "सूचनाको प्रकार",
-    announcement: "घोषणा",
-    alert: "सतर्कता",
-    info: "जानकारी",
-    urgentIssue: "तत्काल समस्या समाधान",
     schedule: "तालिका",
-    sendNow: "अहिले पठाउनुहोस्",
+    sendNow: "तुरुन्तै पठाउनुहोस्",
     scheduleLater: "पछि तालिका बनाउनुहोस्",
     scheduleDate: "तालिका मिति र समय",
-    send: "प्रसारण पठाउनुहोस्",
-    sending: "पठाउँदै...",
     preview: "पूर्वावलोकन",
+    send: "प्रसारण पठाउनुहोस्",
+    sending: "पठाउँदैछ...",
     cancel: "रद्द गर्नुहोस्",
-    success: "प्रसारण सफलतापूर्वक पठाइयो!",
-    history: "प्रसारण इतिहास",
-    noHistory: "अहिलेसम्म कुनै प्रसारण छैन",
-    sentTo: "पठाइयो",
-    citizens: "नागरिकहरू",
-    viewDetails: "विवरण हेर्नुहोस्",
-    delete: "मेट्नुहोस्",
-    edit: "सम्पादन गर्नुहोस्",
+    delete: "मेटाउनुहोस्",
+    confirmDelete: "के तपाईं यो प्रसारण मेटाउन निश्चित हुनुहुन्छ?",
+    sentAt: "पठाइएको समय",
+    scheduledFor: "तालिका गरिएको",
+    recipients: "प्राप्तकर्ताहरू",
     status: "स्थिति",
     sent: "पठाइयो",
     scheduled: "तालिकाबद्ध",
-    draft: "ड्राफ्ट",
-    issueReference: "सम्बन्धित समस्या",
-    issueReferencePlaceholder: "समस्या ID वा शीर्षक प्रविष्ट गर्नुहोस्...",
-    quickAction: "द्रुत कार्य सूचना",
-    quickActionDesc: "समस्याको बारेमा वडा प्रशासकलाई तत्काल सूचना पठाउनुहोस्",
+    draft: "मस्यौदा",
+    noHistory: "कुनै प्रसारण छैन",
+    broadcastSent: "प्रसारण सफलतापूर्वक पठाइयो",
+    broadcastScheduled: "प्रसारण सफलतापूर्वक तालिकाबद्ध गरियो",
+    broadcastDeleted: "प्रसारण सफलतापूर्वक मेटाइयो",
+    error: "केही गलत भयो",
+    loading: "प्रसारणहरू लोड हुँदैछ...",
+    allWards: "सबै वडाहरू",
+    yourWard: "तपाईंको वडा",
+    wardAdmin: "वडा प्रशासक",
+    superAdmin: "सुपर प्रशासक",
+    typeGeneral: "सामान्य घोषणा",
+    typeUrgent: "अत्यावश्यक चेतावनी",
+    typeEvent: "कार्यक्रम सूचना",
+    typeMaintenance: "मर्मत सूचना",
   },
 };
 
-// Mock broadcast history with ward info
-const mockBroadcasts = [
-  {
-    id: 1,
-    title: "Water Supply Schedule Change",
-    titleNp: "पानी आपूर्ति तालिका परिवर्तन",
-    message: "Due to maintenance work, water supply will be available from 6 AM to 10 AM.",
-    messageNp: "मर्मत कार्यको कारण, बिहान 6 देखि 10 बजेसम्म पानी आपूर्ति उपलब्ध हुनेछ।",
-    type: "announcement",
-    audience: "all",
-    wardNumber: null, // null = all wards
-    sentTo: 1250,
-    sentAt: "2024-01-20 10:30 AM",
-    status: "sent",
-    sentBy: "super_admin",
-  },
-  {
-    id: 2,
-    title: "Community Meeting Notice",
-    titleNp: "सामुदायिक बैठक सूचना",
-    message: "Ward 5 community meeting scheduled for January 28 at 3 PM.",
-    messageNp: "वडा 5 सामुदायिक बैठक जनवरी 28 को दिउँसो 3 बजे तय गरिएको छ।",
-    type: "info",
-    audience: "ward",
-    wardNumber: 5,
-    sentTo: 320,
-    sentAt: "2024-01-18 02:00 PM",
-    status: "sent",
-    sentBy: "ward_admin",
-  },
-  {
-    id: 3,
-    title: "Road Construction Alert",
-    titleNp: "सडक निर्माण सतर्कता",
-    message: "Road construction will begin from Feb 1. Expect traffic diversions.",
-    messageNp: "फेब्रुअरी 1 देखि सडक निर्माण सुरु हुनेछ। ट्राफिक डाइभर्सनको अपेक्षा गर्नुहोस्।",
-    type: "alert",
-    audience: "all",
-    wardNumber: null,
-    sentTo: 1250,
-    scheduledFor: "2024-01-25 09:00 AM",
-    status: "scheduled",
-    sentBy: "super_admin",
-  },
-  {
-    id: 4,
-    title: "Urgent: Resolve Pothole Issue",
-    titleNp: "तत्काल: खाल्डो समस्या समाधान गर्नुहोस्",
-    message: "Please prioritize the pothole issue reported at Main Road, Ward 1. Issue ID: #ISS-001",
-    messageNp: "कृपया वडा १ मुख्य सडकमा रिपोर्ट गरिएको खाल्डो समस्यालाई प्राथमिकता दिनुहोस्। समस्या ID: #ISS-001",
-    type: "urgent",
-    audience: "ward_admin",
-    wardNumber: 1,
-    sentTo: 1,
-    sentAt: "2024-01-22 11:00 AM",
-    status: "sent",
-    sentBy: "super_admin",
-    issueReference: "#ISS-001",
-  },
-];
+// ============================================================================
+// HELPER FUNCTIONS
+// ============================================================================
 
-const AdminNotificationBroadcast = () => {
-  const { language } = useLanguage();
-  const { isSuperAdmin, getUserWard } = useAuth();
-  const t = broadcastText[language];
-  
-  const userWard = getUserWard();
-  const _isSuperAdmin = isSuperAdmin();
+/**
+ * Get icon for broadcast type.
+ * @param {string} type - The broadcast type
+ * @returns {JSX.Element} Icon component
+ */
+function getTypeIcon(type) {
+  if (type === "urgent") {
+    return <AlertTriangle className="text-red-500" size={18} />;
+  } else if (type === "event") {
+    return <Calendar className="text-purple-500" size={18} />;
+  } else if (type === "maintenance") {
+    return <Info className="text-orange-500" size={18} />;
+  } else {
+    return <Megaphone className="text-blue-500" size={18} />;
+  }
+}
 
-  // Filter broadcasts based on role
-  const getFilteredBroadcasts = () => {
-    if (_isSuperAdmin) {
-      return mockBroadcasts; // Super admin sees all
+/**
+ * Get color classes for broadcast type.
+ * @param {string} type - The broadcast type
+ * @returns {string} CSS classes
+ */
+function getTypeColor(type) {
+  if (type === "urgent") {
+    return "text-red-700 bg-red-100";
+  } else if (type === "event") {
+    return "text-purple-700 bg-purple-100";
+  } else if (type === "maintenance") {
+    return "text-orange-700 bg-orange-100";
+  } else {
+    return "text-blue-700 bg-blue-100";
+  }
+}
+
+/**
+ * Get status color classes.
+ * @param {string} status - The broadcast status
+ * @returns {string} CSS classes
+ */
+function getStatusColor(status) {
+  if (status === "sent") {
+    return "text-green-700 bg-green-100";
+  } else if (status === "scheduled") {
+    return "text-yellow-700 bg-yellow-100";
+  } else {
+    return "text-gray-700 bg-gray-100";
+  }
+}
+
+/**
+ * Format date for display.
+ * @param {string} dateString - ISO date string
+ * @returns {string} Formatted date string
+ */
+function formatDate(dateString) {
+  const date = new Date(dateString);
+  return date.toLocaleDateString() + " " + date.toLocaleTimeString();
+}
+
+// ============================================================================
+// SUB-COMPONENTS
+// ============================================================================
+
+/**
+ * Broadcast form component.
+ * @param {Object} props - Component props
+ * @returns {JSX.Element} Form element
+ */
+function BroadcastForm(props) {
+  const t = props.t;
+  const isSuperAdmin = props.isSuperAdmin;
+  const userWard = props.userWard;
+  const onSubmit = props.onSubmit;
+  const isSubmitting = props.isSubmitting;
+
+  // Form state
+  const [title, setTitle] = useState("");
+  const [titleNp, setTitleNp] = useState("");
+  const [message, setMessage] = useState("");
+  const [messageNp, setMessageNp] = useState("");
+  const [type, setType] = useState("general");
+  const [targetAudience, setTargetAudience] = useState("all");
+  const [targetWard, setTargetWard] = useState("");
+  const [scheduleType, setScheduleType] = useState("now");
+  const [scheduledDate, setScheduledDate] = useState("");
+  const [showPreview, setShowPreview] = useState(false);
+
+  // ============================================================================
+  // EVENT HANDLERS
+  // ============================================================================
+
+  /**
+   * Handle title input change.
+   * @param {Event} e - Input event
+   */
+  function handleTitleChange(e) {
+    setTitle(e.target.value);
+  }
+
+  /**
+   * Handle Nepali title input change.
+   * @param {Event} e - Input event
+   */
+  function handleTitleNpChange(e) {
+    setTitleNp(e.target.value);
+  }
+
+  /**
+   * Handle message input change.
+   * @param {Event} e - Input event
+   */
+  function handleMessageChange(e) {
+    setMessage(e.target.value);
+  }
+
+  /**
+   * Handle Nepali message input change.
+   * @param {Event} e - Input event
+   */
+  function handleMessageNpChange(e) {
+    setMessageNp(e.target.value);
+  }
+
+  /**
+   * Handle type selection.
+   * @param {string} selectedType - Selected type
+   */
+  function handleTypeSelect(selectedType) {
+    setType(selectedType);
+  }
+
+  /**
+   * Handle target audience change.
+   * @param {Event} e - Select event
+   */
+  function handleAudienceChange(e) {
+    setTargetAudience(e.target.value);
+    if (e.target.value === "all") {
+      setTargetWard("");
     }
-    // Ward admin sees only their ward broadcasts + all-ward broadcasts
-    return mockBroadcasts.filter(
-      (b) => b.wardNumber === null || b.wardNumber === userWard
-    );
-  };
+  }
 
-  const [broadcasts, setBroadcasts] = useState(getFilteredBroadcasts());
-  const [formData, setFormData] = useState({
-    title: "",
-    message: "",
-    audience: _isSuperAdmin ? "all" : "ward",
-    targetWard: _isSuperAdmin ? "" : userWard,
-    type: "announcement",
-    scheduleType: "now",
-    scheduledDate: "",
-    issueReference: "",
-  });
-  const [isSending, setIsSending] = useState(false);
-  const [showSuccess, setShowSuccess] = useState(false);
-  // Preview functionality can be added later
-  // const [showPreview, setShowPreview] = useState(false);
+  /**
+   * Handle target ward change.
+   * @param {Event} e - Select event
+   */
+  function handleWardChange(e) {
+    setTargetWard(e.target.value);
+  }
 
-  const getTypeIcon = (type) => {
-    switch (type) {
-      case "announcement":
-        return <Megaphone className="text-blue-600" size={20} />;
-      case "alert":
-        return <AlertTriangle className="text-red-600" size={20} />;
-      case "info":
-        return <Info className="text-green-600" size={20} />;
-      case "urgent":
-        return <Zap className="text-orange-600" size={20} />;
-      default:
-        return <Bell className="text-gray-600" size={20} />;
+  /**
+   * Handle schedule type change.
+   * @param {Event} e - Radio event
+   */
+  function handleScheduleTypeChange(e) {
+    setScheduleType(e.target.value);
+    if (e.target.value === "now") {
+      setScheduledDate("");
     }
-  };
+  }
 
-  const getTypeColor = (type) => {
-    switch (type) {
-      case "announcement":
-        return "bg-blue-100 text-blue-700";
-      case "alert":
-        return "bg-red-100 text-red-700";
-      case "info":
-        return "bg-green-100 text-green-700";
-      case "urgent":
-        return "bg-orange-100 text-orange-700";
-      default:
-        return "bg-gray-100 text-gray-700";
-    }
-  };
+  /**
+   * Handle scheduled date change.
+   * @param {Event} e - Input event
+   */
+  function handleScheduledDateChange(e) {
+    setScheduledDate(e.target.value);
+  }
 
-  const handleSubmit = async (e) => {
+  /**
+   * Toggle preview display.
+   */
+  function handleTogglePreview() {
+    setShowPreview(!showPreview);
+  }
+
+  /**
+   * Handle form submission.
+   * @param {Event} e - Form event
+   */
+  function handleSubmit(e) {
     e.preventDefault();
-    if (!formData.title || !formData.message) {
-      toast.warning(language === "en" ? "Please fill all required fields" : "कृपया सबै आवश्यक फिल्डहरू भर्नुहोस्", { position: "top-right", autoClose: 3000 });
-      return;
-    }
 
-    // Validate ward selection for specific ward audience
-    if (formData.audience === "ward" && !formData.targetWard) {
-      toast.warning(language === "en" ? "Please select a ward" : "कृपया वडा छान्नुहोस्", { position: "top-right", autoClose: 3000 });
-      return;
-    }
-
-    setIsSending(true);
-    await new Promise((resolve) => setTimeout(resolve, 2000));
-
-    // Determine ward number
-    let wardNumber = null;
-    if (formData.audience === "ward") {
-      wardNumber = _isSuperAdmin ? parseInt(formData.targetWard) : userWard;
-    } else if (formData.audience === "ward_admin") {
-      wardNumber = parseInt(formData.targetWard);
-    }
-
-    const newBroadcast = {
-      id: Date.now(),
-      title: formData.title,
-      titleNp: formData.title,
-      message: formData.message,
-      messageNp: formData.message,
-      type: formData.type,
-      audience: formData.audience,
-      wardNumber: wardNumber,
-      sentTo: formData.audience === "all" ? 1250 : formData.audience === "ward_admin" ? 1 : 320,
-      sentAt: new Date().toLocaleString(),
-      status: formData.scheduleType === "now" ? "sent" : "scheduled",
-      scheduledFor: formData.scheduleType === "later" ? formData.scheduledDate : null,
-      sentBy: _isSuperAdmin ? "super_admin" : "ward_admin",
-      issueReference: formData.issueReference || null,
+    // Build broadcast data
+    const broadcastData = {
+      title: title,
+      message: message,
+      type: type,
+      targetAudience: targetAudience,
     };
 
-    setBroadcasts([newBroadcast, ...broadcasts]);
-    setIsSending(false);
-    setShowSuccess(true);
-    setFormData({
-      title: "",
-      message: "",
-      audience: _isSuperAdmin ? "all" : "ward",
-      targetWard: _isSuperAdmin ? "" : userWard,
-      type: "announcement",
-      scheduleType: "now",
-      scheduledDate: "",
-      issueReference: "",
-    });
+    if (titleNp) {
+      broadcastData.titleNp = titleNp;
+    }
+    if (messageNp) {
+      broadcastData.messageNp = messageNp;
+    }
+    if (targetAudience === "ward" && targetWard) {
+      broadcastData.targetWard = targetWard;
+    }
+    if (scheduleType === "later" && scheduledDate) {
+      broadcastData.scheduledFor = scheduledDate;
+    }
 
-    setTimeout(() => setShowSuccess(false), 3000);
-  };
+    // For ward admin, auto-set target ward
+    if (!isSuperAdmin && userWard) {
+      broadcastData.targetAudience = "ward";
+      broadcastData.targetWard = userWard;
+    }
 
-  const handleDelete = (id) => {
-    setBroadcasts(broadcasts.filter((b) => b.id !== id));
-  };
+    onSubmit(broadcastData);
 
-  return (
-    <div className="max-w-4xl mx-auto">
-      <ToastContainer />
-      {/* Header */}
-      <div className="bg-white rounded-2xl shadow-sm p-6 mb-6">
-        <h2 className="text-2xl font-bold text-gray-800 mb-2">{t.title}</h2>
-        <p className="text-gray-500">
-          {_isSuperAdmin ? t.subtitle : t.subtitleWardAdmin}
-        </p>
-        {!_isSuperAdmin && (
-          <div className="mt-2 inline-flex items-center gap-2 px-3 py-1 bg-indigo-100 text-indigo-700 rounded-full text-sm">
-            <MapPin size={14} />
-            {t.ward} {userWard}
+    // Reset form
+    setTitle("");
+    setTitleNp("");
+    setMessage("");
+    setMessageNp("");
+    setType("general");
+    setTargetAudience("all");
+    setTargetWard("");
+    setScheduleType("now");
+    setScheduledDate("");
+    setShowPreview(false);
+  }
+
+  /**
+   * Render type selection buttons.
+   * @returns {Array} Array of button elements
+   */
+  function renderTypeButtons() {
+    const types = ["general", "urgent", "event", "maintenance"];
+    const buttons = [];
+
+    for (let i = 0; i < types.length; i++) {
+      const typeValue = types[i];
+
+      let buttonClass =
+        "flex items-center gap-2 px-4 py-2 rounded-lg border transition ";
+      if (type === typeValue) {
+        buttonClass = buttonClass + "border-emerald-500 bg-emerald-50";
+      } else {
+        buttonClass = buttonClass + "border-gray-200 hover:border-gray-300";
+      }
+
+      buttons.push(
+        <button
+          key={typeValue}
+          type="button"
+          onClick={function () {
+            handleTypeSelect(typeValue);
+          }}
+          className={buttonClass}
+        >
+          {getTypeIcon(typeValue)}
+          <span className="text-sm font-medium">{t[typeValue]}</span>
+        </button>
+      );
+    }
+
+    return buttons;
+  }
+
+  /**
+   * Render ward options.
+   * @returns {Array} Array of option elements
+   */
+  function renderWardOptions() {
+    const options = [];
+
+    for (let i = 1; i <= DAMAK_TOTAL_WARDS; i++) {
+      options.push(
+        <option key={i} value={i}>
+          {t.ward} {i}
+        </option>
+      );
+    }
+
+    return options;
+  }
+
+  // Render audience section (super admin only)
+  let audienceSection = null;
+  if (isSuperAdmin) {
+    let wardSelectElement = null;
+    if (targetAudience === "ward") {
+      wardSelectElement = (
+        <select
+          value={targetWard}
+          onChange={handleWardChange}
+          className="px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-emerald-500"
+        >
+          <option value="">{t.selectWard}</option>
+          {renderWardOptions()}
+        </select>
+      );
+    }
+
+    audienceSection = (
+      <div className="space-y-3">
+        <label className="block text-sm font-medium text-gray-700">
+          {t.targetAudience}
+        </label>
+        <div className="flex gap-4">
+          <select
+            value={targetAudience}
+            onChange={handleAudienceChange}
+            className="px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-emerald-500"
+          >
+            <option value="all">{t.allCitizens}</option>
+            <option value="ward">{t.specificWard}</option>
+          </select>
+          {wardSelectElement}
+        </div>
+      </div>
+    );
+  }
+
+  // Render preview section
+  let previewSection = null;
+  if (showPreview) {
+    previewSection = (
+      <div className="border border-gray-200 rounded-lg p-4 bg-gray-50">
+        <div className="flex items-center gap-2 mb-3">
+          {getTypeIcon(type)}
+          <h4 className="font-medium text-gray-800">{title || "Untitled"}</h4>
+        </div>
+        <p className="text-gray-600 text-sm">{message || "No message"}</p>
+        {titleNp && (
+          <div className="mt-3 pt-3 border-t border-gray-200">
+            <h4 className="font-medium text-gray-800">{titleNp}</h4>
+            <p className="text-gray-600 text-sm mt-1">{messageNp}</p>
           </div>
         )}
       </div>
+    );
+  }
 
-      {/* Success Message */}
-      {showSuccess && (
-        <div className="bg-green-100 border border-green-200 text-green-700 rounded-xl p-4 mb-6 flex items-center gap-3">
-          <CheckCircle size={20} />
-          <span>{t.success}</span>
+  // Render schedule section
+  let scheduleDateInput = null;
+  if (scheduleType === "later") {
+    scheduleDateInput = (
+      <input
+        type="datetime-local"
+        value={scheduledDate}
+        onChange={handleScheduledDateChange}
+        className="px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-emerald-500"
+      />
+    );
+  }
+
+  // Check if form is valid
+  let isFormValid = false;
+  if (title && message) {
+    if (scheduleType === "later") {
+      if (scheduledDate) {
+        isFormValid = true;
+      }
+    } else {
+      isFormValid = true;
+    }
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-6">
+      {/* Title Fields */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            {t.titleLabel} *
+          </label>
+          <input
+            type="text"
+            value={title}
+            onChange={handleTitleChange}
+            placeholder={t.titlePlaceholder}
+            required
+            className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-emerald-500"
+          />
         </div>
-      )}
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Broadcast Form */}
-        <div className="bg-white rounded-2xl shadow-sm p-6">
-          <h3 className="font-semibold text-gray-800 mb-4 flex items-center gap-2">
-            <Megaphone size={20} className="text-indigo-600" />
-            {t.newBroadcast}
-          </h3>
-
-          <form onSubmit={handleSubmit} className="space-y-4">
-            {/* Title */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                {t.messageTitle} <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="text"
-                value={formData.title}
-                onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                placeholder={t.titlePlaceholder}
-                className="w-full p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500"
-              />
-            </div>
-
-            {/* Message */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                {t.message} <span className="text-red-500">*</span>
-              </label>
-              <textarea
-                value={formData.message}
-                onChange={(e) => setFormData({ ...formData, message: e.target.value })}
-                placeholder={t.messagePlaceholder}
-                rows={4}
-                className="w-full p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 resize-none"
-              />
-            </div>
-
-            {/* Target Audience - Different for Super Admin vs Ward Admin */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                {t.targetAudience}
-              </label>
-              
-              {_isSuperAdmin ? (
-                // Super Admin: Can choose all wards, specific ward, or send to ward admin
-                <div className="space-y-3">
-                  <div className="grid grid-cols-3 gap-2">
-                    {[
-                      { value: "all", label: t.allWards, icon: Users },
-                      { value: "ward", label: t.specificWard, icon: MapPin },
-                      { value: "ward_admin", label: t.quickAction, icon: Zap },
-                    ].map((option) => (
-                      <button
-                        key={option.value}
-                        type="button"
-                        onClick={() => setFormData({ ...formData, audience: option.value, targetWard: "" })}
-                        className={`p-3 rounded-xl border-2 transition text-center ${
-                          formData.audience === option.value
-                            ? "border-indigo-500 bg-indigo-50 text-indigo-700"
-                            : "border-gray-200 hover:border-gray-300"
-                        }`}
-                      >
-                        <option.icon className="mx-auto mb-1" size={20} />
-                        <span className="text-xs font-medium">{option.label}</span>
-                      </button>
-                    ))}
-                  </div>
-                  
-                  {/* Ward Selection for specific ward or ward admin */}
-                  {(formData.audience === "ward" || formData.audience === "ward_admin") && (
-                    <div>
-                      <select
-                        value={formData.targetWard}
-                        onChange={(e) => setFormData({ ...formData, targetWard: e.target.value })}
-                        className="w-full p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500"
-                      >
-                        <option value="">{t.selectWard}</option>
-                        {Array.from({ length: DAMAK_TOTAL_WARDS }, (_, i) => i + 1).map((ward) => (
-                          <option key={ward} value={ward}>
-                            {t.ward} {ward}
-                          </option>
-                        ))}
-                      </select>
-                      {formData.audience === "ward_admin" && (
-                        <p className="text-xs text-gray-500 mt-1">{t.quickActionDesc}</p>
-                      )}
-                    </div>
-                  )}
-                </div>
-              ) : (
-                // Ward Admin: Can only send to their ward
-                <div className="p-4 bg-gray-50 rounded-xl border border-gray-200">
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 bg-indigo-100 rounded-lg">
-                      <MapPin className="text-indigo-600" size={20} />
-                    </div>
-                    <div>
-                      <p className="font-medium text-gray-800">{t.myWard}</p>
-                      <p className="text-sm text-gray-500">{t.ward} {userWard} {language === "en" ? "citizens only" : "नागरिकहरू मात्र"}</p>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Issue Reference - Only for urgent/ward_admin notifications */}
-            {formData.audience === "ward_admin" && (
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  {t.issueReference}
-                </label>
-                <input
-                  type="text"
-                  value={formData.issueReference}
-                  onChange={(e) => setFormData({ ...formData, issueReference: e.target.value })}
-                  placeholder={t.issueReferencePlaceholder}
-                  className="w-full p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500"
-                />
-              </div>
-            )}
-
-            {/* Notification Type */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                {t.notificationType}
-              </label>
-              <div className="grid grid-cols-4 gap-2">
-                {[
-                  { value: "announcement", label: t.announcement, icon: Megaphone, color: "blue" },
-                  { value: "alert", label: t.alert, icon: AlertTriangle, color: "red" },
-                  { value: "info", label: t.info, icon: Info, color: "green" },
-                  { value: "urgent", label: t.urgentIssue, icon: Zap, color: "orange" },
-                ].map((option) => (
-                  <button
-                    key={option.value}
-                    type="button"
-                    onClick={() => setFormData({ ...formData, type: option.value })}
-                    className={`p-2 rounded-xl border-2 transition text-center ${
-                      formData.type === option.value
-                        ? option.color === "blue"
-                          ? "border-blue-500 bg-blue-50 text-blue-700"
-                          : option.color === "red"
-                          ? "border-red-500 bg-red-50 text-red-700"
-                          : option.color === "orange"
-                          ? "border-orange-500 bg-orange-50 text-orange-700"
-                          : "border-green-500 bg-green-50 text-green-700"
-                        : "border-gray-200 hover:border-gray-300"
-                    }`}
-                  >
-                    <option.icon className="mx-auto mb-1" size={18} />
-                    <span className="text-xs font-medium">{option.label}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Schedule */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                {t.schedule}
-              </label>
-              <div className="grid grid-cols-2 gap-2 mb-3">
-                <button
-                  type="button"
-                  onClick={() => setFormData({ ...formData, scheduleType: "now" })}
-                  className={`p-3 rounded-xl border-2 transition ${
-                    formData.scheduleType === "now"
-                      ? "border-indigo-500 bg-indigo-50 text-indigo-700"
-                      : "border-gray-200 hover:border-gray-300"
-                  }`}
-                >
-                  <Send className="mx-auto mb-1" size={20} />
-                  <span className="text-sm font-medium">{t.sendNow}</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setFormData({ ...formData, scheduleType: "later" })}
-                  className={`p-3 rounded-xl border-2 transition ${
-                    formData.scheduleType === "later"
-                      ? "border-indigo-500 bg-indigo-50 text-indigo-700"
-                      : "border-gray-200 hover:border-gray-300"
-                  }`}
-                >
-                  <Calendar className="mx-auto mb-1" size={20} />
-                  <span className="text-sm font-medium">{t.scheduleLater}</span>
-                </button>
-              </div>
-              {formData.scheduleType === "later" && (
-                <input
-                  type="datetime-local"
-                  value={formData.scheduledDate}
-                  onChange={(e) => setFormData({ ...formData, scheduledDate: e.target.value })}
-                  className="w-full p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500"
-                />
-              )}
-            </div>
-
-            {/* Submit Button */}
-            <button
-              type="submit"
-              disabled={isSending}
-              className="w-full py-3 bg-indigo-600 text-white rounded-xl font-semibold hover:bg-indigo-700 transition flex items-center justify-center gap-2 disabled:opacity-50"
-            >
-              {isSending ? (
-                <>
-                  <Loader className="animate-spin" size={20} />
-                  {t.sending}
-                </>
-              ) : (
-                <>
-                  <Send size={20} />
-                  {t.send}
-                </>
-              )}
-            </button>
-          </form>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            {t.titleNpLabel}
+          </label>
+          <input
+            type="text"
+            value={titleNp}
+            onChange={handleTitleNpChange}
+            placeholder={t.titlePlaceholder}
+            className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-emerald-500"
+          />
         </div>
+      </div>
 
-        {/* Broadcast History */}
-        <div className="bg-white rounded-2xl shadow-sm p-6">
-          <h3 className="font-semibold text-gray-800 mb-4">{t.history}</h3>
+      {/* Message Fields */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            {t.messageLabel} *
+          </label>
+          <textarea
+            value={message}
+            onChange={handleMessageChange}
+            placeholder={t.messagePlaceholder}
+            required
+            rows={4}
+            className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-emerald-500"
+          />
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            {t.messageNpLabel}
+          </label>
+          <textarea
+            value={messageNp}
+            onChange={handleMessageNpChange}
+            placeholder={t.messagePlaceholder}
+            rows={4}
+            className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-emerald-500"
+          />
+        </div>
+      </div>
 
-          {getFilteredBroadcasts().length === 0 ? (
-            <div className="text-center py-8">
-              <Bell className="mx-auto text-gray-300 mb-3" size={40} />
-              <p className="text-gray-500">{t.noHistory}</p>
+      {/* Type Selection */}
+      <div className="space-y-3">
+        <label className="block text-sm font-medium text-gray-700">{t.type}</label>
+        <div className="flex flex-wrap gap-3">{renderTypeButtons()}</div>
+      </div>
+
+      {/* Target Audience (Super Admin only) */}
+      {audienceSection}
+
+      {/* Schedule */}
+      <div className="space-y-3">
+        <label className="block text-sm font-medium text-gray-700">{t.schedule}</label>
+        <div className="flex items-center gap-6">
+          <label className="flex items-center gap-2">
+            <input
+              type="radio"
+              name="schedule"
+              value="now"
+              checked={scheduleType === "now"}
+              onChange={handleScheduleTypeChange}
+              className="text-emerald-600 focus:ring-emerald-500"
+            />
+            <span className="text-sm">{t.sendNow}</span>
+          </label>
+          <label className="flex items-center gap-2">
+            <input
+              type="radio"
+              name="schedule"
+              value="later"
+              checked={scheduleType === "later"}
+              onChange={handleScheduleTypeChange}
+              className="text-emerald-600 focus:ring-emerald-500"
+            />
+            <span className="text-sm">{t.scheduleLater}</span>
+          </label>
+          {scheduleDateInput}
+        </div>
+      </div>
+
+      {/* Preview Toggle */}
+      <button
+        type="button"
+        onClick={handleTogglePreview}
+        className="flex items-center gap-2 text-emerald-600 hover:underline text-sm"
+      >
+        {showPreview ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+        {t.preview}
+      </button>
+
+      {previewSection}
+
+      {/* Submit Button */}
+      <button
+        type="submit"
+        disabled={!isFormValid || isSubmitting}
+        className="flex items-center gap-2 px-6 py-3 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed"
+      >
+        {isSubmitting ? (
+          <Loader className="animate-spin" size={18} />
+        ) : (
+          <Send size={18} />
+        )}
+        {isSubmitting ? t.sending : t.send}
+      </button>
+    </form>
+  );
+}
+
+/**
+ * Broadcast history item component.
+ * @param {Object} props - Component props
+ * @returns {JSX.Element} History item element
+ */
+function BroadcastHistoryItem(props) {
+  const broadcast = props.broadcast;
+  const t = props.t;
+  const language = props.language;
+  const onDelete = props.onDelete;
+  const isDeleting = props.isDeleting;
+
+  // Determine display title based on language
+  let displayTitle;
+  if (language === "np" && broadcast.titleNp) {
+    displayTitle = broadcast.titleNp;
+  } else {
+    displayTitle = broadcast.title;
+  }
+
+  // Determine display message based on language
+  let displayMessage;
+  if (language === "np" && broadcast.messageNp) {
+    displayMessage = broadcast.messageNp;
+  } else {
+    displayMessage = broadcast.message;
+  }
+
+  // Determine audience text
+  let audienceText;
+  if (broadcast.targetAudience === "all") {
+    audienceText = t.allCitizens;
+  } else if (broadcast.targetWard) {
+    audienceText = t.ward + " " + broadcast.targetWard;
+  } else {
+    audienceText = t.allCitizens;
+  }
+
+  // Determine status text
+  let statusText = t[broadcast.status];
+  if (!statusText) {
+    statusText = broadcast.status;
+  }
+
+  // Determine type label
+  let typeLabel = t["type" + broadcast.type.charAt(0).toUpperCase() + broadcast.type.slice(1)];
+  if (!typeLabel) {
+    typeLabel = t[broadcast.type];
+  }
+
+  /**
+   * Handle delete click.
+   */
+  function handleDelete() {
+    if (window.confirm(t.confirmDelete)) {
+      onDelete(broadcast.id);
+    }
+  }
+
+  return (
+    <div className="bg-white border border-gray-100 rounded-xl p-4 hover:shadow-sm transition">
+      <div className="flex items-start justify-between gap-4">
+        <div className="flex items-start gap-3 flex-1">
+          {getTypeIcon(broadcast.type)}
+          <div className="flex-1">
+            <h4 className="font-medium text-gray-800">{displayTitle}</h4>
+            <p className="text-sm text-gray-600 mt-1 line-clamp-2">{displayMessage}</p>
+            <div className="flex items-center gap-4 mt-3 text-xs text-gray-500">
+              <span className="flex items-center gap-1">
+                <Users size={12} />
+                {audienceText}
+              </span>
+              <span className="flex items-center gap-1">
+                <Clock size={12} />
+                {broadcast.status === "scheduled" ? t.scheduledFor : t.sentAt}:{" "}
+                {formatDate(broadcast.scheduledFor || broadcast.sentAt)}
+              </span>
             </div>
-          ) : (
-            <div className="space-y-3 max-h-[500px] overflow-y-auto">
-              {getFilteredBroadcasts().map((broadcast) => (
-                <div
-                  key={broadcast.id}
-                  className="border border-gray-100 rounded-xl p-4 hover:bg-gray-50 transition"
-                >
-                  <div className="flex items-start justify-between mb-2">
-                    <div className="flex items-center gap-2">
-                      <div className={`p-2 rounded-lg ${getTypeColor(broadcast.type)}`}>
-                        {getTypeIcon(broadcast.type)}
-                      </div>
-                      <div>
-                        <h4 className="font-medium text-gray-800">
-                          {language === "en" ? broadcast.title : broadcast.titleNp}
-                        </h4>
-                        <div className="flex items-center gap-2 mt-1">
-                          <span
-                            className={`text-xs px-2 py-0.5 rounded-full ${
-                              broadcast.status === "sent"
-                                ? "bg-green-100 text-green-700"
-                                : "bg-yellow-100 text-yellow-700"
-                            }`}
-                          >
-                            {broadcast.status === "sent" ? t.sent : t.scheduled}
-                          </span>
-                          {/* Ward Badge */}
-                          <span className="text-xs px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 flex items-center gap-1">
-                            <MapPin size={10} />
-                            {broadcast.wardNumber === "all" 
-                              ? t.allWards 
-                              : `${t.ward} ${broadcast.wardNumber}`}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                    <button
-                      onClick={() => handleDelete(broadcast.id)}
-                      className="p-1 text-gray-400 hover:text-red-500 transition"
-                    >
-                      <Trash2 size={16} />
-                    </button>
-                  </div>
-                  <p className="text-sm text-gray-600 line-clamp-2 mb-2">
-                    {language === "en" ? broadcast.message : broadcast.messageNp}
-                  </p>
-                  <div className="flex items-center justify-between text-xs text-gray-500">
-                    <div className="flex items-center gap-3">
-                      <span className="flex items-center gap-1">
-                        <Users size={12} />
-                        {t.sentTo} {broadcast.sentTo} {t.citizens}
-                      </span>
-                      {broadcast.sentBy && (
-                        <span className="text-gray-400">
-                          {language === "en" ? "by" : "द्वारा"} {broadcast.sentBy}
-                        </span>
-                      )}
-                    </div>
-                    <span className="flex items-center gap-1">
-                      <Clock size={12} />
-                      {broadcast.sentAt || broadcast.scheduledFor}
-                    </span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className={"px-2 py-1 rounded-full text-xs font-medium " + getTypeColor(broadcast.type)}>
+            {typeLabel}
+          </span>
+          <span className={"px-2 py-1 rounded-full text-xs font-medium " + getStatusColor(broadcast.status)}>
+            {statusText}
+          </span>
+          <button
+            onClick={handleDelete}
+            disabled={isDeleting}
+            className="p-2 text-gray-400 hover:text-red-500 transition disabled:opacity-50"
+            title={t.delete}
+          >
+            {isDeleting ? <Loader className="animate-spin" size={16} /> : <Trash2 size={16} />}
+          </button>
         </div>
       </div>
     </div>
   );
-};
+}
+
+// ============================================================================
+// MAIN COMPONENT
+// ============================================================================
+
+/**
+ * AdminNotificationBroadcast - Main broadcast management component.
+ * @returns {JSX.Element} The rendered component
+ */
+function AdminNotificationBroadcast() {
+  // ============================================================================
+  // HOOKS AND CONTEXT
+  // ============================================================================
+
+  const languageContext = useLanguage();
+  const language = languageContext.language;
+  const t = broadcastText[language];
+
+  const authContext = useAuth();
+  const currentUser = authContext.currentUser;
+
+  // Determine user role
+  let isSuperAdmin = false;
+  if (currentUser && currentUser.role === ROLES.SUPER_ADMIN) {
+    isSuperAdmin = true;
+  }
+
+  let userWard = null;
+  if (currentUser) {
+    userWard = currentUser.wardNumber;
+  }
+
+  // ============================================================================
+  // STATE
+  // ============================================================================
+
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [deletingId, setDeletingId] = useState(null);
+
+  // ============================================================================
+  // DATA FETCHING
+  // ============================================================================
+
+  const broadcastsData = useBroadcasts();
+  const broadcasts = broadcastsData.broadcasts;
+  const loading = broadcastsData.loading;
+  const error = broadcastsData.error;
+  const refetch = broadcastsData.refetch;
+
+  // ============================================================================
+  // EVENT HANDLERS
+  // ============================================================================
+
+  /**
+   * Handle broadcast form submission.
+   * @param {Object} broadcastData - The broadcast data to send
+   */
+  async function handleSubmitBroadcast(broadcastData) {
+    setIsSubmitting(true);
+
+    try {
+      // Backend: POST /api/broadcasts
+      await broadcastsAPI.create(broadcastData);
+
+      let successMessage;
+      if (broadcastData.scheduledFor) {
+        successMessage = t.broadcastScheduled;
+      } else {
+        successMessage = t.broadcastSent;
+      }
+
+      toast.success(successMessage, { position: "top-right", autoClose: 3000 });
+      refetch();
+    } catch (err) {
+      let errorMessage = t.error;
+      if (err.message) {
+        errorMessage = err.message;
+      }
+      toast.error(errorMessage, { position: "top-right", autoClose: 3000 });
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  /**
+   * Handle broadcast deletion.
+   * @param {string} broadcastId - ID of broadcast to delete
+   */
+  async function handleDeleteBroadcast(broadcastId) {
+    setDeletingId(broadcastId);
+
+    try {
+      // Backend: DELETE /api/broadcasts/:id
+      await broadcastsAPI.delete(broadcastId);
+      toast.success(t.broadcastDeleted, { position: "top-right", autoClose: 3000 });
+      refetch();
+    } catch (err) {
+      let errorMessage = t.error;
+      if (err.message) {
+        errorMessage = err.message;
+      }
+      toast.error(errorMessage, { position: "top-right", autoClose: 3000 });
+    } finally {
+      setDeletingId(null);
+    }
+  }
+
+  // ============================================================================
+  // RENDER HELPER FUNCTIONS
+  // ============================================================================
+
+  /**
+   * Render broadcast history items.
+   * @returns {Array|JSX.Element} Array of history items or empty state
+   */
+  function renderBroadcastHistory() {
+    if (loading) {
+      return (
+        <div className="text-center py-8">
+          <Loader className="mx-auto animate-spin text-emerald-500" size={32} />
+          <p className="text-gray-500 mt-2">{t.loading}</p>
+        </div>
+      );
+    }
+
+    if (!broadcasts || broadcasts.length === 0) {
+      return (
+        <div className="text-center py-8">
+          <Bell className="mx-auto text-gray-300" size={48} />
+          <p className="text-gray-500 mt-2">{t.noHistory}</p>
+        </div>
+      );
+    }
+
+    const items = [];
+    for (let i = 0; i < broadcasts.length; i++) {
+      const broadcast = broadcasts[i];
+      items.push(
+        <BroadcastHistoryItem
+          key={broadcast.id}
+          broadcast={broadcast}
+          t={t}
+          language={language}
+          onDelete={handleDeleteBroadcast}
+          isDeleting={deletingId === broadcast.id}
+        />
+      );
+    }
+
+    return <div className="space-y-4">{items}</div>;
+  }
+
+  // ============================================================================
+  // RENDER
+  // ============================================================================
+
+  // Determine role display text
+  let roleText;
+  if (isSuperAdmin) {
+    roleText = t.superAdmin;
+  } else {
+    roleText = t.wardAdmin;
+  }
+
+  return (
+    <div className="max-w-4xl mx-auto space-y-6">
+      <ToastContainer />
+
+      {/* Header */}
+      <div className="bg-white rounded-2xl shadow-sm p-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-2xl font-bold text-gray-800 mb-2">{t.title}</h2>
+            <p className="text-gray-500">{t.subtitle}</p>
+          </div>
+          <span className="px-3 py-1 bg-emerald-100 text-emerald-700 rounded-full text-sm font-medium">
+            {roleText}
+          </span>
+        </div>
+      </div>
+
+      {/* New Broadcast Form */}
+      <div className="bg-white rounded-2xl shadow-sm p-6">
+        <h3 className="text-lg font-semibold text-gray-800 mb-6 flex items-center gap-2">
+          <Megaphone size={20} />
+          {t.newBroadcast}
+        </h3>
+        <BroadcastForm
+          t={t}
+          isSuperAdmin={isSuperAdmin}
+          userWard={userWard}
+          onSubmit={handleSubmitBroadcast}
+          isSubmitting={isSubmitting}
+        />
+      </div>
+
+      {/* Broadcast History */}
+      <div className="bg-white rounded-2xl shadow-sm p-6">
+        <h3 className="text-lg font-semibold text-gray-800 mb-6 flex items-center gap-2">
+          <Clock size={20} />
+          {t.broadcastHistory}
+        </h3>
+        {renderBroadcastHistory()}
+      </div>
+    </div>
+  );
+}
 
 export default AdminNotificationBroadcast;
