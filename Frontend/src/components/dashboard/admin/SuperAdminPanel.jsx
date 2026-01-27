@@ -1,3 +1,13 @@
+/**
+ * SuperAdminPanel Component
+ *
+ * Ward admin management panel for Super Admin.
+ * Allows creating, viewing, and managing ward administrators
+ * for Damak Municipality.
+ *
+ * @component
+ */
+
 import React, { useState } from "react";
 import { useLanguage } from "../../../context/useLanguage";
 import { useAuth } from "../../../context/useAuth";
@@ -19,6 +29,10 @@ import {
   User,
 } from "lucide-react";
 import { toast } from "react-toastify";
+
+// ============================================================================
+// TRANSLATIONS
+// ============================================================================
 
 const panelText = {
   en: {
@@ -115,17 +129,110 @@ const panelText = {
   },
 };
 
-const SuperAdminPanel = () => {
-  const { language } = useLanguage();
+// ============================================================================
+// HELPER FUNCTIONS
+// ============================================================================
+
+/**
+ * Count active admins from the admin list.
+ * @param {Array} adminList - List of ward admins
+ * @returns {number} Count of active admins
+ */
+function countActiveAdmins(adminList) {
+  let count = 0;
+  for (let i = 0; i < adminList.length; i++) {
+    if (adminList[i].isActive) {
+      count = count + 1;
+    }
+  }
+  return count;
+}
+
+/**
+ * Count inactive admins from the admin list.
+ * @param {Array} adminList - List of ward admins
+ * @returns {number} Count of inactive admins
+ */
+function countInactiveAdmins(adminList) {
+  let count = 0;
+  for (let i = 0; i < adminList.length; i++) {
+    if (!adminList[i].isActive) {
+      count = count + 1;
+    }
+  }
+  return count;
+}
+
+/**
+ * Filter admins based on search query and status filter.
+ * @param {Array} adminList - List of ward admins
+ * @param {string} searchQuery - Search text
+ * @param {string} statusFilter - Status filter value (all, active, inactive)
+ * @returns {Array} Filtered list of admins
+ */
+function filterAdmins(adminList, searchQuery, statusFilter) {
+  const filteredList = [];
+
+  for (let i = 0; i < adminList.length; i++) {
+    const admin = adminList[i];
+
+    // Check if admin matches search query
+    const fullNameLower = admin.fullName.toLowerCase();
+    const emailLower = admin.email.toLowerCase();
+    const wardString = admin.wardNumber.toString();
+    const searchLower = searchQuery.toLowerCase();
+
+    const matchesSearch =
+      fullNameLower.includes(searchLower) ||
+      emailLower.includes(searchLower) ||
+      wardString.includes(searchQuery);
+
+    // Check if admin matches status filter
+    let matchesStatus = false;
+    if (statusFilter === "all") {
+      matchesStatus = true;
+    } else if (statusFilter === "active" && admin.isActive) {
+      matchesStatus = true;
+    } else if (statusFilter === "inactive" && !admin.isActive) {
+      matchesStatus = true;
+    }
+
+    // Add to filtered list if both conditions match
+    if (matchesSearch && matchesStatus) {
+      filteredList.push(admin);
+    }
+  }
+
+  return filteredList;
+}
+
+// ============================================================================
+// MAIN COMPONENT
+// ============================================================================
+
+/**
+ * SuperAdminPanel - Main component for ward admin management.
+ * @returns {JSX.Element} The rendered component
+ */
+function SuperAdminPanel() {
+  // ============================================================================
+  // HOOKS AND CONTEXT
+  // ============================================================================
+
+  const languageContext = useLanguage();
+  const language = languageContext.language;
   const t = panelText[language];
-  const {
-    getWardAdmins,
-    getWardsWithoutAdmin,
-    createWardAdmin,
-    deactivateWardAdmin,
-    reactivateWardAdmin,
-    DAMAK_TOTAL_WARDS,
-  } = useAuth();
+
+  const authContext = useAuth();
+  const getWardAdmins = authContext.getWardAdmins;
+  const getWardsWithoutAdmin = authContext.getWardsWithoutAdmin;
+  const createWardAdmin = authContext.createWardAdmin;
+  const deactivateWardAdmin = authContext.deactivateWardAdmin;
+  const reactivateWardAdmin = authContext.reactivateWardAdmin;
+
+  // ============================================================================
+  // STATE
+  // ============================================================================
 
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -138,35 +245,51 @@ const SuperAdminPanel = () => {
     wardNumber: "",
   });
 
+  // ============================================================================
+  // DATA
+  // ============================================================================
+
   const wardAdmins = getWardAdmins();
   const wardsWithoutAdmin = getWardsWithoutAdmin();
 
-  // Stats
+  // Calculate stats
   const totalAdmins = wardAdmins.length;
-  const activeAdmins = wardAdmins.filter((a) => a.isActive).length;
-  const inactiveAdmins = wardAdmins.filter((a) => !a.isActive).length;
+  const activeAdmins = countActiveAdmins(wardAdmins);
+  const inactiveAdmins = countInactiveAdmins(wardAdmins);
 
-  // Filter admins
-  const filteredAdmins = wardAdmins.filter((admin) => {
-    const matchesSearch =
-      admin.fullName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      admin.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      admin.wardNumber.toString().includes(searchQuery);
+  // Get filtered admins
+  const filteredAdmins = filterAdmins(wardAdmins, searchQuery, statusFilter);
 
-    const matchesStatus =
-      statusFilter === "all" ||
-      (statusFilter === "active" && admin.isActive) ||
-      (statusFilter === "inactive" && !admin.isActive);
+  // ============================================================================
+  // EVENT HANDLERS
+  // ============================================================================
 
-    return matchesSearch && matchesStatus;
-  });
+  /**
+   * Handle input field changes in the form.
+   * @param {Event} e - The input change event
+   */
+  function handleInputChange(e) {
+    const fieldName = e.target.name;
+    const fieldValue = e.target.value;
 
-  const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
-  };
+    setFormData(function (previousData) {
+      const newData = {
+        fullName: previousData.fullName,
+        email: previousData.email,
+        phone: previousData.phone,
+        wardNumber: previousData.wardNumber,
+      };
+      newData[fieldName] = fieldValue;
+      return newData;
+    });
+  }
 
-  const handleCreateAdmin = () => {
+  /**
+   * Handle creating a new ward admin.
+   * Validates form data and submits to the API.
+   */
+  function handleCreateAdmin() {
+    // Validate required fields
     if (!formData.fullName || !formData.email || !formData.wardNumber) {
       toast.error(t.errorRequired, { position: "top-right" });
       return;
@@ -174,16 +297,21 @@ const SuperAdminPanel = () => {
 
     setIsSubmitting(true);
 
-    const result = createWardAdmin({
+    // Create the admin data object
+    const adminData = {
       fullName: formData.fullName,
       email: formData.email,
       phone: formData.phone,
       wardNumber: parseInt(formData.wardNumber),
-    });
+    };
 
-    setTimeout(() => {
+    const result = createWardAdmin(adminData);
+
+    // Use setTimeout to simulate async operation
+    setTimeout(function () {
       if (result.success) {
         toast.success(t.successCreate, { position: "top-right" });
+        // Reset form
         setFormData({ fullName: "", email: "", phone: "", wardNumber: "" });
         setShowCreateForm(false);
       } else {
@@ -191,10 +319,17 @@ const SuperAdminPanel = () => {
       }
       setIsSubmitting(false);
     }, 500);
-  };
+  }
 
-  const handleDeactivate = (adminId) => {
-    if (window.confirm(t.confirmDeactivate)) {
+  /**
+   * Handle deactivating a ward admin.
+   * Shows confirmation dialog before deactivating.
+   * @param {string} adminId - The ID of the admin to deactivate
+   */
+  function handleDeactivate(adminId) {
+    const confirmed = window.confirm(t.confirmDeactivate);
+
+    if (confirmed) {
       const result = deactivateWardAdmin(adminId);
       if (result.success) {
         toast.success(t.successDeactivate, { position: "top-right" });
@@ -202,16 +337,185 @@ const SuperAdminPanel = () => {
         toast.error(result.error, { position: "top-right" });
       }
     }
-  };
+  }
 
-  const handleReactivate = (adminId) => {
+  /**
+   * Handle reactivating a ward admin.
+   * @param {string} adminId - The ID of the admin to reactivate
+   */
+  function handleReactivate(adminId) {
     const result = reactivateWardAdmin(adminId);
+
     if (result.success) {
       toast.success(t.successReactivate, { position: "top-right" });
     } else {
       toast.error(result.error, { position: "top-right" });
     }
-  };
+  }
+
+  /**
+   * Open the create admin form.
+   */
+  function openCreateForm() {
+    setShowCreateForm(true);
+  }
+
+  /**
+   * Close the create admin form.
+   */
+  function closeCreateForm() {
+    setShowCreateForm(false);
+  }
+
+  /**
+   * Handle search input change.
+   * @param {Event} e - The input change event
+   */
+  function handleSearchChange(e) {
+    setSearchQuery(e.target.value);
+  }
+
+  /**
+   * Handle status filter change.
+   * @param {Event} e - The select change event
+   */
+  function handleStatusFilterChange(e) {
+    setStatusFilter(e.target.value);
+  }
+
+  // ============================================================================
+  // RENDER HELPER FUNCTIONS
+  // ============================================================================
+
+  /**
+   * Render the ward options for the select dropdown.
+   * @returns {Array} Array of option elements
+   */
+  function renderWardOptions() {
+    const options = [];
+    for (let i = 0; i < wardsWithoutAdmin.length; i++) {
+      const ward = wardsWithoutAdmin[i];
+      options.push(
+        <option key={ward} value={ward}>
+          {t.ward} {ward}
+        </option>
+      );
+    }
+    return options;
+  }
+
+  /**
+   * Render the wards without admin badges.
+   * @returns {Array} Array of span elements
+   */
+  function renderWardsWithoutAdminBadges() {
+    const badges = [];
+    for (let i = 0; i < wardsWithoutAdmin.length; i++) {
+      const ward = wardsWithoutAdmin[i];
+      badges.push(
+        <span
+          key={ward}
+          className="px-3 py-1 bg-yellow-100 text-yellow-800 rounded-full text-sm font-medium"
+        >
+          {t.ward} {ward}
+        </span>
+      );
+    }
+    return badges;
+  }
+
+  /**
+   * Render admin table rows.
+   * @returns {Array} Array of tr elements
+   */
+  function renderAdminRows() {
+    const rows = [];
+
+    for (let i = 0; i < filteredAdmins.length; i++) {
+      const admin = filteredAdmins[i];
+
+      // Determine status display
+      let statusElement;
+      if (admin.isActive) {
+        statusElement = (
+          <span className="flex items-center gap-1 text-green-600 text-sm">
+            <CheckCircle size={16} />
+            {t.active}
+          </span>
+        );
+      } else {
+        statusElement = (
+          <span className="flex items-center gap-1 text-red-500 text-sm">
+            <X size={16} />
+            {t.inactive}
+          </span>
+        );
+      }
+
+      // Determine action button
+      let actionButton;
+      if (admin.isActive) {
+        actionButton = (
+          <button
+            onClick={function () {
+              handleDeactivate(admin.id);
+            }}
+            className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+            title={t.deactivate}
+          >
+            <X size={18} />
+          </button>
+        );
+      } else {
+        actionButton = (
+          <button
+            onClick={function () {
+              handleReactivate(admin.id);
+            }}
+            className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
+            title={t.reactivate}
+          >
+            <RefreshCw size={18} />
+          </button>
+        );
+      }
+
+      rows.push(
+        <tr key={admin.id} className="hover:bg-gray-50">
+          <td className="px-4 py-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center">
+                <User className="text-indigo-600" size={20} />
+              </div>
+              <div>
+                <p className="font-medium text-gray-800">{admin.fullName}</p>
+                <p className="text-sm text-gray-500">{admin.phone}</p>
+              </div>
+            </div>
+          </td>
+          <td className="px-4 py-4 text-gray-600">{admin.email}</td>
+          <td className="px-4 py-4">
+            <span className="px-2.5 py-1 bg-indigo-100 text-indigo-700 rounded-full text-sm font-medium">
+              {t.ward} {admin.wardNumber}
+            </span>
+          </td>
+          <td className="px-4 py-4">{statusElement}</td>
+          <td className="px-4 py-4 text-gray-600">{admin.createdAt}</td>
+          <td className="px-4 py-4">
+            <div className="flex items-center justify-end gap-2">
+              {actionButton}
+            </div>
+          </td>
+        </tr>
+      );
+    }
+
+    return rows;
+  }
+
+  // ============================================================================
+  // RENDER
+  // ============================================================================
 
   return (
     <div className="p-6 space-y-6">
@@ -225,7 +529,7 @@ const SuperAdminPanel = () => {
           <p className="text-gray-500 mt-1">{t.subtitle}</p>
         </div>
         <button
-          onClick={() => setShowCreateForm(true)}
+          onClick={openCreateForm}
           className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
         >
           <UserPlus size={20} />
@@ -291,14 +595,7 @@ const SuperAdminPanel = () => {
             {t.wardsWithoutAdmin}
           </h3>
           <div className="flex flex-wrap gap-2">
-            {wardsWithoutAdmin.map((ward) => (
-              <span
-                key={ward}
-                className="px-3 py-1 bg-yellow-100 text-yellow-800 rounded-full text-sm font-medium"
-              >
-                {t.ward} {ward}
-              </span>
-            ))}
+            {renderWardsWithoutAdminBadges()}
           </div>
         </div>
       )}
@@ -310,7 +607,7 @@ const SuperAdminPanel = () => {
             <div className="flex items-center justify-between">
               <h2 className="text-xl font-bold text-gray-800">{t.createAdmin}</h2>
               <button
-                onClick={() => setShowCreateForm(false)}
+                onClick={closeCreateForm}
                 className="p-2 hover:bg-gray-100 rounded-lg"
               >
                 <X size={20} />
@@ -398,11 +695,7 @@ const SuperAdminPanel = () => {
                     className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent appearance-none bg-white"
                   >
                     <option value="">{t.wardPlaceholder}</option>
-                    {wardsWithoutAdmin.map((ward) => (
-                      <option key={ward} value={ward}>
-                        {t.ward} {ward}
-                      </option>
-                    ))}
+                    {renderWardOptions()}
                   </select>
                 </div>
               </div>
@@ -410,7 +703,7 @@ const SuperAdminPanel = () => {
 
             <div className="flex gap-3 pt-4">
               <button
-                onClick={() => setShowCreateForm(false)}
+                onClick={closeCreateForm}
                 className="flex-1 px-4 py-2.5 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
               >
                 {t.cancel}
@@ -447,14 +740,14 @@ const SuperAdminPanel = () => {
           <input
             type="text"
             value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+            onChange={handleSearchChange}
             placeholder={t.searchPlaceholder}
             className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
           />
         </div>
         <select
           value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value)}
+          onChange={handleStatusFilterChange}
           className="px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
         >
           <option value="all">{t.all}</option>
@@ -503,64 +796,7 @@ const SuperAdminPanel = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {filteredAdmins.map((admin) => (
-                  <tr key={admin.id} className="hover:bg-gray-50">
-                    <td className="px-4 py-4">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center">
-                          <User className="text-indigo-600" size={20} />
-                        </div>
-                        <div>
-                          <p className="font-medium text-gray-800">
-                            {admin.fullName}
-                          </p>
-                          <p className="text-sm text-gray-500">{admin.phone}</p>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-4 py-4 text-gray-600">{admin.email}</td>
-                    <td className="px-4 py-4">
-                      <span className="px-2.5 py-1 bg-indigo-100 text-indigo-700 rounded-full text-sm font-medium">
-                        {t.ward} {admin.wardNumber}
-                      </span>
-                    </td>
-                    <td className="px-4 py-4">
-                      {admin.isActive ? (
-                        <span className="flex items-center gap-1 text-green-600 text-sm">
-                          <CheckCircle size={16} />
-                          {t.active}
-                        </span>
-                      ) : (
-                        <span className="flex items-center gap-1 text-red-500 text-sm">
-                          <X size={16} />
-                          {t.inactive}
-                        </span>
-                      )}
-                    </td>
-                    <td className="px-4 py-4 text-gray-600">{admin.createdAt}</td>
-                    <td className="px-4 py-4">
-                      <div className="flex items-center justify-end gap-2">
-                        {admin.isActive ? (
-                          <button
-                            onClick={() => handleDeactivate(admin.id)}
-                            className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                            title={t.deactivate}
-                          >
-                            <X size={18} />
-                          </button>
-                        ) : (
-                          <button
-                            onClick={() => handleReactivate(admin.id)}
-                            className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
-                            title={t.reactivate}
-                          >
-                            <RefreshCw size={18} />
-                          </button>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+                {renderAdminRows()}
               </tbody>
             </table>
           </div>
@@ -568,6 +804,6 @@ const SuperAdminPanel = () => {
       </div>
     </div>
   );
-};
+}
 
 export default SuperAdminPanel;

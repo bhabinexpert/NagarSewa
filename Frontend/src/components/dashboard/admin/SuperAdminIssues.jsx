@@ -1,3 +1,13 @@
+/**
+ * SuperAdminIssues Component
+ *
+ * Municipal-level issue overview for super administrators.
+ * Allows viewing all ward issues and setting priority levels
+ * for ward admin action.
+ *
+ * @component
+ */
+
 import React, { useState } from "react";
 import { useLanguage } from "../../../context/useLanguage";
 import { DAMAK_TOTAL_WARDS } from "../../../context/authConstants";
@@ -16,6 +26,10 @@ import {
   X,
   Filter,
 } from "lucide-react";
+
+// ============================================================================
+// TRANSLATIONS
+// ============================================================================
 
 const text = {
   en: {
@@ -72,7 +86,10 @@ const text = {
   },
 };
 
-// Mock issues from all wards
+// ============================================================================
+// MOCK DATA
+// ============================================================================
+
 const mockIssues = [
   {
     id: "ISS-001",
@@ -141,9 +158,177 @@ const mockIssues = [
   },
 ];
 
-const SuperAdminIssues = () => {
-  const { language } = useLanguage();
+// ============================================================================
+// HELPER FUNCTIONS
+// ============================================================================
+
+/**
+ * Get status configuration including color and icon.
+ * @param {string} status - The issue status
+ * @returns {Object} Status configuration with bg, text, and icon
+ */
+function getStatusConfig(status) {
+  if (status === "pending") {
+    return { bg: "bg-yellow-100", text: "text-yellow-700", icon: Clock };
+  } else if (status === "inProgress") {
+    return { bg: "bg-blue-100", text: "text-blue-700", icon: AlertCircle };
+  } else if (status === "resolved") {
+    return { bg: "bg-green-100", text: "text-green-700", icon: CheckCircle };
+  } else if (status === "rejected") {
+    return { bg: "bg-red-100", text: "text-red-700", icon: XCircle };
+  } else {
+    return { bg: "bg-yellow-100", text: "text-yellow-700", icon: Clock };
+  }
+}
+
+/**
+ * Get priority button color class.
+ * @param {string} priority - The priority level
+ * @returns {string} CSS class for the priority color
+ */
+function getPriorityColor(priority) {
+  if (priority === "urgent") {
+    return "bg-red-500";
+  } else if (priority === "high") {
+    return "bg-orange-500";
+  } else if (priority === "medium") {
+    return "bg-yellow-500";
+  } else if (priority === "low") {
+    return "bg-blue-500";
+  } else {
+    return "bg-gray-500";
+  }
+}
+
+/**
+ * Filter issues based on ward, status, and search.
+ * @param {Array} issuesList - List of all issues
+ * @param {string} wardFilter - Ward filter value
+ * @param {string} statusFilter - Status filter value
+ * @param {string} search - Search text
+ * @returns {Array} Filtered list of issues
+ */
+function filterIssues(issuesList, wardFilter, statusFilter, search) {
+  const filteredList = [];
+
+  for (let i = 0; i < issuesList.length; i++) {
+    const issue = issuesList[i];
+
+    // Check ward filter
+    if (wardFilter !== "all") {
+      if (issue.wardNumber.toString() !== wardFilter) {
+        continue;
+      }
+    }
+
+    // Check status filter
+    if (statusFilter !== "all") {
+      if (issue.status !== statusFilter) {
+        continue;
+      }
+    }
+
+    // Check search text
+    if (search) {
+      const idLower = issue.id.toLowerCase();
+      const typeLower = issue.type.toLowerCase();
+      const searchLower = search.toLowerCase();
+
+      if (!idLower.includes(searchLower) && !typeLower.includes(searchLower)) {
+        continue;
+      }
+    }
+
+    filteredList.push(issue);
+  }
+
+  return filteredList;
+}
+
+/**
+ * Sort issues by date.
+ * @param {Array} issuesList - List of issues to sort
+ * @param {string} sortOrder - Sort order (newest or oldest)
+ * @returns {Array} Sorted list of issues
+ */
+function sortIssues(issuesList, sortOrder) {
+  // Create a copy to avoid mutating original array
+  const sortedList = [];
+  for (let i = 0; i < issuesList.length; i++) {
+    sortedList.push(issuesList[i]);
+  }
+
+  // Sort using bubble sort
+  for (let i = 0; i < sortedList.length - 1; i++) {
+    for (let j = 0; j < sortedList.length - 1 - i; j++) {
+      const dateA = new Date(sortedList[j].reportedOn);
+      const dateB = new Date(sortedList[j + 1].reportedOn);
+
+      let shouldSwap = false;
+      if (sortOrder === "newest") {
+        shouldSwap = dateA < dateB;
+      } else {
+        shouldSwap = dateA > dateB;
+      }
+
+      if (shouldSwap) {
+        const temp = sortedList[j];
+        sortedList[j] = sortedList[j + 1];
+        sortedList[j + 1] = temp;
+      }
+    }
+  }
+
+  return sortedList;
+}
+
+/**
+ * Calculate statistics from issues list.
+ * @param {Array} issuesList - List of all issues
+ * @returns {Object} Statistics object
+ */
+function calculateStats(issuesList) {
+  let pendingCount = 0;
+  let prioritizedCount = 0;
+
+  for (let i = 0; i < issuesList.length; i++) {
+    const issue = issuesList[i];
+
+    if (issue.status === "pending") {
+      pendingCount = pendingCount + 1;
+    }
+    if (issue.superAdminPriority) {
+      prioritizedCount = prioritizedCount + 1;
+    }
+  }
+
+  return {
+    total: issuesList.length,
+    pending: pendingCount,
+    prioritized: prioritizedCount,
+  };
+}
+
+// ============================================================================
+// MAIN COMPONENT
+// ============================================================================
+
+/**
+ * SuperAdminIssues - Main component for super admin issue overview.
+ * @returns {JSX.Element} The rendered component
+ */
+function SuperAdminIssues() {
+  // ============================================================================
+  // HOOKS AND CONTEXT
+  // ============================================================================
+
+  const languageContext = useLanguage();
+  const language = languageContext.language;
   const t = text[language];
+
+  // ============================================================================
+  // STATE
+  // ============================================================================
 
   const [issues, setIssues] = useState(mockIssues);
   const [filter, setFilter] = useState("all");
@@ -151,63 +336,25 @@ const SuperAdminIssues = () => {
   const [search, setSearch] = useState("");
   const [sortOrder, setSortOrder] = useState("newest");
   const [expandedId, setExpandedId] = useState(null);
-  
+
   // Priority Modal State
   const [showModal, setShowModal] = useState(false);
   const [selectedIssue, setSelectedIssue] = useState(null);
   const [selectedPriority, setSelectedPriority] = useState("");
   const [priorityNote, setPriorityNote] = useState("");
 
-  // Filter and sort
-  const filteredIssues = issues
-    .filter((issue) => {
-      if (wardFilter !== "all" && issue.wardNumber.toString() !== wardFilter) return false;
-      if (filter === "all") return true;
-      return issue.status === filter;
-    })
-    .filter((issue) => {
-      if (!search) return true;
-      return (
-        issue.id.toLowerCase().includes(search.toLowerCase()) ||
-        issue.type.toLowerCase().includes(search.toLowerCase())
-      );
-    })
-    .sort((a, b) => {
-      return sortOrder === "newest"
-        ? new Date(b.reportedOn) - new Date(a.reportedOn)
-        : new Date(a.reportedOn) - new Date(b.reportedOn);
-    });
+  // ============================================================================
+  // DATA PROCESSING
+  // ============================================================================
 
-  const openPriorityModal = (issue) => {
-    setSelectedIssue(issue);
-    setSelectedPriority(issue.superAdminPriority || "");
-    setPriorityNote(issue.priorityNote || "");
-    setShowModal(true);
-  };
+  // Filter and sort issues
+  const filteredList = filterIssues(issues, wardFilter, filter, search);
+  const filteredIssues = sortIssues(filteredList, sortOrder);
 
-  const savePriority = () => {
-    if (!selectedPriority) return;
-    setIssues(issues.map((issue) =>
-      issue.id === selectedIssue.id
-        ? { ...issue, superAdminPriority: selectedPriority, priorityNote }
-        : issue
-    ));
-    setShowModal(false);
-    setSelectedIssue(null);
-    setSelectedPriority("");
-    setPriorityNote("");
-  };
+  // Calculate stats
+  const stats = calculateStats(issues);
 
-  const getStatusConfig = (status) => {
-    const config = {
-      pending: { bg: "bg-yellow-100", text: "text-yellow-700", icon: Clock },
-      inProgress: { bg: "bg-blue-100", text: "text-blue-700", icon: AlertCircle },
-      resolved: { bg: "bg-green-100", text: "text-green-700", icon: CheckCircle },
-      rejected: { bg: "bg-red-100", text: "text-red-700", icon: XCircle },
-    };
-    return config[status] || config.pending;
-  };
-
+  // Priority options
   const priorityOptions = [
     { value: "low", label: t.low, color: "bg-blue-500" },
     { value: "medium", label: t.medium, color: "bg-yellow-500" },
@@ -215,6 +362,7 @@ const SuperAdminIssues = () => {
     { value: "urgent", label: t.urgent, color: "bg-red-500" },
   ];
 
+  // Filter tabs
   const filterTabs = [
     { id: "all", label: t.all },
     { id: "pending", label: t.pending },
@@ -222,12 +370,380 @@ const SuperAdminIssues = () => {
     { id: "resolved", label: t.resolved },
   ];
 
-  // Stats
-  const stats = {
-    total: issues.length,
-    pending: issues.filter(i => i.status === "pending").length,
-    prioritized: issues.filter(i => i.superAdminPriority).length,
-  };
+  // ============================================================================
+  // EVENT HANDLERS
+  // ============================================================================
+
+  /**
+   * Open the priority modal for an issue.
+   * @param {Object} issue - The issue to set priority for
+   */
+  function openPriorityModal(issue) {
+    setSelectedIssue(issue);
+
+    if (issue.superAdminPriority) {
+      setSelectedPriority(issue.superAdminPriority);
+    } else {
+      setSelectedPriority("");
+    }
+
+    if (issue.priorityNote) {
+      setPriorityNote(issue.priorityNote);
+    } else {
+      setPriorityNote("");
+    }
+
+    setShowModal(true);
+  }
+
+  /**
+   * Save the priority for the selected issue.
+   */
+  function savePriority() {
+    if (!selectedPriority) {
+      return;
+    }
+
+    setIssues(function (previousIssues) {
+      const updatedIssues = [];
+
+      for (let i = 0; i < previousIssues.length; i++) {
+        const issue = previousIssues[i];
+
+        if (issue.id === selectedIssue.id) {
+          // Create a new issue object with updated priority
+          const updatedIssue = {
+            id: issue.id,
+            type: issue.type,
+            typeNp: issue.typeNp,
+            description: issue.description,
+            wardNumber: issue.wardNumber,
+            location: issue.location,
+            status: issue.status,
+            reportedBy: issue.reportedBy,
+            reportedOn: issue.reportedOn,
+            superAdminPriority: selectedPriority,
+            priorityNote: priorityNote,
+          };
+          updatedIssues.push(updatedIssue);
+        } else {
+          updatedIssues.push(issue);
+        }
+      }
+
+      return updatedIssues;
+    });
+
+    // Close modal and reset state
+    setShowModal(false);
+    setSelectedIssue(null);
+    setSelectedPriority("");
+    setPriorityNote("");
+  }
+
+  /**
+   * Close the priority modal.
+   */
+  function closeModal() {
+    setShowModal(false);
+  }
+
+  /**
+   * Handle search input change.
+   * @param {Event} e - Input change event
+   */
+  function handleSearchChange(e) {
+    setSearch(e.target.value);
+  }
+
+  /**
+   * Handle ward filter change.
+   * @param {Event} e - Select change event
+   */
+  function handleWardFilterChange(e) {
+    setWardFilter(e.target.value);
+  }
+
+  /**
+   * Handle sort order change.
+   * @param {Event} e - Select change event
+   */
+  function handleSortChange(e) {
+    setSortOrder(e.target.value);
+  }
+
+  /**
+   * Handle filter tab click.
+   * @param {string} filterId - The filter ID to set
+   */
+  function handleFilterClick(filterId) {
+    setFilter(filterId);
+  }
+
+  /**
+   * Handle issue card expansion toggle.
+   * @param {string} issueId - The issue ID to toggle
+   */
+  function handleToggleExpand(issueId) {
+    if (expandedId === issueId) {
+      setExpandedId(null);
+    } else {
+      setExpandedId(issueId);
+    }
+  }
+
+  /**
+   * Handle priority selection in modal.
+   * @param {string} priority - The selected priority value
+   */
+  function handlePrioritySelect(priority) {
+    setSelectedPriority(priority);
+  }
+
+  /**
+   * Handle priority note change.
+   * @param {Event} e - Input change event
+   */
+  function handlePriorityNoteChange(e) {
+    setPriorityNote(e.target.value);
+  }
+
+  // ============================================================================
+  // RENDER HELPER FUNCTIONS
+  // ============================================================================
+
+  /**
+   * Render ward options for select dropdown.
+   * @returns {Array} Array of option elements
+   */
+  function renderWardOptions() {
+    const options = [];
+    for (let i = 1; i <= DAMAK_TOTAL_WARDS; i++) {
+      options.push(
+        <option key={i} value={i}>
+          {t.ward} {i}
+        </option>
+      );
+    }
+    return options;
+  }
+
+  /**
+   * Render filter tab buttons.
+   * @returns {Array} Array of button elements
+   */
+  function renderFilterTabs() {
+    const buttons = [];
+
+    for (let i = 0; i < filterTabs.length; i++) {
+      const tab = filterTabs[i];
+
+      let buttonClass = "px-3 py-1.5 text-sm rounded-lg transition ";
+      if (filter === tab.id) {
+        buttonClass = buttonClass + "bg-purple-600 text-white";
+      } else {
+        buttonClass = buttonClass + "bg-gray-100 text-gray-600 hover:bg-gray-200";
+      }
+
+      buttons.push(
+        <button
+          key={tab.id}
+          onClick={function () {
+            handleFilterClick(tab.id);
+          }}
+          className={buttonClass}
+        >
+          {tab.label}
+        </button>
+      );
+    }
+
+    return buttons;
+  }
+
+  /**
+   * Render priority option buttons in modal.
+   * @returns {Array} Array of button elements
+   */
+  function renderPriorityOptions() {
+    const buttons = [];
+
+    for (let i = 0; i < priorityOptions.length; i++) {
+      const opt = priorityOptions[i];
+
+      let buttonClass = "px-4 py-3 rounded-lg border-2 font-medium transition ";
+      if (selectedPriority === opt.value) {
+        buttonClass = buttonClass + opt.color + " text-white border-transparent";
+      } else {
+        buttonClass = buttonClass + "bg-gray-50 text-gray-700 border-gray-200 hover:border-gray-300";
+      }
+
+      buttons.push(
+        <button
+          key={opt.value}
+          onClick={function () {
+            handlePrioritySelect(opt.value);
+          }}
+          className={buttonClass}
+        >
+          {opt.label}
+        </button>
+      );
+    }
+
+    return buttons;
+  }
+
+  /**
+   * Render issue cards.
+   * @returns {Array} Array of issue card elements
+   */
+  function renderIssueCards() {
+    const cards = [];
+
+    for (let i = 0; i < filteredIssues.length; i++) {
+      const issue = filteredIssues[i];
+      const statusConfig = getStatusConfig(issue.status);
+      const StatusIcon = statusConfig.icon;
+      const isExpanded = expandedId === issue.id;
+
+      // Determine container class
+      let containerClass = "bg-white rounded-xl shadow-sm overflow-hidden ";
+      if (issue.superAdminPriority) {
+        containerClass = containerClass + "ring-2 ring-purple-400";
+      }
+
+      // Determine issue type text based on language
+      let issueTypeText;
+      if (language === "en") {
+        issueTypeText = issue.type;
+      } else {
+        issueTypeText = issue.typeNp;
+      }
+
+      // Find priority color if exists
+      let priorityBadge = null;
+      if (issue.superAdminPriority) {
+        let priorityColorClass = "";
+        for (let j = 0; j < priorityOptions.length; j++) {
+          if (priorityOptions[j].value === issue.superAdminPriority) {
+            priorityColorClass = priorityOptions[j].color;
+            break;
+          }
+        }
+        priorityBadge = (
+          <span className={"px-2 py-0.5 rounded text-xs font-medium text-white capitalize " + priorityColorClass}>
+            {issue.superAdminPriority}
+          </span>
+        );
+      }
+
+      // Determine button text for priority
+      let priorityButtonText;
+      let priorityButtonClass;
+      if (issue.superAdminPriority) {
+        priorityButtonText = t.updatePriority;
+        priorityButtonClass = "bg-purple-100 text-purple-700 hover:bg-purple-200";
+      } else {
+        priorityButtonText = t.setPriority;
+        priorityButtonClass = "bg-orange-600 text-white hover:bg-orange-700";
+      }
+
+      // Get status label text
+      let statusLabelText = t[issue.status];
+      if (!statusLabelText) {
+        statusLabelText = issue.status;
+      }
+
+      cards.push(
+        <div key={issue.id} className={containerClass}>
+          {/* Issue Row */}
+          <div
+            className="p-4 cursor-pointer hover:bg-gray-50"
+            onClick={function () {
+              handleToggleExpand(issue.id);
+            }}
+          >
+            <div className="flex items-center justify-between">
+              <div className="flex-1">
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="text-xs text-gray-400 font-mono">{issue.id}</span>
+                  <span className="px-2 py-0.5 bg-indigo-100 text-indigo-700 rounded text-xs font-medium">
+                    {t.ward} {issue.wardNumber}
+                  </span>
+                  <span className={"px-2 py-0.5 rounded text-xs font-medium flex items-center gap-1 " + statusConfig.bg + " " + statusConfig.text}>
+                    <StatusIcon size={12} />
+                    {statusLabelText}
+                  </span>
+                  {priorityBadge}
+                </div>
+                <h3 className="font-medium text-gray-800">{issueTypeText}</h3>
+                <p className="text-sm text-gray-500 flex items-center gap-3 mt-1">
+                  <span className="flex items-center gap-1">
+                    <MapPin size={12} />
+                    {issue.location}
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <Calendar size={12} />
+                    {issue.reportedOn}
+                  </span>
+                </p>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={function (e) {
+                    e.stopPropagation();
+                    openPriorityModal(issue);
+                  }}
+                  className={"px-3 py-1.5 text-sm rounded-lg flex items-center gap-1 " + priorityButtonClass}
+                >
+                  <Flag size={14} />
+                  {priorityButtonText}
+                </button>
+                <button className="p-2 text-gray-400">
+                  {isExpanded ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Expanded Details */}
+          {isExpanded && (
+            <div className="px-4 pb-4 border-t border-gray-100 pt-3">
+              <p className="text-sm text-gray-600 mb-2">{issue.description}</p>
+              <p className="text-xs text-gray-500">
+                <User size={12} className="inline mr-1" />
+                {t.reportedBy}: {issue.reportedBy}
+              </p>
+              {issue.priorityNote && (
+                <div className="mt-3 bg-purple-50 border border-purple-200 rounded-lg p-3">
+                  <p className="text-xs font-medium text-purple-700">Your Priority Note:</p>
+                  <p className="text-sm text-gray-700">{issue.priorityNote}</p>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    return cards;
+  }
+
+  // ============================================================================
+  // RENDER
+  // ============================================================================
+
+  // Prepare modal issue display text
+  let modalIssueText = "";
+  if (selectedIssue) {
+    if (language === "en") {
+      modalIssueText = selectedIssue.id + " - " + selectedIssue.type;
+    } else {
+      modalIssueText = selectedIssue.id + " - " + selectedIssue.typeNp;
+    }
+  }
 
   return (
     <div className="max-w-5xl mx-auto">
@@ -238,7 +754,7 @@ const SuperAdminIssues = () => {
             <h1 className="text-xl font-bold text-gray-800">{t.title}</h1>
             <p className="text-sm text-gray-500">{t.subtitle}</p>
           </div>
-          
+
           {/* Stats Pills */}
           <div className="flex gap-3">
             <div className="px-4 py-2 bg-gray-50 rounded-lg">
@@ -264,23 +780,21 @@ const SuperAdminIssues = () => {
               type="text"
               placeholder={t.searchPlaceholder}
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              onChange={handleSearchChange}
               className="w-full pl-9 pr-4 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-500"
             />
           </div>
           <select
             value={wardFilter}
-            onChange={(e) => setWardFilter(e.target.value)}
+            onChange={handleWardFilterChange}
             className="px-3 py-2 text-sm border border-gray-200 rounded-lg bg-white"
           >
             <option value="all">{t.allWards}</option>
-            {Array.from({ length: DAMAK_TOTAL_WARDS }, (_, i) => (
-              <option key={i + 1} value={i + 1}>{t.ward} {i + 1}</option>
-            ))}
+            {renderWardOptions()}
           </select>
           <select
             value={sortOrder}
-            onChange={(e) => setSortOrder(e.target.value)}
+            onChange={handleSortChange}
             className="px-3 py-2 text-sm border border-gray-200 rounded-lg bg-white"
           >
             <option value="newest">{t.newest}</option>
@@ -289,21 +803,7 @@ const SuperAdminIssues = () => {
         </div>
 
         {/* Filter Tabs */}
-        <div className="flex flex-wrap gap-2 mt-4">
-          {filterTabs.map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => setFilter(tab.id)}
-              className={`px-3 py-1.5 text-sm rounded-lg transition ${
-                filter === tab.id
-                  ? "bg-purple-600 text-white"
-                  : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-              }`}
-            >
-              {tab.label}
-            </button>
-          ))}
-        </div>
+        <div className="flex flex-wrap gap-2 mt-4">{renderFilterTabs()}</div>
       </div>
 
       {/* Issues List */}
@@ -313,98 +813,7 @@ const SuperAdminIssues = () => {
             {t.noIssues}
           </div>
         ) : (
-          filteredIssues.map((issue) => {
-            const status = getStatusConfig(issue.status);
-            const StatusIcon = status.icon;
-            const isExpanded = expandedId === issue.id;
-
-            return (
-              <div
-                key={issue.id}
-                className={`bg-white rounded-xl shadow-sm overflow-hidden ${
-                  issue.superAdminPriority ? "ring-2 ring-purple-400" : ""
-                }`}
-              >
-                {/* Issue Row */}
-                <div
-                  className="p-4 cursor-pointer hover:bg-gray-50"
-                  onClick={() => setExpandedId(isExpanded ? null : issue.id)}
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className="text-xs text-gray-400 font-mono">{issue.id}</span>
-                        <span className="px-2 py-0.5 bg-indigo-100 text-indigo-700 rounded text-xs font-medium">
-                          {t.ward} {issue.wardNumber}
-                        </span>
-                        <span className={`px-2 py-0.5 rounded text-xs font-medium flex items-center gap-1 ${status.bg} ${status.text}`}>
-                          <StatusIcon size={12} />
-                          {t[issue.status] || issue.status}
-                        </span>
-                        {issue.superAdminPriority && (
-                          <span className={`px-2 py-0.5 rounded text-xs font-medium text-white capitalize ${
-                            priorityOptions.find(p => p.value === issue.superAdminPriority)?.color
-                          }`}>
-                            {issue.superAdminPriority}
-                          </span>
-                        )}
-                      </div>
-                      <h3 className="font-medium text-gray-800">
-                        {language === "en" ? issue.type : issue.typeNp}
-                      </h3>
-                      <p className="text-sm text-gray-500 flex items-center gap-3 mt-1">
-                        <span className="flex items-center gap-1">
-                          <MapPin size={12} />
-                          {issue.location}
-                        </span>
-                        <span className="flex items-center gap-1">
-                          <Calendar size={12} />
-                          {issue.reportedOn}
-                        </span>
-                      </p>
-                    </div>
-                    
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          openPriorityModal(issue);
-                        }}
-                        className={`px-3 py-1.5 text-sm rounded-lg flex items-center gap-1 ${
-                          issue.superAdminPriority
-                            ? "bg-purple-100 text-purple-700 hover:bg-purple-200"
-                            : "bg-orange-600 text-white hover:bg-orange-700"
-                        }`}
-                      >
-                        <Flag size={14} />
-                        {issue.superAdminPriority ? t.updatePriority : t.setPriority}
-                      </button>
-                      <button className="p-2 text-gray-400">
-                        {isExpanded ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
-                      </button>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Expanded Details */}
-                {isExpanded && (
-                  <div className="px-4 pb-4 border-t border-gray-100 pt-3">
-                    <p className="text-sm text-gray-600 mb-2">{issue.description}</p>
-                    <p className="text-xs text-gray-500">
-                      <User size={12} className="inline mr-1" />
-                      {t.reportedBy}: {issue.reportedBy}
-                    </p>
-                    {issue.priorityNote && (
-                      <div className="mt-3 bg-purple-50 border border-purple-200 rounded-lg p-3">
-                        <p className="text-xs font-medium text-purple-700">Your Priority Note:</p>
-                        <p className="text-sm text-gray-700">{issue.priorityNote}</p>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-            );
-          })
+          renderIssueCards()
         )}
       </div>
 
@@ -417,39 +826,20 @@ const SuperAdminIssues = () => {
                 <Flag className="text-orange-600" size={20} />
                 {t.setPriority}
               </h3>
-              <button
-                onClick={() => setShowModal(false)}
-                className="p-1 hover:bg-gray-100 rounded"
-              >
+              <button onClick={closeModal} className="p-1 hover:bg-gray-100 rounded">
                 <X size={20} />
               </button>
             </div>
 
-            <p className="text-sm text-gray-600 mb-4">
-              {selectedIssue.id} - {language === "en" ? selectedIssue.type : selectedIssue.typeNp}
-            </p>
+            <p className="text-sm text-gray-600 mb-4">{modalIssueText}</p>
 
             {/* Priority Options */}
-            <div className="grid grid-cols-2 gap-2 mb-4">
-              {priorityOptions.map((opt) => (
-                <button
-                  key={opt.value}
-                  onClick={() => setSelectedPriority(opt.value)}
-                  className={`px-4 py-3 rounded-lg border-2 font-medium transition ${
-                    selectedPriority === opt.value
-                      ? `${opt.color} text-white border-transparent`
-                      : "bg-gray-50 text-gray-700 border-gray-200 hover:border-gray-300"
-                  }`}
-                >
-                  {opt.label}
-                </button>
-              ))}
-            </div>
+            <div className="grid grid-cols-2 gap-2 mb-4">{renderPriorityOptions()}</div>
 
             {/* Note */}
             <textarea
               value={priorityNote}
-              onChange={(e) => setPriorityNote(e.target.value)}
+              onChange={handlePriorityNoteChange}
               placeholder={t.priorityNotePlaceholder}
               rows={3}
               className="w-full p-3 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 mb-4"
@@ -458,7 +848,7 @@ const SuperAdminIssues = () => {
             {/* Actions */}
             <div className="flex gap-3">
               <button
-                onClick={() => setShowModal(false)}
+                onClick={closeModal}
                 className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
               >
                 {t.cancel}
@@ -476,6 +866,6 @@ const SuperAdminIssues = () => {
       )}
     </div>
   );
-};
+}
 
 export default SuperAdminIssues;
