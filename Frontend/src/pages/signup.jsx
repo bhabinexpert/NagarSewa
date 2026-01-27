@@ -292,7 +292,7 @@ export default function Signup() {
   // Allowed province and district codes
   const ALLOWED_PROVINCE_CODE = "1"; // Koshi Province
   const ALLOWED_DISTRICT_CODE = "111"; // Jhapa District
-  const ALLOWED_MUNICIPALITY_CODE = "11103"; // Damak Municipality
+  const ALLOWED_MUNICIPALITY_CODE = "11107"; // Damak Municipality
 
   // Handle geolocation to auto-fill location fields
   const handleUseMyLocation = () => {
