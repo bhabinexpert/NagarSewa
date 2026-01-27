@@ -1,6 +1,12 @@
+// ============================================================
+// IMPORTS
+// ============================================================
 import { FaFlag, FaUsers, FaLandmark, FaShieldAlt } from "react-icons/fa";
 import { useLanguage } from "../context/useLanguage";
 
+// ============================================================
+// CONTENT DATA - Translations for English and Nepali
+// ============================================================
 const aboutContent = {
   en: {
     title: "About NagarSewa",
@@ -58,13 +64,77 @@ const aboutContent = {
   },
 };
 
+// ============================================================
+// ABOUT COMPONENT
+// ============================================================
+
+/**
+ * About Component
+ * Displays the about section with information about NagarSewa
+ * and the four core pillars of the platform.
+ * Supports English and Nepali languages.
+ * 
+ * @returns {JSX.Element} The about section component
+ */
 export default function About() {
-  const { language } = useLanguage();
+  // ============================================================
+  // STATE AND CONTEXT
+  // ============================================================
+  
+  // Get language context without destructuring for clarity
+  const languageContext = useLanguage();
+  const language = languageContext.language;
+  
+  // Get content based on current language
   const content = aboutContent[language];
 
+  // ============================================================
+  // HELPER FUNCTIONS FOR RENDERING
+  // ============================================================
+
+  /**
+   * Renders the pillar cards
+   * Uses a for loop instead of .map() for beginner clarity
+   * 
+   * @returns {JSX.Element[]} Array of pillar card elements
+   */
+  function renderPillarCards() {
+    const pillarCards = [];
+    const pillars = content.pillars;
+    
+    for (let i = 0; i < pillars.length; i++) {
+      const pillar = pillars[i];
+      const pillarTitle = pillar.title;
+      const pillarDesc = pillar.desc;
+      const PillarIcon = pillar.icon;
+      
+      const cardElement = (
+        <div
+          key={pillarTitle}
+          className="bg-white rounded-2xl p-6 shadow-sm border border-emerald-100 card-hover"
+        >
+          <div className="h-12 w-12 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center mb-4 text-xl">
+            <PillarIcon />
+          </div>
+          <h4 className="font-semibold text-lg mb-2 text-emerald-900">{pillarTitle}</h4>
+          <p className="text-sm text-gray-600">{pillarDesc}</p>
+        </div>
+      );
+      
+      pillarCards.push(cardElement);
+    }
+    
+    return pillarCards;
+  }
+
+  // ============================================================
+  // COMPONENT RENDER
+  // ============================================================
+  
   return (
     <section id="about" className="bg-emerald-50/50 py-20 w-full">
       <div className="max-w-6xl mx-auto px-6">
+        {/* Header Section */}
         <div className="text-center max-w-3xl mx-auto mb-12">
           <h3 className="text-3xl font-bold mb-4 text-emerald-900">{content.title}</h3>
           <p className="text-emerald-700 font-semibold">{content.lead}</p>
@@ -72,22 +142,10 @@ export default function About() {
             {content.body}
           </p>
         </div>
+        
+        {/* Pillars Grid */}
         <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {content.pillars.map((pillar) => {
-            const Icon = pillar.icon;
-            return (
-              <div
-                key={pillar.title}
-                className="bg-white rounded-2xl p-6 shadow-sm border border-emerald-100 card-hover"
-              >
-                <div className="h-12 w-12 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center mb-4 text-xl">
-                  <Icon />
-                </div>
-                <h4 className="font-semibold text-lg mb-2 text-emerald-900">{pillar.title}</h4>
-                <p className="text-sm text-gray-600">{pillar.desc}</p>
-              </div>
-            );
-          })}
+          {renderPillarCards()}
         </div>
       </div>
     </section>

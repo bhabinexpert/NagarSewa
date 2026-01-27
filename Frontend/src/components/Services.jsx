@@ -1,8 +1,15 @@
+// ============================================================
+// IMPORTS
+// ============================================================
 import { useLanguage } from "../context/useLanguage";
 
+// ============================================================
+// CONTENT DATA - Translations for English and Nepali
+// ============================================================
 const servicesContent = {
   en: {
     title: "Citizen Services",
+    subtitle: "Access essential municipal services through your secure citizen account.",
     services: [
       {
         title: "Issue Reporting",
@@ -57,6 +64,7 @@ const servicesContent = {
   },
   np: {
     title: "नागरिक सेवाहरू",
+    subtitle: "आफ्नो सुरक्षित नागरिक खातामार्फत आवश्यक नगरपालिका सेवाहरू पहुँच गर्नुहोस्।",
     services: [
       {
         title: "समस्या रिपोर्टिङ",
@@ -111,39 +119,93 @@ const servicesContent = {
   },
 };
 
+// ============================================================
+// SERVICES COMPONENT
+// ============================================================
+
+/**
+ * Services Component
+ * Displays the services section with a grid of service cards.
+ * Each card shows an image, title, and description of a municipal service.
+ * Supports English and Nepali languages.
+ * 
+ * @returns {JSX.Element} The services section component
+ */
 export default function Services() {
-  const { language } = useLanguage();
+  // ============================================================
+  // STATE AND CONTEXT
+  // ============================================================
+  
+  // Get language context without destructuring for clarity
+  const languageContext = useLanguage();
+  const language = languageContext.language;
+  
+  // Get content based on current language
   const content = servicesContent[language];
 
+  // ============================================================
+  // HELPER FUNCTIONS FOR RENDERING
+  // ============================================================
+
+  /**
+   * Renders the service cards
+   * Uses a for loop instead of .map() for beginner clarity
+   * 
+   * @returns {JSX.Element[]} Array of service card elements
+   */
+  function renderServiceCards() {
+    const serviceCards = [];
+    const services = content.services;
+    
+    for (let i = 0; i < services.length; i++) {
+      const service = services[i];
+      const serviceTitle = service.title;
+      const serviceDesc = service.desc;
+      const serviceImage = service.image;
+      const serviceAlt = service.alt;
+      
+      const cardElement = (
+        <div
+          key={i}
+          className="bg-white rounded-2xl shadow-sm border border-emerald-100 overflow-hidden card-hover"
+        >
+          <img
+            src={serviceImage}
+            alt={serviceAlt}
+            className="h-44 w-full object-cover"
+            loading="lazy"
+          />
+          <div className="p-6">
+            <h4 className="font-semibold text-lg mb-2 text-emerald-900">{serviceTitle}</h4>
+            <p className="text-sm text-gray-600">
+              {serviceDesc}
+            </p>
+          </div>
+        </div>
+      );
+      
+      serviceCards.push(cardElement);
+    }
+    
+    return serviceCards;
+  }
+
+  // ============================================================
+  // COMPONENT RENDER
+  // ============================================================
+  
   return (
     <section id="services" className="py-20 bg-white w-full">
       <div className="max-w-7xl mx-auto px-6">
+        {/* Section Header */}
         <h3 className="text-3xl font-bold text-center mb-4 text-emerald-900">{content.title}</h3>
         <p className="text-center text-emerald-700/80 mb-12 max-w-2xl mx-auto">
-          {language === "en"
-            ? "Access essential municipal services through your secure citizen account."
-            : "आफ्नो सुरक्षित नागरिक खातामार्फत आवश्यक नगरपालिका सेवाहरू पहुँच गर्नुहोस्।"}
+          {content.subtitle}
         </p>
+        
+        {/* Services Grid */}
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-          {content.services.map((service, idx) => (
-            <div
-              key={idx}
-              className="bg-white rounded-2xl shadow-sm border border-emerald-100 overflow-hidden card-hover"
-            >
-              <img
-                src={service.image}
-                alt={service.alt}
-                className="h-44 w-full object-cover"
-                loading="lazy"
-              />
-              <div className="p-6">
-                <h4 className="font-semibold text-lg mb-2 text-emerald-900">{service.title}</h4>
-                <p className="text-sm text-gray-600">
-                  {service.desc}
-                </p>
-              </div>
-            </div>
-          ))}
+          {renderServiceCards()}
         </div>
       </div>
     </section>

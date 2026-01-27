@@ -1,8 +1,15 @@
+// ============================================================
+// IMPORTS
+// ============================================================
 import { useLanguage } from "../context/useLanguage";
 
+// ============================================================
+// CONTENT DATA - Translations for English and Nepali
+// ============================================================
 const highlightsContent = {
   en: {
     title: "Critical Local Issues Needing Immediate Action",
+    subtitle: "Real issues reported by citizens across Nepal's municipalities.",
     issues: [
       {
         icon: "🚧",
@@ -50,6 +57,7 @@ const highlightsContent = {
   },
   np: {
     title: "तत्काल कार्य आवश्यक स्थानीय समस्याहरू",
+    subtitle: "नेपालका नगरपालिकाहरूमा नागरिकहरूले रिपोर्ट गरेका वास्तविक समस्याहरू।",
     issues: [
       {
         icon: "🚧",
@@ -97,41 +105,110 @@ const highlightsContent = {
   },
 };
 
+// ============================================================
+// HIGHLIGHTS COMPONENT
+// ============================================================
+
+/**
+ * Highlights Component
+ * Displays a grid of critical local issues that need immediate action.
+ * Each issue card shows an icon, title, description, and priority tag.
+ * Supports English and Nepali languages.
+ * 
+ * @returns {JSX.Element} The highlights section component
+ */
 export default function Highlights() {
-  const { language } = useLanguage();
+  // ============================================================
+  // STATE AND CONTEXT
+  // ============================================================
+  
+  // Get language context without destructuring for clarity
+  const languageContext = useLanguage();
+  const language = languageContext.language;
+  
+  // Get content based on current language
   const content = highlightsContent[language];
 
+  // ============================================================
+  // HELPER FUNCTIONS FOR RENDERING
+  // ============================================================
+
+  /**
+   * Gets the CSS classes for the issue tag based on the color
+   * Uses if/else instead of ternary for clarity
+   * 
+   * @param {string} color - The color class of the issue
+   * @returns {string} The CSS classes for the tag
+   */
+  function getTagClasses(color) {
+    if (color === "text-red-600") {
+      return "bg-red-100 text-red-700";
+    } else {
+      return "bg-orange-100 text-orange-700";
+    }
+  }
+
+  /**
+   * Renders the issue cards
+   * Uses a for loop instead of .map() for beginner clarity
+   * 
+   * @returns {JSX.Element[]} Array of issue card elements
+   */
+  function renderIssueCards() {
+    const issueCards = [];
+    const issues = content.issues;
+    
+    for (let i = 0; i < issues.length; i++) {
+      const issue = issues[i];
+      const issueIcon = issue.icon;
+      const issueTitle = issue.title;
+      const issueDesc = issue.desc;
+      const issueTag = issue.tag;
+      const issueColor = issue.color;
+      
+      // Get the appropriate classes for the tag
+      const tagClasses = getTagClasses(issueColor);
+      
+      const cardElement = (
+        <div
+          key={i}
+          className="bg-white p-6 rounded-2xl shadow-sm border border-emerald-100 card-hover"
+        >
+          <div className="text-3xl mb-3">{issueIcon}</div>
+          <h4 className="font-semibold text-lg mb-2 text-emerald-900">{issueTitle}</h4>
+          <p className="text-sm text-gray-600 mb-3">
+            {issueDesc}
+          </p>
+          <span className={`inline-block text-xs font-semibold px-3 py-1 rounded-full ${tagClasses}`}>
+            {issueTag}
+          </span>
+        </div>
+      );
+      
+      issueCards.push(cardElement);
+    }
+    
+    return issueCards;
+  }
+
+  // ============================================================
+  // COMPONENT RENDER
+  // ============================================================
+  
   return (
     <section id="issues" className="bg-emerald-50/50 py-20 w-full">
       <div className="max-w-7xl mx-auto px-6">
+        {/* Section Header */}
         <h3 className="text-3xl font-bold text-center mb-4 text-emerald-900">
           {content.title}
         </h3>
         <p className="text-center text-emerald-700/80 mb-12 max-w-2xl mx-auto">
-          {language === "en"
-            ? "Real issues reported by citizens across Nepal's municipalities."
-            : "नेपालका नगरपालिकाहरूमा नागरिकहरूले रिपोर्ट गरेका वास्तविक समस्याहरू।"}
+          {content.subtitle}
         </p>
+        
+        {/* Issues Grid */}
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-          {content.issues.map((issue, idx) => (
-            <div
-              key={idx}
-              className="bg-white p-6 rounded-2xl shadow-sm border border-emerald-100 card-hover"
-            >
-              <div className="text-3xl mb-3">{issue.icon}</div>
-              <h4 className="font-semibold text-lg mb-2 text-emerald-900">{issue.title}</h4>
-              <p className="text-sm text-gray-600 mb-3">
-                {issue.desc}
-              </p>
-              <span className={`inline-block text-xs font-semibold px-3 py-1 rounded-full ${
-                issue.color === "text-red-600"
-                  ? "bg-red-100 text-red-700"
-                  : "bg-orange-100 text-orange-700"
-              }`}>
-                {issue.tag}
-              </span>
-            </div>
-          ))}
+          {renderIssueCards()}
         </div>
       </div>
     </section>
