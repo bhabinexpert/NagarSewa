@@ -22,6 +22,7 @@ import dotenv from 'dotenv';
 import cors from 'cors';
 import db from './db.js';
 import userRoute from './routes/userRoute.js';
+import campaignsRoute from './routes/campaigns.js';
 
 
 // -----------------------------------------------------------------------------
@@ -81,6 +82,13 @@ app.get('/', function(req, res) {
  * Examples: /api/auth/register, /api/auth/login
  */
 app.use('/api/auth', userRoute);
+
+/**
+ * Campaign routes
+ * All routes starting with /api/campaigns will be handled by campaignsRoute
+ * Examples: /api/campaigns, /api/campaigns/:id/status
+ */
+app.use('/api/campaigns', campaignsRoute);
 
 
 // -----------------------------------------------------------------------------
