@@ -34,6 +34,7 @@ import {
 import AdminUserManagement from "../../components/dashboard/admin/AdminUserManagement";
 import AdminNotificationBroadcast from "../../components/dashboard/admin/AdminNotificationBroadcast";
 import AdminAnalytics from "../../components/dashboard/admin/AdminAnalytics";
+import AdminCampaignManagement from "../../components/dashboard/admin/AdminCampaignManagement";
 import SuperAdminPanel from "../../components/dashboard/admin/SuperAdminPanel";
 import WardAdminIssues from "../../components/dashboard/admin/WardAdminIssues";
 import SuperAdminIssues from "../../components/dashboard/admin/SuperAdminIssues";
@@ -53,6 +54,7 @@ const adminDashboardText = {
     dashboard: "Dashboard",
     wardManagement: "Ward Admins",
     issues: "Issue Management",
+    campaigns: "Campaign Requests",
     users: "User Management",
     notifications: "Broadcast",
     analytics: "Analytics",
@@ -85,6 +87,7 @@ const adminDashboardText = {
     dashboard: "ड्यासबोर्ड",
     wardManagement: "वडा प्रशासकहरू",
     issues: "समस्या व्यवस्थापन",
+    campaigns: "अभियान अनुरोधहरू",
     users: "प्रयोगकर्ता व्यवस्थापन",
     notifications: "प्रसारण",
     analytics: "विश्लेषण",
@@ -216,11 +219,14 @@ function AdminDashboard() {
     // Issues - available to all with badge
     items.push({ id: "issues", icon: FileText, label: t.issues, badge: stats.pending });
     
+    // Campaigns - available to all
+    items.push({ id: "campaigns", icon: Megaphone, label: t.campaigns });
+    
     // Users - available to all with badge
     items.push({ id: "users", icon: Users, label: t.users, badge: stats.pendingKyc });
     
     // Notifications - available to all
-    items.push({ id: "notifications", icon: Megaphone, label: t.notifications });
+    items.push({ id: "notifications", icon: Bell, label: t.notifications });
     
     // Analytics - available to all
     items.push({ id: "analytics", icon: BarChart3, label: t.analytics });
@@ -304,6 +310,10 @@ function AdminDashboard() {
       } else {
         return <WardAdminIssues />;
       }
+    }
+    
+    if (activeTab === "campaigns") {
+      return <AdminCampaignManagement wardFilter={wardFilter} isSuperAdmin={isSuperAdmin()} />;
     }
     
     if (activeTab === "users") {
