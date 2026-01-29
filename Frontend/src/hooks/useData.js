@@ -30,7 +30,7 @@
  */
 
 import { useState, useEffect, useCallback } from 'react';
-import { issuesAPI, usersAPI, notificationsAPI, feedAPI, analyticsAPI } from '../services/api';
+import { issuesAPI, usersAPI, notificationsAPI, feedAPI, analyticsAPI, campaignsAPI } from '../services/api';
 
 
 // =============================================================================
@@ -251,6 +251,57 @@ export const useFeed = (params = {}) => {
 };
 
 // =============================================================================
+// CAMPAIGNS HOOKS - For loading campaign request data
+// =============================================================================
+
+/**
+ * Load a list of campaign requests
+ * 
+ * FILTERS YOU CAN USE:
+ *   - status: 'pending', 'approved', 'rejected', or 'completed'
+ *   - ward: ward number to filter by
+ *   - category: campaign category
+ *   - search: text to search for
+ *   - sort: 'newest' or 'oldest'
+ * 
+ * EXAMPLE:
+ *   const { campaigns, loading } = useCampaigns({ status: 'pending' });
+ * 
+ * BACKEND API: GET /api/campaigns
+ */
+export const useCampaigns = (params = {}) => {
+  const { data, loading, error, refetch } = useApiData(campaignsAPI.getAll, params);
+  
+  return {
+    campaigns: data?.campaigns || [],  // List of campaigns (empty array if none)
+    total: data?.total || 0,           // Total number of campaigns (for pagination)
+    page: data?.page || 1,             // Current page number
+    totalPages: data?.totalPages || 1, // Total pages
+    loading,
+    error,
+    refetch,
+  };
+};
+
+/**
+ * Load a single campaign by its ID
+ * 
+ * EXAMPLE:
+ *   const { campaign, loading } = useCampaign('abc123');
+ * 
+ * BACKEND API: GET /api/campaigns/:id
+ */
+export const useCampaign = (id) => {
+  // Create a function that fetches this specific campaign
+  const fetchCampaign = useCallback(() => campaignsAPI.getById(id), [id]);
+  
+  const { data, loading, error, refetch } = useApiData(fetchCampaign, {});
+  
+  return { campaign: data, loading, error, refetch };
+};
+
+
+// =============================================================================
 // ANALYTICS HOOKS - For loading dashboard statistics (admin only)
 // =============================================================================
 
@@ -336,6 +387,8 @@ export default {
   useUser,
   useNotifications,
   useBroadcasts,
+  useCampaigns,
+  useCampaign,
   useFeed,
   useAnalytics,
 };
