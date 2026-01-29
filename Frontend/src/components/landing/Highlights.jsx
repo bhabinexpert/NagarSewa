@@ -1,11 +1,8 @@
-// ============================================================
-// IMPORTS
-// ============================================================
-import { useLanguage } from "../context/useLanguage";
+import { useLanguage } from "../../contexts/language/useLanguage";
 
-// ============================================================
+
 // CONTENT DATA - Translations for English and Nepali
-// ============================================================
+
 const highlightsContent = {
   en: {
     title: "Critical Local Issues Needing Immediate Action",
@@ -105,9 +102,9 @@ const highlightsContent = {
   },
 };
 
-// ============================================================
+
 // HIGHLIGHTS COMPONENT
-// ============================================================
+
 
 /**
  * Highlights Component
@@ -118,9 +115,9 @@ const highlightsContent = {
  * @returns {JSX.Element} The highlights section component
  */
 export default function Highlights() {
-  // ============================================================
+  
   // STATE AND CONTEXT
-  // ============================================================
+ 
   
   // Get language context without destructuring for clarity
   const languageContext = useLanguage();
@@ -129,17 +126,12 @@ export default function Highlights() {
   // Get content based on current language
   const content = highlightsContent[language];
 
-  // ============================================================
+  
   // HELPER FUNCTIONS FOR RENDERING
-  // ============================================================
+  
 
-  /**
-   * Gets the CSS classes for the issue tag based on the color
-   * Uses if/else instead of ternary for clarity
-   * 
-   * @param {string} color - The color class of the issue
-   * @returns {string} The CSS classes for the tag
-   */
+  // Gets the CSS classes for the issue tag based on the color
+   
   function getTagClasses(color) {
     if (color === "text-red-600") {
       return "bg-red-100 text-red-700";
@@ -148,52 +140,34 @@ export default function Highlights() {
     }
   }
 
-  /**
-   * Renders the issue cards
-   * Uses a for loop instead of .map() for beginner clarity
-   * 
-   * @returns {JSX.Element[]} Array of issue card elements
-   */
+  // Renders the issue cards
+  
   function renderIssueCards() {
-    const issueCards = [];
-    const issues = content.issues;
-    
-    for (let i = 0; i < issues.length; i++) {
-      const issue = issues[i];
-      const issueIcon = issue.icon;
-      const issueTitle = issue.title;
-      const issueDesc = issue.desc;
-      const issueTag = issue.tag;
-      const issueColor = issue.color;
-      
+    return content.issues.map(function(issue, index) {
       // Get the appropriate classes for the tag
-      const tagClasses = getTagClasses(issueColor);
+      const tagClasses = getTagClasses(issue.color);
       
-      const cardElement = (
+      return (
         <div
-          key={i}
+          key={index}
           className="bg-white p-6 rounded-2xl shadow-sm border border-emerald-100 card-hover"
         >
-          <div className="text-3xl mb-3">{issueIcon}</div>
-          <h4 className="font-semibold text-lg mb-2 text-emerald-900">{issueTitle}</h4>
+          <div className="text-3xl mb-3">{issue.icon}</div>
+          <h4 className="font-semibold text-lg mb-2 text-emerald-900">{issue.title}</h4>
           <p className="text-sm text-gray-600 mb-3">
-            {issueDesc}
+            {issue.desc}
           </p>
           <span className={`inline-block text-xs font-semibold px-3 py-1 rounded-full ${tagClasses}`}>
-            {issueTag}
+            {issue.tag}
           </span>
         </div>
       );
-      
-      issueCards.push(cardElement);
-    }
-    
-    return issueCards;
+    });
   }
 
-  // ============================================================
+  
   // COMPONENT RENDER
-  // ============================================================
+ 
   
   return (
     <section id="issues" className="bg-emerald-50/50 py-20 w-full">

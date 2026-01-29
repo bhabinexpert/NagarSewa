@@ -1,6 +1,3 @@
-// ============================================================
-// IMPORTS
-// ============================================================
 import {
   FaEnvelope,
   FaMapMarkerAlt,
@@ -8,11 +5,11 @@ import {
   FaClock,
   FaBullhorn,
 } from "react-icons/fa";
-import { useLanguage } from "../context/useLanguage";
+import { useLanguage } from "../../contexts/language/useLanguage";
 
-// ============================================================
+
 // CONTENT DATA - Translations for English and Nepali
-// ============================================================
+
 const footerContent = {
   en: {
     tagline: "Digital public services that elevate citizen voices and strengthen national civic pride.",
@@ -44,22 +41,15 @@ const footerContent = {
   },
 };
 
-// ============================================================
-// FOOTER COMPONENT
-// ============================================================
 
-/**
- * Footer Component
- * Displays the page footer with company info, resources links,
- * contact information, and the Citizen Voice Desk section.
- * Supports English and Nepali languages.
- * 
- * @returns {JSX.Element} The footer component
- */
+// FOOTER COMPONENT
+
+
+
 export default function Footer() {
-  // ============================================================
+ 
   // STATE AND CONTEXT
-  // ============================================================
+
   
   // Get language context without destructuring for clarity
   const languageContext = useLanguage();
@@ -68,36 +58,22 @@ export default function Footer() {
   // Get content based on current language
   const content = footerContent[language];
 
-  // ============================================================
+ 
   // HELPER FUNCTIONS FOR RENDERING
-  // ============================================================
-
-  /**
-   * Renders the list of resource links
-   * Uses a for loop instead of .map() for beginner clarity
-   * 
-   * @returns {JSX.Element[]} Array of resource list item elements
-   */
+ 
   function renderResourcesList() {
-    const resourceItems = [];
-    const resourcesList = content.resourcesList;
-    
-    for (let i = 0; i < resourcesList.length; i++) {
-      const item = resourcesList[i];
-      const listItem = (
-        <li key={i} className="hover:text-emerald-200 transition-colors">
+    return content.resourcesList.map(function(item, index) {
+      return (
+        <li key={index} className="hover:text-emerald-200 transition-colors">
           {item}
         </li>
       );
-      resourceItems.push(listItem);
-    }
-    
-    return resourceItems;
+    });
   }
 
-  // ============================================================
+  
   // COMPONENT RENDER
-  // ============================================================
+ 
   
   return (
     <footer id="contact" className="bg-slate-950 text-gray-300 w-full">

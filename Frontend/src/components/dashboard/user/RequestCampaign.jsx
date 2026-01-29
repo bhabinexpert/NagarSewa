@@ -13,10 +13,10 @@
  */
 
 import React, { useState } from "react";
-import { useLanguage } from "../../context/useLanguage";
-import { useAuth } from "../../context/useAuth";
-import { campaignsAPI } from "../../services/api";
-import { useCampaigns } from "../../hooks/useData";
+import { useLanguage } from "../../../contexts/language/useLanguage";
+import { useAuth } from "../../../contexts/auth/useAuth";
+import { campaignsAPI } from "../../../services/api";
+import { useCampaigns } from "../../../hooks/useData";
 import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import {

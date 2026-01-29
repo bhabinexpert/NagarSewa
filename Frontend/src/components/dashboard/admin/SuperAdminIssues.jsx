@@ -9,8 +9,8 @@
  */
 
 import React, { useState } from "react";
-import { useLanguage } from "../../../context/useLanguage";
-import { DAMAK_TOTAL_WARDS } from "../../../context/authConstants";
+import { useLanguage } from "../../../contexts/language/useLanguage";
+import { DAMAK_TOTAL_WARDS } from "../../../contexts/auth/authConstants";
 import {
   Search,
   Clock,
@@ -209,22 +209,18 @@ function getPriorityColor(priority) {
  * @returns {Array} Filtered list of issues
  */
 function filterIssues(issuesList, wardFilter, statusFilter, search) {
-  const filteredList = [];
-
-  for (let i = 0; i < issuesList.length; i++) {
-    const issue = issuesList[i];
-
+  return issuesList.filter(function(issue) {
     // Check ward filter
     if (wardFilter !== "all") {
       if (issue.wardNumber.toString() !== wardFilter) {
-        continue;
+        return false;
       }
     }
 
     // Check status filter
     if (statusFilter !== "all") {
       if (issue.status !== statusFilter) {
-        continue;
+        return false;
       }
     }
 
@@ -235,14 +231,12 @@ function filterIssues(issuesList, wardFilter, statusFilter, search) {
       const searchLower = search.toLowerCase();
 
       if (!idLower.includes(searchLower) && !typeLower.includes(searchLower)) {
-        continue;
+        return false;
       }
     }
 
-    filteredList.push(issue);
-  }
-
-  return filteredList;
+    return true;
+  });
 }
 
 /**
@@ -252,32 +246,20 @@ function filterIssues(issuesList, wardFilter, statusFilter, search) {
  * @returns {Array} Sorted list of issues
  */
 function sortIssues(issuesList, sortOrder) {
-  // Create a copy to avoid mutating original array
-  const sortedList = [];
-  for (let i = 0; i < issuesList.length; i++) {
-    sortedList.push(issuesList[i]);
-  }
+  // Create a copy to avoid mutating original array using slice
+  const sortedList = issuesList.slice();
 
-  // Sort using bubble sort
-  for (let i = 0; i < sortedList.length - 1; i++) {
-    for (let j = 0; j < sortedList.length - 1 - i; j++) {
-      const dateA = new Date(sortedList[j].reportedOn);
-      const dateB = new Date(sortedList[j + 1].reportedOn);
+  // Sort using native sort method
+  sortedList.sort(function(a, b) {
+    const dateA = new Date(a.reportedOn);
+    const dateB = new Date(b.reportedOn);
 
-      let shouldSwap = false;
-      if (sortOrder === "newest") {
-        shouldSwap = dateA < dateB;
-      } else {
-        shouldSwap = dateA > dateB;
-      }
-
-      if (shouldSwap) {
-        const temp = sortedList[j];
-        sortedList[j] = sortedList[j + 1];
-        sortedList[j + 1] = temp;
-      }
+    if (sortOrder === "newest") {
+      return dateB - dateA;
+    } else {
+      return dateA - dateB;
     }
-  }
+  });
 
   return sortedList;
 }
@@ -288,25 +270,19 @@ function sortIssues(issuesList, sortOrder) {
  * @returns {Object} Statistics object
  */
 function calculateStats(issuesList) {
-  let pendingCount = 0;
-  let prioritizedCount = 0;
-
-  for (let i = 0; i < issuesList.length; i++) {
-    const issue = issuesList[i];
-
+  return issuesList.reduce(function(stats, issue) {
     if (issue.status === "pending") {
-      pendingCount = pendingCount + 1;
+      stats.pending = stats.pending + 1;
     }
     if (issue.superAdminPriority) {
-      prioritizedCount = prioritizedCount + 1;
+      stats.prioritized = stats.prioritized + 1;
     }
-  }
-
-  return {
+    return stats;
+  }, {
     total: issuesList.length,
-    pending: pendingCount,
-    prioritized: prioritizedCount,
-  };
+    pending: 0,
+    prioritized: 0,
+  });
 }
 
 // ============================================================================
@@ -405,33 +381,16 @@ function SuperAdminIssues() {
     }
 
     setIssues(function (previousIssues) {
-      const updatedIssues = [];
-
-      for (let i = 0; i < previousIssues.length; i++) {
-        const issue = previousIssues[i];
-
+      return previousIssues.map(function(issue) {
         if (issue.id === selectedIssue.id) {
-          // Create a new issue object with updated priority
-          const updatedIssue = {
-            id: issue.id,
-            type: issue.type,
-            typeNp: issue.typeNp,
-            description: issue.description,
-            wardNumber: issue.wardNumber,
-            location: issue.location,
-            status: issue.status,
-            reportedBy: issue.reportedBy,
-            reportedOn: issue.reportedOn,
+          return {
+            ...issue,
             superAdminPriority: selectedPriority,
             priorityNote: priorityNote,
           };
-          updatedIssues.push(updatedIssue);
-        } else {
-          updatedIssues.push(issue);
         }
-      }
-
-      return updatedIssues;
+        return issue;
+      });
     });
 
     // Close modal and reset state
@@ -517,15 +476,14 @@ function SuperAdminIssues() {
    * @returns {Array} Array of option elements
    */
   function renderWardOptions() {
-    const options = [];
-    for (let i = 1; i <= DAMAK_TOTAL_WARDS; i++) {
-      options.push(
-        <option key={i} value={i}>
-          {t.ward} {i}
+    return Array.from({ length: DAMAK_TOTAL_WARDS }, function(_, index) {
+      const ward = index + 1;
+      return (
+        <option key={ward} value={ward}>
+          {t.ward} {ward}
         </option>
       );
-    }
-    return options;
+    });
   }
 
   /**
@@ -533,11 +491,7 @@ function SuperAdminIssues() {
    * @returns {Array} Array of button elements
    */
   function renderFilterTabs() {
-    const buttons = [];
-
-    for (let i = 0; i < filterTabs.length; i++) {
-      const tab = filterTabs[i];
-
+    return filterTabs.map(function(tab) {
       let buttonClass = "px-3 py-1.5 text-sm rounded-lg transition ";
       if (filter === tab.id) {
         buttonClass = buttonClass + "bg-purple-600 text-white";
@@ -545,7 +499,7 @@ function SuperAdminIssues() {
         buttonClass = buttonClass + "bg-gray-100 text-gray-600 hover:bg-gray-200";
       }
 
-      buttons.push(
+      return (
         <button
           key={tab.id}
           onClick={function () {
@@ -556,9 +510,7 @@ function SuperAdminIssues() {
           {tab.label}
         </button>
       );
-    }
-
-    return buttons;
+    });
   }
 
   /**
@@ -566,11 +518,7 @@ function SuperAdminIssues() {
    * @returns {Array} Array of button elements
    */
   function renderPriorityOptions() {
-    const buttons = [];
-
-    for (let i = 0; i < priorityOptions.length; i++) {
-      const opt = priorityOptions[i];
-
+    return priorityOptions.map(function(opt) {
       let buttonClass = "px-4 py-3 rounded-lg border-2 font-medium transition ";
       if (selectedPriority === opt.value) {
         buttonClass = buttonClass + opt.color + " text-white border-transparent";
@@ -578,7 +526,7 @@ function SuperAdminIssues() {
         buttonClass = buttonClass + "bg-gray-50 text-gray-700 border-gray-200 hover:border-gray-300";
       }
 
-      buttons.push(
+      return (
         <button
           key={opt.value}
           onClick={function () {
@@ -589,9 +537,7 @@ function SuperAdminIssues() {
           {opt.label}
         </button>
       );
-    }
-
-    return buttons;
+    });
   }
 
   /**
@@ -599,10 +545,7 @@ function SuperAdminIssues() {
    * @returns {Array} Array of issue card elements
    */
   function renderIssueCards() {
-    const cards = [];
-
-    for (let i = 0; i < filteredIssues.length; i++) {
-      const issue = filteredIssues[i];
+    return filteredIssues.map(function(issue) {
       const statusConfig = getStatusConfig(issue.status);
       const StatusIcon = statusConfig.icon;
       const isExpanded = expandedId === issue.id;
@@ -621,16 +564,13 @@ function SuperAdminIssues() {
         issueTypeText = issue.typeNp;
       }
 
-      // Find priority color if exists
+      // Find priority color if exists using find
       let priorityBadge = null;
       if (issue.superAdminPriority) {
-        let priorityColorClass = "";
-        for (let j = 0; j < priorityOptions.length; j++) {
-          if (priorityOptions[j].value === issue.superAdminPriority) {
-            priorityColorClass = priorityOptions[j].color;
-            break;
-          }
-        }
+        const priorityOption = priorityOptions.find(function(opt) {
+          return opt.value === issue.superAdminPriority;
+        });
+        const priorityColorClass = priorityOption ? priorityOption.color : "";
         priorityBadge = (
           <span className={"px-2 py-0.5 rounded text-xs font-medium text-white capitalize " + priorityColorClass}>
             {issue.superAdminPriority}
@@ -655,7 +595,7 @@ function SuperAdminIssues() {
         statusLabelText = issue.status;
       }
 
-      cards.push(
+      return (
         <div key={issue.id} className={containerClass}>
           {/* Issue Row */}
           <div
@@ -726,9 +666,7 @@ function SuperAdminIssues() {
           )}
         </div>
       );
-    }
-
-    return cards;
+    });
   }
 
   // ============================================================================

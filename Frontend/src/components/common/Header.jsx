@@ -1,6 +1,3 @@
-// ============================================================
-// IMPORTS
-// ============================================================
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import {
@@ -14,11 +11,11 @@ import {
   FaBars,
   FaTimes,
 } from "react-icons/fa";
-import { useLanguage } from "../context/useLanguage";
+import { useLanguage } from "../../contexts/language/useLanguage";
 
-// ============================================================
+
 // CONTENT DATA - Translations for English and Nepali
-// ============================================================
+
 const headerContent = {
   en: {
     home: "Home",
@@ -42,22 +39,15 @@ const headerContent = {
   },
 };
 
-// ============================================================
-// HEADER COMPONENT
-// ============================================================
 
-/**
- * Header Component
- * Displays the main navigation header with logo, navigation links,
- * authentication buttons, and language toggle.
- * Includes responsive mobile menu functionality.
- * 
- * @returns {JSX.Element} The header navigation component
- */
+// HEADER COMPONENT
+
+
+
 export default function Header() {
-  // ============================================================
+
   // STATE AND CONTEXT
-  // ============================================================
+
   
   // Get language context without destructuring for clarity
   const languageContext = useLanguage();
@@ -70,9 +60,9 @@ export default function Header() {
   // State for mobile menu visibility
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
-  // ============================================================
+  
   // NAVIGATION ITEMS CONFIGURATION
-  // ============================================================
+ 
   
   // Define navigation items with their keys, links, and icons
   const navItems = [
@@ -83,9 +73,9 @@ export default function Header() {
     { key: "contact", href: "#contact", icon: <FaPhoneAlt className="text-emerald-600" /> },
   ];
 
-  // ============================================================
+ 
   // EVENT HANDLERS
-  // ============================================================
+ 
 
   /**
    * Closes the mobile menu
@@ -102,21 +92,18 @@ export default function Header() {
     setIsMobileMenuOpen(!isMobileMenuOpen);
   }
 
-  // ============================================================
+  
   // HELPER FUNCTIONS FOR RENDERING
-  // ============================================================
+ 
 
   /**
    * Renders the desktop navigation links
-   * Uses a for loop instead of .map() for beginner clarity
-   * 
+  
    * @returns {JSX.Element[]} Array of navigation link elements
    */
   function renderDesktopNavLinks() {
-    const navLinks = [];
-    for (let i = 0; i < navItems.length; i++) {
-      const item = navItems[i];
-      const linkElement = (
+    return navItems.map(function(item) {
+      return (
         <a
           key={item.key}
           href={item.href}
@@ -126,22 +113,16 @@ export default function Header() {
           {content[item.key]}
         </a>
       );
-      navLinks.push(linkElement);
-    }
-    return navLinks;
+    });
   }
 
   /**
    * Renders the mobile navigation links
-   * Uses a for loop instead of .map() for beginner clarity
-   * 
-   * @returns {JSX.Element[]} Array of mobile navigation link elements
+  
    */
   function renderMobileNavLinks() {
-    const mobileLinks = [];
-    for (let i = 0; i < navItems.length; i++) {
-      const item = navItems[i];
-      const linkElement = (
+    return navItems.map(function(item) {
+      return (
         <a
           key={item.key}
           href={item.href}
@@ -152,18 +133,13 @@ export default function Header() {
           <span className="font-medium">{content[item.key]}</span>
         </a>
       );
-      mobileLinks.push(linkElement);
-    }
-    return mobileLinks;
+    });
   }
 
   /**
    * Renders the appropriate language toggle button text
-   * Uses if/else instead of ternary for clarity
-   * 
-   * @param {boolean} isCompact - Whether to show compact version for mobile
-   * @returns {string} The button text
-   */
+
+  */
   function getLanguageButtonText(isCompact) {
     if (isCompact) {
       if (language === "en") {
@@ -180,12 +156,7 @@ export default function Header() {
     }
   }
 
-  /**
-   * Renders the mobile menu toggle icon
-   * Uses if/else instead of ternary for clarity
-   * 
-   * @returns {JSX.Element} The appropriate icon component
-   */
+  
   function renderMenuIcon() {
     if (isMobileMenuOpen) {
       return <FaTimes className="w-6 h-6" />;
@@ -194,12 +165,9 @@ export default function Header() {
     }
   }
 
-  /**
-   * Renders the mobile menu dropdown if open
-   * Uses if/else instead of conditional rendering with &&
-   * 
-   * @returns {JSX.Element|null} The mobile menu or null
-   */
+  
+   // Renders the mobile menu dropdown if open
+ 
   function renderMobileMenu() {
     if (isMobileMenuOpen) {
       return (
@@ -240,9 +208,9 @@ export default function Header() {
     }
   }
 
-  // ============================================================
+ 
   // COMPONENT RENDER
-  // ============================================================
+ 
   
   return (
     <header className="bg-white/90 backdrop-blur border-b border-emerald-100 shadow-sm sticky top-0 z-50 w-full">

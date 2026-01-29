@@ -16,14 +16,14 @@ import {
   Loader2,
 } from "lucide-react";
 import { Link } from "react-router-dom";
-import { useLanguage } from "../context/useLanguage";
+import { useLanguage } from "../../contexts/language/useLanguage";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import {
   getProvinces,
   getDistricts,
   getMunicipalities,
-} from "../utils/nepalLocation";
+} from "../../utils/nepalLocation";
 
 // ============================================================
 // TEXT TRANSLATIONS
@@ -299,13 +299,9 @@ export default function Signup() {
   // Get selected municipality's total wards
   const selectedMunicipality = useMemo(function() {
     if (formData.municipality) {
-      // Find municipality by ID
-      for (let i = 0; i < municipalities.length; i++) {
-        const m = municipalities[i];
-        if (String(m.id) === String(formData.municipality)) {
-          return m;
-        }
-      }
+      return municipalities.find(function(m) {
+        return String(m.id) === String(formData.municipality);
+      }) || null;
     }
     return null;
   }, [formData.municipality, municipalities]);
@@ -313,11 +309,9 @@ export default function Signup() {
   // Generate ward options based on selected municipality
   const wardOptions = useMemo(function() {
     if (selectedMunicipality && selectedMunicipality.totalWard) {
-      const options = [];
-      for (let i = 1; i <= selectedMunicipality.totalWard; i++) {
-        options.push(i);
-      }
-      return options;
+      return Array.from({ length: selectedMunicipality.totalWard }, function(_, index) {
+        return index + 1;
+      });
     }
     return [];
   }, [selectedMunicipality]);
@@ -730,13 +724,9 @@ export default function Signup() {
     // Validate phone number (Nepal format: 10 digits starting with 9)
     const phoneRegex = /^9[0-9]{9}$/;
     // Remove non-numeric characters from phone
-    let cleanPhone = "";
-    for (let i = 0; i < formData.phone.length; i++) {
-      const char = formData.phone[i];
-      if (char >= "0" && char <= "9") {
-        cleanPhone = cleanPhone + char;
-      }
-    }
+    const cleanPhone = formData.phone.split('').filter(function(char) {
+      return char >= "0" && char <= "9";
+    }).join('');
     
     if (!phoneRegex.test(cleanPhone)) {
       toast.error(t.alerts.phoneInvalid, {
@@ -803,20 +793,19 @@ export default function Signup() {
    * @returns {JSX.Element[]} Array of strength bar elements
    */
   function renderStrengthBars() {
-    const bars = [];
-    for (let bar = 1; bar <= 4; bar++) {
+    return Array.from({ length: 4 }, function(_, index) {
+      const bar = index + 1;
       let barClass = "bg-gray-200";
       if (bar <= passwordStrength.score) {
         barClass = getStrengthColor(passwordStrength.score);
       }
-      bars.push(
+      return (
         <div
           key={bar}
           className={"h-1 rounded-full flex-1 " + barClass}
         />
       );
-    }
-    return bars;
+    });
   }
 
   /**
@@ -841,13 +830,12 @@ export default function Signup() {
    * @returns {JSX.Element[]} Array of footer link elements
    */
   function renderFooterLinks() {
-    const elements = [];
-    for (let i = 0; i < t.footerLinks.length; i++) {
-      const item = t.footerLinks[i];
+    return t.footerLinks.flatMap(function(item, index) {
+      const elements = [];
       
-      if (i > 0) {
+      if (index > 0) {
         elements.push(
-          <span key={"sep-" + i} className="text-white/40">•</span>
+          <span key={"sep-" + index} className="text-white/40">•</span>
         );
       }
       
@@ -856,8 +844,9 @@ export default function Signup() {
           {item}
         </span>
       );
-    }
-    return elements;
+      
+      return elements;
+    });
   }
 
   // ============================================================

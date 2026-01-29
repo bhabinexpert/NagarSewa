@@ -18,9 +18,9 @@
  */
 
 import React, { useState, useMemo } from "react";
-import { useLanguage } from "../../../context/useLanguage";
-import { useAuth } from "../../../context/useAuth";
-import { DAMAK_TOTAL_WARDS, ROLES } from "../../../context/authConstants";
+import { useLanguage } from "../../../contexts/language/useLanguage";
+import { useAuth } from "../../../contexts/auth/useAuth";
+import { DAMAK_TOTAL_WARDS, ROLES } from "../../../contexts/auth/authConstants";
 import { useIssues } from "../../../hooks/useData";
 import { issuesAPI } from "../../../services/api";
 import { toast, ToastContainer } from "react-toastify";
@@ -352,11 +352,8 @@ function IssueCard(props) {
   // Render priority options for super admin
   function renderPriorityButtons() {
     const priorities = ["low", "medium", "high", "urgent"];
-    const buttons = [];
 
-    for (let i = 0; i < priorities.length; i++) {
-      const p = priorities[i];
-
+    return priorities.map(function(p) {
       let buttonClass = "px-3 py-1 rounded-full text-xs font-medium transition ";
       if (selectedPriority === p) {
         buttonClass = buttonClass + getPriorityColor(p);
@@ -369,7 +366,7 @@ function IssueCard(props) {
         buttonLabel = t[p];
       }
 
-      buttons.push(
+      return (
         <button
           key={p}
           onClick={function () {
@@ -380,9 +377,7 @@ function IssueCard(props) {
           {buttonLabel}
         </button>
       );
-    }
-
-    return buttons;
+    });
   }
 
   // Render attachments count if exists
@@ -760,11 +755,8 @@ function AdminIssueManagement() {
    */
   function renderStatusFilters() {
     const statuses = ["all", "pending", "inProgress", "resolved", "rejected"];
-    const buttons = [];
 
-    for (let i = 0; i < statuses.length; i++) {
-      const s = statuses[i];
-
+    return statuses.map(function(s) {
       let buttonClass = "px-3 py-1.5 rounded-lg text-sm font-medium transition ";
       if (statusFilter === s) {
         buttonClass = buttonClass + "bg-emerald-600 text-white";
@@ -777,7 +769,7 @@ function AdminIssueManagement() {
         buttonLabel = t.all;
       }
 
-      buttons.push(
+      return (
         <button
           key={s}
           onClick={function () {
@@ -788,9 +780,7 @@ function AdminIssueManagement() {
           {buttonLabel}
         </button>
       );
-    }
-
-    return buttons;
+    });
   }
 
   /**
@@ -798,17 +788,14 @@ function AdminIssueManagement() {
    * @returns {Array} Array of option elements
    */
   function renderWardOptions() {
-    const options = [];
-
-    for (let i = 1; i <= DAMAK_TOTAL_WARDS; i++) {
-      options.push(
-        <option key={i} value={i}>
-          {t.ward} {i}
+    return Array.from({ length: DAMAK_TOTAL_WARDS }, function(_, index) {
+      const ward = index + 1;
+      return (
+        <option key={ward} value={ward}>
+          {t.ward} {ward}
         </option>
       );
-    }
-
-    return options;
+    });
   }
 
   /**
@@ -816,12 +803,8 @@ function AdminIssueManagement() {
    * @returns {Array} Array of IssueCard elements
    */
   function renderIssueCards() {
-    const cards = [];
-
-    for (let i = 0; i < issues.length; i++) {
-      const issue = issues[i];
-
-      cards.push(
+    return issues.map(function(issue) {
+      return (
         <IssueCard
           key={issue.id}
           issue={issue}
@@ -837,9 +820,7 @@ function AdminIssueManagement() {
           language={language}
         />
       );
-    }
-
-    return cards;
+    });
   }
 
   // ============================================================================

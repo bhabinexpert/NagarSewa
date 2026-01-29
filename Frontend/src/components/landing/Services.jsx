@@ -1,11 +1,9 @@
-// ============================================================
-// IMPORTS
-// ============================================================
-import { useLanguage } from "../context/useLanguage";
 
-// ============================================================
+import { useLanguage } from "../../contexts/language/useLanguage";
+
+
 // CONTENT DATA - Translations for English and Nepali
-// ============================================================
+
 const servicesContent = {
   en: {
     title: "Citizen Services",
@@ -119,9 +117,9 @@ const servicesContent = {
   },
 };
 
-// ============================================================
+
 // SERVICES COMPONENT
-// ============================================================
+
 
 /**
  * Services Component
@@ -132,9 +130,9 @@ const servicesContent = {
  * @returns {JSX.Element} The services section component
  */
 export default function Services() {
-  // ============================================================
+
   // STATE AND CONTEXT
-  // ============================================================
+ 
   
   // Get language context without destructuring for clarity
   const languageContext = useLanguage();
@@ -143,56 +141,40 @@ export default function Services() {
   // Get content based on current language
   const content = servicesContent[language];
 
-  // ============================================================
+  
   // HELPER FUNCTIONS FOR RENDERING
-  // ============================================================
 
-  /**
-   * Renders the service cards
-   * Uses a for loop instead of .map() for beginner clarity
-   * 
-   * @returns {JSX.Element[]} Array of service card elements
-   */
+
+  // Renders the service cards
+ 
   function renderServiceCards() {
-    const serviceCards = [];
-    const services = content.services;
-    
-    for (let i = 0; i < services.length; i++) {
-      const service = services[i];
-      const serviceTitle = service.title;
-      const serviceDesc = service.desc;
-      const serviceImage = service.image;
-      const serviceAlt = service.alt;
-      
-      const cardElement = (
+    return content.services.map(function(service, index) {
+      return (
         <div
-          key={i}
+          key={index}
           className="bg-white rounded-2xl shadow-sm border border-emerald-100 overflow-hidden card-hover"
         >
           <img
-            src={serviceImage}
-            alt={serviceAlt}
+            src={service.image}
+            alt={service.alt}
             className="h-44 w-full object-cover"
             loading="lazy"
           />
           <div className="p-6">
-            <h4 className="font-semibold text-lg mb-2 text-emerald-900">{serviceTitle}</h4>
+            <h4 className="font-semibold text-lg mb-2 text-emerald-900">{service.title}</h4>
             <p className="text-sm text-gray-600">
-              {serviceDesc}
+              {service.desc}
             </p>
           </div>
         </div>
       );
-      
-      serviceCards.push(cardElement);
-    }
+    });
     
-    return serviceCards;
   }
 
-  // ============================================================
+
   // COMPONENT RENDER
-  // ============================================================
+  
   
   return (
     <section id="services" className="py-20 bg-white w-full">

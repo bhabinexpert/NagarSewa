@@ -8,8 +8,8 @@
  */
 
 import React, { useState } from "react";
-import { useLanguage } from "../../../context/useLanguage";
-import { useAuth } from "../../../context/useAuth";
+import { useLanguage } from "../../../contexts/language/useLanguage";
+import { useAuth } from "../../../contexts/auth/useAuth";
 import {
   Search,
   Clock,
@@ -213,45 +213,36 @@ function getPriorityColor(priority) {
  * @returns {Array} Filtered list of issues
  */
 function filterIssues(issuesList, filter, search) {
-  const filteredByType = [];
-
-  // First, filter by status/type
-  for (let i = 0; i < issuesList.length; i++) {
-    const issue = issuesList[i];
-
+  // First, filter by status/type using filter method
+  const filteredByType = issuesList.filter(function(issue) {
     if (filter === "all") {
-      filteredByType.push(issue);
+      return true;
     } else if (filter === "prioritized" && issue.superAdminPriority !== null) {
-      filteredByType.push(issue);
+      return true;
     } else if (issue.status === filter) {
-      filteredByType.push(issue);
+      return true;
     }
-  }
+    return false;
+  });
 
   // Then, filter by search text
   if (!search) {
     return filteredByType;
   }
 
-  const filteredBySearch = [];
   const searchLower = search.toLowerCase();
 
-  for (let i = 0; i < filteredByType.length; i++) {
-    const issue = filteredByType[i];
+  return filteredByType.filter(function(issue) {
     const idLower = issue.id.toLowerCase();
     const typeLower = issue.type.toLowerCase();
     const locationLower = issue.location.toLowerCase();
 
-    if (
+    return (
       idLower.includes(searchLower) ||
       typeLower.includes(searchLower) ||
       locationLower.includes(searchLower)
-    ) {
-      filteredBySearch.push(issue);
-    }
-  }
-
-  return filteredBySearch;
+    );
+  });
 }
 
 /**
@@ -261,47 +252,29 @@ function filterIssues(issuesList, filter, search) {
  * @returns {Array} Sorted list of issues
  */
 function sortIssues(issuesList, sortOrder) {
-  // Create a copy to avoid mutating original array
-  const sortedList = [];
-  for (let i = 0; i < issuesList.length; i++) {
-    sortedList.push(issuesList[i]);
-  }
+  // Create a copy to avoid mutating original array using slice
+  const sortedList = issuesList.slice();
 
-  // Sort using bubble sort for simplicity
-  for (let i = 0; i < sortedList.length - 1; i++) {
-    for (let j = 0; j < sortedList.length - 1 - i; j++) {
-      const issueA = sortedList[j];
-      const issueB = sortedList[j + 1];
-
-      // Prioritized issues always come first
-      if (issueA.superAdminPriority && !issueB.superAdminPriority) {
-        // A has priority, B doesn't - keep A first
-        continue;
-      }
-      if (!issueA.superAdminPriority && issueB.superAdminPriority) {
-        // B has priority, A doesn't - swap
-        sortedList[j] = issueB;
-        sortedList[j + 1] = issueA;
-        continue;
-      }
-
-      // Both have same priority status, sort by date
-      const dateA = new Date(issueA.reportedOn);
-      const dateB = new Date(issueB.reportedOn);
-
-      let shouldSwap = false;
-      if (sortOrder === "newest") {
-        shouldSwap = dateA < dateB;
-      } else {
-        shouldSwap = dateA > dateB;
-      }
-
-      if (shouldSwap) {
-        sortedList[j] = issueB;
-        sortedList[j + 1] = issueA;
-      }
+  // Sort using native sort method
+  sortedList.sort(function(issueA, issueB) {
+    // Prioritized issues always come first
+    if (issueA.superAdminPriority && !issueB.superAdminPriority) {
+      return -1; // A comes first
     }
-  }
+    if (!issueA.superAdminPriority && issueB.superAdminPriority) {
+      return 1; // B comes first
+    }
+
+    // Both have same priority status, sort by date
+    const dateA = new Date(issueA.reportedOn);
+    const dateB = new Date(issueB.reportedOn);
+
+    if (sortOrder === "newest") {
+      return dateB - dateA;
+    } else {
+      return dateA - dateB;
+    }
+  });
 
   return sortedList;
 }
@@ -312,17 +285,7 @@ function sortIssues(issuesList, sortOrder) {
  * @returns {Object} Counts for each filter type
  */
 function countIssues(issuesList) {
-  const counts = {
-    all: issuesList.length,
-    prioritized: 0,
-    pending: 0,
-    inProgress: 0,
-    resolved: 0,
-  };
-
-  for (let i = 0; i < issuesList.length; i++) {
-    const issue = issuesList[i];
-
+  return issuesList.reduce(function(counts, issue) {
     if (issue.superAdminPriority) {
       counts.prioritized = counts.prioritized + 1;
     }
@@ -335,9 +298,14 @@ function countIssues(issuesList) {
     if (issue.status === "resolved") {
       counts.resolved = counts.resolved + 1;
     }
-  }
-
-  return counts;
+    return counts;
+  }, {
+    all: issuesList.length,
+    prioritized: 0,
+    pending: 0,
+    inProgress: 0,
+    resolved: 0,
+  });
 }
 
 // ============================================================================
@@ -394,34 +362,12 @@ function WardAdminIssues() {
    */
   function handleStatusUpdate(id, newStatus) {
     setIssues(function (previousIssues) {
-      const updatedIssues = [];
-
-      for (let i = 0; i < previousIssues.length; i++) {
-        const issue = previousIssues[i];
-
+      return previousIssues.map(function(issue) {
         if (issue.id === id) {
-          // Create a new issue object with updated status
-          const updatedIssue = {
-            id: issue.id,
-            type: issue.type,
-            typeNp: issue.typeNp,
-            description: issue.description,
-            descriptionNp: issue.descriptionNp,
-            location: issue.location,
-            status: newStatus,
-            reportedBy: issue.reportedBy,
-            reportedOn: issue.reportedOn,
-            priority: issue.priority,
-            superAdminPriority: issue.superAdminPriority,
-            priorityNote: issue.priorityNote,
-          };
-          updatedIssues.push(updatedIssue);
-        } else {
-          updatedIssues.push(issue);
+          return { ...issue, status: newStatus };
         }
-      }
-
-      return updatedIssues;
+        return issue;
+      });
     });
   }
 
@@ -478,11 +424,7 @@ function WardAdminIssues() {
       { id: "resolved", label: t.resolved, count: issueCounts.resolved, highlight: false },
     ];
 
-    const buttons = [];
-
-    for (let i = 0; i < filterTabs.length; i++) {
-      const tab = filterTabs[i];
-
+    return filterTabs.map(function(tab) {
       // Determine button classes
       let buttonClass = "px-3 py-1.5 text-sm rounded-lg transition flex items-center gap-1.5 ";
 
@@ -508,7 +450,7 @@ function WardAdminIssues() {
         countClass = countClass + "bg-gray-200";
       }
 
-      buttons.push(
+      return (
         <button
           key={tab.id}
           onClick={function () {
@@ -521,9 +463,7 @@ function WardAdminIssues() {
           <span className={countClass}>{tab.count}</span>
         </button>
       );
-    }
-
-    return buttons;
+    });
   }
 
   /**
@@ -531,10 +471,7 @@ function WardAdminIssues() {
    * @returns {Array} Array of issue card elements
    */
   function renderIssueCards() {
-    const cards = [];
-
-    for (let i = 0; i < filteredIssues.length; i++) {
-      const issue = filteredIssues[i];
+    return filteredIssues.map(function(issue) {
       const statusConfig = getStatusConfig(issue.status, t);
       const StatusIcon = statusConfig.icon;
       const isExpanded = expandedId === issue.id;
@@ -623,7 +560,7 @@ function WardAdminIssues() {
         descriptionText = issue.descriptionNp;
       }
 
-      cards.push(
+      return (
         <div key={issue.id} className={containerClass}>
           {/* Priority Banner */}
           {priorityBanner}
@@ -686,9 +623,7 @@ function WardAdminIssues() {
           )}
         </div>
       );
-    }
-
-    return cards;
+    });
   }
 
   // ============================================================================

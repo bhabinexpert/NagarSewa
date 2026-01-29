@@ -18,9 +18,9 @@
  */
 
 import React, { useState, useMemo } from "react";
-import { useLanguage } from "../../../context/useLanguage";
-import { useAuth } from "../../../context/useAuth";
-import { DAMAK_TOTAL_WARDS, ROLES } from "../../../context/authConstants";
+import { useLanguage } from "../../../contexts/language/useLanguage";
+import { useAuth } from "../../../contexts/auth/useAuth";
+import { DAMAK_TOTAL_WARDS, ROLES } from "../../../contexts/auth/authConstants";
 import { useUsers } from "../../../hooks/useData";
 import { usersAPI } from "../../../services/api";
 import { toast, ToastContainer } from "react-toastify";
@@ -956,11 +956,8 @@ function AdminUserManagement() {
    */
   function renderKycFilters() {
     const filters = ["all", "pending", "verified", "rejected"];
-    const buttons = [];
 
-    for (let i = 0; i < filters.length; i++) {
-      const f = filters[i];
-
+    return filters.map(function(f) {
       let buttonClass = "px-3 py-1.5 rounded-lg text-sm font-medium transition ";
       if (kycFilter === f) {
         buttonClass = buttonClass + "bg-emerald-600 text-white";
@@ -973,7 +970,7 @@ function AdminUserManagement() {
         buttonLabel = t.pendingKyc;
       }
 
-      buttons.push(
+      return (
         <button
           key={f}
           onClick={function () {
@@ -984,9 +981,7 @@ function AdminUserManagement() {
           {buttonLabel}
         </button>
       );
-    }
-
-    return buttons;
+    });
   }
 
   /**
@@ -994,17 +989,14 @@ function AdminUserManagement() {
    * @returns {Array} Array of option elements
    */
   function renderWardOptions() {
-    const options = [];
-
-    for (let i = 1; i <= DAMAK_TOTAL_WARDS; i++) {
-      options.push(
-        <option key={i} value={i}>
-          {t.ward} {i}
+    return Array.from({ length: DAMAK_TOTAL_WARDS }, function(_, index) {
+      const ward = index + 1;
+      return (
+        <option key={ward} value={ward}>
+          {t.ward} {ward}
         </option>
       );
-    }
-
-    return options;
+    });
   }
 
   /**
@@ -1021,12 +1013,8 @@ function AdminUserManagement() {
       );
     }
 
-    const cards = [];
-
-    for (let i = 0; i < users.length; i++) {
-      const user = users[i];
-
-      cards.push(
+    const cards = users.map(function(user) {
+      return (
         <UserCard
           key={user.id}
           user={user}
@@ -1042,7 +1030,7 @@ function AdminUserManagement() {
           t={t}
         />
       );
-    }
+    });
 
     return <div className="space-y-4">{cards}</div>;
   }

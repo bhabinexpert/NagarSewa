@@ -1,12 +1,12 @@
 import { Route, Routes } from 'react-router-dom'
-import './App.css'
-import Signup from './pages/signup'
-import Login from './pages/login'
+import './styles/App.css'
+import Signup from './pages/auth/signup'
+import Login from './pages/auth/login'
 import Landing from './pages/landing'
 import UserDashboard from './pages/dashboard/UserDashboard'
 import AdminDashboard from './pages/dashboard/AdminDashboard'
-import { LanguageProvider } from "./context/LanguageProvider";
-import { AuthProvider } from "./context/AuthContext";
+import { LanguageProvider } from "./contexts/language/LanguageProvider";
+import { AuthProvider } from "./contexts/auth/AuthContext";
 
 
 

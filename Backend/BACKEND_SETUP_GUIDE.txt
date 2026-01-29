@@ -70,7 +70,7 @@ PART 3: DATABASE EXPLAINED SIMPLY
 
 A DATABASE stores data in TABLES (like Excel spreadsheets).
 
-For NagarSewa, we need only 4 MAIN TABLES:
+For NagarSewa, we need 5 MAIN TABLES:
 
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │ TABLE 1: users                                                              │
@@ -131,6 +131,30 @@ For NagarSewa, we need only 4 MAIN TABLES:
 │ - target_ward (which ward to send to, or NULL for all)                      │
 │ - sent_by (which admin sent it)                                             │
 │ - created_at (when it was sent)                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ TABLE 5: campaigns                                                          │
+│ Purpose: Store community campaign requests from citizens                    │
+├─────────────────────────────────────────────────────────────────────────────┤
+│ Columns:                                                                    │
+│ - id (unique identifier)                                                    │
+│ - user_id (who requested it - links to users table)                         │
+│ - title (campaign title)                                                    │
+│ - description (campaign details and goals)                                  │
+│ - category (Clean-up, Health Awareness, Education, etc.)                    │
+│ - target_ward (which ward the campaign is for)                              │
+│ - proposed_date (when they want to hold the campaign)                       │
+│ - proposed_location (where the campaign will take place)                    │
+│ - estimated_participants (expected number of participants)                  │
+│ - requirements (resources or support needed)                                │
+│ - contact_phone (contact for coordination)                                  │
+│ - status (PENDING / APPROVED / REJECTED / COMPLETED)                        │
+│ - admin_response (response message from admin)                              │
+│ - rejection_reason (if rejected, why?)                                      │
+│ - reviewed_by (which admin reviewed it)                                     │
+│ - reviewed_at (when it was reviewed)                                        │
+│ - created_at (when it was submitted)                                        │
 └─────────────────────────────────────────────────────────────────────────────┘
 
 
@@ -233,7 +257,29 @@ CREATE TABLE broadcasts (
     created_at TIMESTAMP DEFAULT NOW()
 );
 
--- Step 4.6: Create the SUPER ADMIN account
+-- Step 4.6: Create the CAMPAIGNS table (Community Campaign Requests)
+CREATE TABLE campaigns (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID REFERENCES users(id),
+    title VARCHAR(200) NOT NULL,
+    description TEXT NOT NULL,
+    category VARCHAR(50) NOT NULL,
+    target_ward INTEGER NOT NULL,
+    proposed_date DATE,
+    proposed_location TEXT,
+    estimated_participants INTEGER,
+    requirements TEXT,
+    contact_phone VARCHAR(20),
+    status VARCHAR(20) DEFAULT 'PENDING',
+    admin_response TEXT,
+    rejection_reason TEXT,
+    reviewed_by UUID REFERENCES users(id),
+    reviewed_at TIMESTAMP,
+    created_at TIMESTAMP DEFAULT NOW(),
+    updated_at TIMESTAMP DEFAULT NOW()
+);
+
+-- Step 4.7: Create the SUPER ADMIN account
 -- Password is "SuperAdmin@123" (encrypted)
 INSERT INTO users (email, password, full_name, role, kyc_status)
 VALUES (
@@ -257,7 +303,7 @@ INSERT INTO users (email, password, full_name, role, ward_number, kyc_status) VA
 STEP 5: Verify tables were created
 ---------------------------------------------------------
 In pgAdmin, expand: nagarsewa → Schemas → public → Tables
-You should see: users, issues, kyc_documents, broadcasts
+You should see: users, issues, kyc_documents, broadcasts, campaigns
 
 
 ================================================================================
@@ -276,6 +322,7 @@ Backend/
 │   │   ├── auth.js       ← Login, Register, Logout
 │   │   ├── users.js      ← User profile, update profile
 │   │   ├── issues.js     ← Report issue, view issues
+│   │   ├── campaigns.js  ← Campaign requests, approve/reject
 │   │   ├── kyc.js        ← Submit KYC, verify KYC
 │   │   └── broadcasts.js ← Send notifications
 │   └── middleware/

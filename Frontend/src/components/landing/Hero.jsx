@@ -1,13 +1,11 @@
-// ============================================================
-// IMPORTS
-// ============================================================
+
 import { useNavigate } from "react-router-dom";
 import { FaQuoteLeft } from "react-icons/fa";
-import { useLanguage } from "../context/useLanguage";
+import { useLanguage } from "../../contexts/language/useLanguage";
 
-// ============================================================
+
 // CONTENT DATA - Translations for English and Nepali
-// ============================================================
+
 const heroContent = {
   en: {
     title: "NagarSewa — Digital Public Service Platform",
@@ -27,9 +25,9 @@ const heroContent = {
   },
 };
 
-// ============================================================
+
 // HERO COMPONENT
-// ============================================================
+
 
 /**
  * Hero Component
@@ -37,12 +35,11 @@ const heroContent = {
  * the platform title, description, call-to-action buttons,
  * and a decorative quote card.
  * 
- * @returns {JSX.Element} The hero section component
  */
 export default function Hero() {
-  // ============================================================
+
   // HOOKS AND CONTEXT
-  // ============================================================
+
   
   // Navigation hook for routing
   const navigate = useNavigate();
@@ -54,9 +51,9 @@ export default function Hero() {
   // Get content based on current language
   const content = heroContent[language];
 
-  // ============================================================
+ 
   // EVENT HANDLERS
-  // ============================================================
+
 
   /**
    * Handles click on the Report Issue button
@@ -74,9 +71,9 @@ export default function Hero() {
     navigate("/login");
   }
 
-  // ============================================================
+ 
   // COMPONENT RENDER
-  // ============================================================
+
   
   return (
     <section

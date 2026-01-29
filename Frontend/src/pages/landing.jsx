@@ -1,9 +1,9 @@
-import About from "../components/About";
-import Footer from "../components/Footer";
-import Header from "../components/Header";
-import Hero from "../components/Hero";
-import Highlights from "../components/Highlights";
-import Services from "../components/Services";
+import About from "../components/landing/About";
+import Footer from "../components/common/Footer";
+import Header from "../components/common/Header";
+import Hero from "../components/landing/Hero";
+import Highlights from "../components/landing/Highlights";
+import Services from "../components/landing/Services";
 
 // ============================================================
 // LANDING PAGE COMPONENT

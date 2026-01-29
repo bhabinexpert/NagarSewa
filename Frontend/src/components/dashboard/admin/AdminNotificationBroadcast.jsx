@@ -17,9 +17,9 @@
  */
 
 import React, { useState } from "react";
-import { useLanguage } from "../../../context/useLanguage";
-import { useAuth } from "../../../context/useAuth";
-import { DAMAK_TOTAL_WARDS, ROLES } from "../../../context/authConstants";
+import { useLanguage } from "../../../contexts/language/useLanguage";
+import { useAuth } from "../../../contexts/auth/useAuth";
+import { DAMAK_TOTAL_WARDS, ROLES } from "../../../contexts/auth/authConstants";
 import { useBroadcasts } from "../../../hooks/useData";
 import { broadcastsAPI } from "../../../services/api";
 import { toast, ToastContainer } from "react-toastify";
@@ -390,11 +390,8 @@ function BroadcastForm(props) {
    */
   function renderTypeButtons() {
     const types = ["general", "urgent", "event", "maintenance"];
-    const buttons = [];
 
-    for (let i = 0; i < types.length; i++) {
-      const typeValue = types[i];
-
+    return types.map(function(typeValue) {
       let buttonClass =
         "flex items-center gap-2 px-4 py-2 rounded-lg border transition ";
       if (type === typeValue) {
@@ -403,7 +400,7 @@ function BroadcastForm(props) {
         buttonClass = buttonClass + "border-gray-200 hover:border-gray-300";
       }
 
-      buttons.push(
+      return (
         <button
           key={typeValue}
           type="button"
@@ -416,9 +413,7 @@ function BroadcastForm(props) {
           <span className="text-sm font-medium">{t[typeValue]}</span>
         </button>
       );
-    }
-
-    return buttons;
+    });
   }
 
   /**
@@ -426,17 +421,14 @@ function BroadcastForm(props) {
    * @returns {Array} Array of option elements
    */
   function renderWardOptions() {
-    const options = [];
-
-    for (let i = 1; i <= DAMAK_TOTAL_WARDS; i++) {
-      options.push(
-        <option key={i} value={i}>
-          {t.ward} {i}
+    return Array.from({ length: DAMAK_TOTAL_WARDS }, function(_, index) {
+      const ward = index + 1;
+      return (
+        <option key={ward} value={ward}>
+          {t.ward} {ward}
         </option>
       );
-    }
-
-    return options;
+    });
   }
 
   // Render audience section (super admin only)
@@ -883,10 +875,8 @@ function AdminNotificationBroadcast() {
       );
     }
 
-    const items = [];
-    for (let i = 0; i < broadcasts.length; i++) {
-      const broadcast = broadcasts[i];
-      items.push(
+    const items = broadcasts.map(function(broadcast) {
+      return (
         <BroadcastHistoryItem
           key={broadcast.id}
           broadcast={broadcast}
@@ -896,7 +886,7 @@ function AdminNotificationBroadcast() {
           isDeleting={deletingId === broadcast.id}
         />
       );
-    }
+    });
 
     return <div className="space-y-4">{items}</div>;
   }

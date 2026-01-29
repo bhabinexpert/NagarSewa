@@ -30,7 +30,7 @@
  */
 
 import React from "react";
-import { useLanguage } from "../../../context/useLanguage";
+import { useLanguage } from "../../../contexts/language/useLanguage";
 import { useAnalytics } from "../../../hooks/useData";
 import {
   BarChart3,
@@ -240,22 +240,16 @@ function SimpleBarChart(props) {
   const language = props.language;
   const maxValueProp = props.maxValue;
 
-  // Find max value
+  // Find max value using reduce
   let maxValue = maxValueProp;
   if (!maxValue) {
-    maxValue = 0;
-    for (let i = 0; i < data.length; i++) {
-      if (data[i][valueKey] > maxValue) {
-        maxValue = data[i][valueKey];
-      }
-    }
+    maxValue = data.reduce(function(max, item) {
+      return item[valueKey] > max ? item[valueKey] : max;
+    }, 0);
   }
 
-  // Render bars
-  const bars = [];
-  for (let i = 0; i < data.length; i++) {
-    const item = data[i];
-
+  // Render bars using map
+  const bars = data.map(function(item, index) {
     // Determine label text based on language
     let labelText;
     if (language === "np" && item[labelKeyNp]) {
@@ -267,8 +261,8 @@ function SimpleBarChart(props) {
     // Calculate bar width percentage
     const widthPercent = (item[valueKey] / maxValue) * 100;
 
-    bars.push(
-      <div key={i}>
+    return (
+      <div key={index}>
         <div className="flex justify-between text-sm mb-1">
           <span className="text-gray-700">{labelText}</span>
           <span className="font-medium text-gray-800">{item[valueKey]}</span>
@@ -281,7 +275,7 @@ function SimpleBarChart(props) {
         </div>
       </div>
     );
-  }
+  });
 
   return <div className="space-y-3">{bars}</div>;
 }
@@ -295,17 +289,13 @@ function StatusDistribution(props) {
   const data = props.data;
   const language = props.language;
 
-  // Calculate total
-  let total = 0;
-  for (let i = 0; i < data.length; i++) {
-    total = total + data[i].count;
-  }
+  // Calculate total using reduce
+  const total = data.reduce(function(sum, item) {
+    return sum + item.count;
+  }, 0);
 
-  // Render status bars
-  const statusBars = [];
-  for (let i = 0; i < data.length; i++) {
-    const item = data[i];
-
+  // Render status bars using map
+  const statusBars = data.map(function(item, index) {
     // Determine label text based on language
     let labelText;
     if (language === "np" && item.statusNp) {
@@ -320,8 +310,8 @@ function StatusDistribution(props) {
     // Get color class
     const colorClass = getStatusBarColor(item.color);
 
-    statusBars.push(
-      <div key={i} className="flex items-center gap-3">
+    return (
+      <div key={index} className="flex items-center gap-3">
         {getStatusIcon(item.status)}
         <div className="flex-1">
           <div className="flex justify-between text-sm mb-1">
@@ -337,7 +327,7 @@ function StatusDistribution(props) {
         </div>
       </div>
     );
-  }
+  });
 
   return <div className="space-y-4">{statusBars}</div>;
 }
@@ -351,25 +341,19 @@ function TrendChart(props) {
   const data = props.data;
   const t = props.t;
 
-  // Find max reports value
-  let maxReports = 0;
-  for (let i = 0; i < data.length; i++) {
-    if (data[i].reports > maxReports) {
-      maxReports = data[i].reports;
-    }
-  }
+  // Find max reports value using reduce
+  const maxReports = data.reduce(function(max, item) {
+    return item.reports > max ? item.reports : max;
+  }, 0);
 
-  // Render bars
-  const bars = [];
-  for (let i = 0; i < data.length; i++) {
-    const item = data[i];
-
+  // Render bars using map
+  const bars = data.map(function(item, index) {
     // Calculate heights
     const reportsHeight = (item.reports / maxReports) * 100;
     const resolvedHeight = (item.resolved / maxReports) * 100;
 
-    bars.push(
-      <div key={i} className="flex-1 flex flex-col items-center gap-1">
+    return (
+      <div key={index} className="flex-1 flex flex-col items-center gap-1">
         <div className="w-full flex gap-1 justify-center items-end h-24">
           <div
             className="w-3 bg-emerald-500 rounded-t"
@@ -383,7 +367,7 @@ function TrendChart(props) {
         <span className="text-xs text-gray-500">{item.month}</span>
       </div>
     );
-  }
+  });
 
   return (
     <div className="space-y-4">

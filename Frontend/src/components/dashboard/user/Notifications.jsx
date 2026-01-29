@@ -30,9 +30,9 @@
  */
 
 import React, { useState, useMemo } from "react";
-import { useLanguage } from "../../context/useLanguage";
-import { useNotifications } from "../../hooks/useData";
-import { notificationsAPI } from "../../services/api";
+import { useLanguage } from "../../../contexts/language/useLanguage";
+import { useNotifications } from "../../../hooks/useData";
+import { notificationsAPI } from "../../../services/api";
 import {
   Bell,
   Clock,
@@ -412,30 +412,19 @@ function Notifications() {
   
   // Filter notifications based on current filter selection
   const filteredNotifications = useMemo(function() {
-    const filtered = [];
-    
-    for (let i = 0; i < localNotifications.length; i++) {
-      const notification = localNotifications[i];
-      
+    return localNotifications.filter(function(notification) {
       // Check if notification matches current filter
-      let shouldInclude = false;
-      
       if (filter === "all") {
-        shouldInclude = true;
+        return true;
       } else if (filter === "unread") {
-        shouldInclude = !notification.isRead;
+        return !notification.isRead;
       } else if (filter === "announcements") {
-        shouldInclude = notification.type === "announcement";
+        return notification.type === "announcement";
       } else if (filter === "updates") {
-        shouldInclude = notification.type === "update";
+        return notification.type === "update";
       }
-      
-      if (shouldInclude) {
-        filtered.push(notification);
-      }
-    }
-    
-    return filtered;
+      return false;
+    });
   }, [localNotifications, filter]);
 
   // -------------------------------------------------------------------------
@@ -444,10 +433,7 @@ function Notifications() {
   
   // Group filtered notifications by date (Today, Yesterday, Earlier)
   const groupedNotifications = useMemo(function() {
-    const groups = {};
-    
-    for (let i = 0; i < filteredNotifications.length; i++) {
-      const notification = filteredNotifications[i];
+    return filteredNotifications.reduce(function(groups, notification) {
       const label = getGroupLabel(notification.timestamp, t);
       
       // Create group if it doesn't exist
@@ -457,9 +443,9 @@ function Notifications() {
       
       // Add notification to group
       groups[label].push(notification);
-    }
-    
-    return groups;
+      
+      return groups;
+    }, {});
   }, [filteredNotifications, t]);
 
   // -------------------------------------------------------------------------
@@ -471,21 +457,13 @@ function Notifications() {
    * Updates local state immediately (optimistic update) then syncs with API.
    */
   async function handleMarkRead(id) {
-    // Update local state immediately
-    const updatedNotifications = [];
-    for (let i = 0; i < localNotifications.length; i++) {
-      const notification = localNotifications[i];
+    // Update local state immediately using map
+    const updatedNotifications = localNotifications.map(function(notification) {
       if (notification.id === id) {
-        // Create a new object with isRead set to true
-        const updatedNotification = {
-          ...notification,
-          isRead: true
-        };
-        updatedNotifications.push(updatedNotification);
-      } else {
-        updatedNotifications.push(notification);
+        return { ...notification, isRead: true };
       }
-    }
+      return notification;
+    });
     setLocalNotifications(updatedNotifications);
     
     // Sync with API
@@ -500,16 +478,10 @@ function Notifications() {
    * Mark all notifications as read.
    */
   async function handleMarkAllRead() {
-    // Update local state immediately
-    const updatedNotifications = [];
-    for (let i = 0; i < localNotifications.length; i++) {
-      const notification = localNotifications[i];
-      const updatedNotification = {
-        ...notification,
-        isRead: true
-      };
-      updatedNotifications.push(updatedNotification);
-    }
+    // Update local state immediately using map
+    const updatedNotifications = localNotifications.map(function(notification) {
+      return { ...notification, isRead: true };
+    });
     setLocalNotifications(updatedNotifications);
     
     // Sync with API
@@ -524,14 +496,10 @@ function Notifications() {
    * Delete a notification.
    */
   async function handleDelete(id) {
-    // Remove from local state immediately
-    const updatedNotifications = [];
-    for (let i = 0; i < localNotifications.length; i++) {
-      const notification = localNotifications[i];
-      if (notification.id !== id) {
-        updatedNotifications.push(notification);
-      }
-    }
+    // Remove from local state immediately using filter
+    const updatedNotifications = localNotifications.filter(function(notification) {
+      return notification.id !== id;
+    });
     setLocalNotifications(updatedNotifications);
     
     // Sync with API
@@ -653,19 +621,13 @@ function Notifications() {
       return <EmptyState t={t} />;
     }
     
-    // Render grouped notifications
-    const groupElements = [];
-    const groupKeys = Object.keys(groupedNotifications);
-    
-    for (let i = 0; i < groupKeys.length; i++) {
-      const groupLabel = groupKeys[i];
+    // Render grouped notifications using Object.keys and map
+    return Object.keys(groupedNotifications).map(function(groupLabel) {
       const groupItems = groupedNotifications[groupLabel];
       
-      // Create notification cards for this group
-      const notificationCards = [];
-      for (let j = 0; j < groupItems.length; j++) {
-        const notification = groupItems[j];
-        notificationCards.push(
+      // Create notification cards for this group using map
+      const notificationCards = groupItems.map(function(notification) {
+        return (
           <NotificationCard
             key={notification.id}
             notification={notification}
@@ -676,18 +638,16 @@ function Notifications() {
             onToggle={function() { handleToggle(notification.id); }}
           />
         );
-      }
+      });
       
       // Create group element
-      groupElements.push(
+      return (
         <div key={groupLabel} className="mb-6">
           <h3 className="text-sm font-semibold text-gray-500 mb-3 px-2">{groupLabel}</h3>
           <div className="space-y-3">{notificationCards}</div>
         </div>
       );
-    }
-    
-    return groupElements;
+    });
   }
 }
 

@@ -9,8 +9,8 @@
  */
 
 import React, { useState } from "react";
-import { useLanguage } from "../../../context/useLanguage";
-import { useAuth } from "../../../context/useAuth";
+import { useLanguage } from "../../../contexts/language/useLanguage";
+import { useAuth } from "../../../contexts/auth/useAuth";
 import {
   UserPlus,
   Users,
@@ -139,13 +139,9 @@ const panelText = {
  * @returns {number} Count of active admins
  */
 function countActiveAdmins(adminList) {
-  let count = 0;
-  for (let i = 0; i < adminList.length; i++) {
-    if (adminList[i].isActive) {
-      count = count + 1;
-    }
-  }
-  return count;
+  return adminList.filter(function(admin) {
+    return admin.isActive;
+  }).length;
 }
 
 /**
@@ -154,13 +150,9 @@ function countActiveAdmins(adminList) {
  * @returns {number} Count of inactive admins
  */
 function countInactiveAdmins(adminList) {
-  let count = 0;
-  for (let i = 0; i < adminList.length; i++) {
-    if (!adminList[i].isActive) {
-      count = count + 1;
-    }
-  }
-  return count;
+  return adminList.filter(function(admin) {
+    return !admin.isActive;
+  }).length;
 }
 
 /**
@@ -171,11 +163,7 @@ function countInactiveAdmins(adminList) {
  * @returns {Array} Filtered list of admins
  */
 function filterAdmins(adminList, searchQuery, statusFilter) {
-  const filteredList = [];
-
-  for (let i = 0; i < adminList.length; i++) {
-    const admin = adminList[i];
-
+  return adminList.filter(function(admin) {
     // Check if admin matches search query
     const fullNameLower = admin.fullName.toLowerCase();
     const emailLower = admin.email.toLowerCase();
@@ -197,13 +185,9 @@ function filterAdmins(adminList, searchQuery, statusFilter) {
       matchesStatus = true;
     }
 
-    // Add to filtered list if both conditions match
-    if (matchesSearch && matchesStatus) {
-      filteredList.push(admin);
-    }
-  }
-
-  return filteredList;
+    // Include if both conditions match
+    return matchesSearch && matchesStatus;
+  });
 }
 
 // ============================================================================
@@ -392,16 +376,13 @@ function SuperAdminPanel() {
    * @returns {Array} Array of option elements
    */
   function renderWardOptions() {
-    const options = [];
-    for (let i = 0; i < wardsWithoutAdmin.length; i++) {
-      const ward = wardsWithoutAdmin[i];
-      options.push(
+    return wardsWithoutAdmin.map(function(ward) {
+      return (
         <option key={ward} value={ward}>
           {t.ward} {ward}
         </option>
       );
-    }
-    return options;
+    });
   }
 
   /**
@@ -409,10 +390,8 @@ function SuperAdminPanel() {
    * @returns {Array} Array of span elements
    */
   function renderWardsWithoutAdminBadges() {
-    const badges = [];
-    for (let i = 0; i < wardsWithoutAdmin.length; i++) {
-      const ward = wardsWithoutAdmin[i];
-      badges.push(
+    return wardsWithoutAdmin.map(function(ward) {
+      return (
         <span
           key={ward}
           className="px-3 py-1 bg-yellow-100 text-yellow-800 rounded-full text-sm font-medium"
@@ -420,8 +399,7 @@ function SuperAdminPanel() {
           {t.ward} {ward}
         </span>
       );
-    }
-    return badges;
+    });
   }
 
   /**
@@ -429,11 +407,7 @@ function SuperAdminPanel() {
    * @returns {Array} Array of tr elements
    */
   function renderAdminRows() {
-    const rows = [];
-
-    for (let i = 0; i < filteredAdmins.length; i++) {
-      const admin = filteredAdmins[i];
-
+    return filteredAdmins.map(function(admin) {
       // Determine status display
       let statusElement;
       if (admin.isActive) {
@@ -480,7 +454,7 @@ function SuperAdminPanel() {
         );
       }
 
-      rows.push(
+      return (
         <tr key={admin.id} className="hover:bg-gray-50">
           <td className="px-4 py-4">
             <div className="flex items-center gap-3">
@@ -508,9 +482,7 @@ function SuperAdminPanel() {
           </td>
         </tr>
       );
-    }
-
-    return rows;
+    });
   }
 
   // ============================================================================

@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { useLanguage } from "../../context/useLanguage";
+import { useLanguage } from "../../contexts/language/useLanguage";
 import {
   Camera,
   Image,
@@ -23,12 +23,12 @@ import {
   Send,
   Megaphone,
 } from "lucide-react";
-import ReportIssue from "../../components/dashboard/ReportIssue";
-import UserProfile from "../../components/dashboard/UserProfile";
-import IssueHistory from "../../components/dashboard/IssueHistory";
-import Notifications from "../../components/dashboard/Notifications";
-import NewsFeed from "../../components/dashboard/NewsFeed";
-import RequestCampaign from "../../components/dashboard/RequestCampaign";
+import ReportIssue from "../../components/dashboard/user/ReportIssue";
+import UserProfile from "../../components/dashboard/user/UserProfile";
+import IssueHistory from "../../components/dashboard/user/IssueHistory";
+import Notifications from "../../components/dashboard/user/Notifications";
+import NewsFeed from "../../components/dashboard/user/NewsFeed";
+import RequestCampaign from "../../components/dashboard/user/RequestCampaign";
 import { Link } from "react-router-dom";
 
 // ============================================================
@@ -206,10 +206,7 @@ function UserDashboard() {
    * @returns {JSX.Element[]} Array of menu button elements
    */
   function renderMenuItems() {
-    const menuElements = [];
-    
-    for (let i = 0; i < menuItems.length; i++) {
-      const item = menuItems[i];
+    return menuItems.map(function(item) {
       const IconComponent = item.icon;
       
       let buttonClass = "hover:bg-gray-100 text-gray-600";
@@ -217,7 +214,7 @@ function UserDashboard() {
         buttonClass = "bg-emerald-100 text-emerald-700";
       }
       
-      menuElements.push(
+      return (
         <button
           key={item.id}
           onClick={function() { handleTabChange(item.id); }}
@@ -236,9 +233,7 @@ function UserDashboard() {
           )}
         </button>
       );
-    }
-    
-    return menuElements;
+    });
   }
 
   /**
@@ -246,12 +241,10 @@ function UserDashboard() {
    * @returns {string} The label of the current tab
    */
   function getCurrentTabLabel() {
-    for (let i = 0; i < menuItems.length; i++) {
-      if (menuItems[i].id === activeTab) {
-        return menuItems[i].label;
-      }
-    }
-    return t.dashboard;
+    const foundItem = menuItems.find(function(item) {
+      return item.id === activeTab;
+    });
+    return foundItem ? foundItem.label : t.dashboard;
   }
 
   /**

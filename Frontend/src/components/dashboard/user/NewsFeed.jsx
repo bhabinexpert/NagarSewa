@@ -32,10 +32,10 @@
  */
 
 import React, { useState, useMemo } from "react";
-import { useLanguage } from "../../context/useLanguage";
-import { useAuth } from "../../context/useAuth";
-import { DAMAK_TOTAL_WARDS, ROLES } from "../../context/authConstants";
-import { useFeed } from "../../hooks/useData";
+import { useLanguage } from "../../../contexts/language/useLanguage";
+import { useAuth } from "../../../contexts/auth/useAuth";
+import { DAMAK_TOTAL_WARDS, ROLES } from "../../../contexts/auth/authConstants";
+import { useFeed } from "../../../hooks/useData";
 import {
   MapPin,
   Clock,
@@ -675,11 +675,9 @@ function NewsFeed() {
       return <EmptyState t={t} />;
     }
     
-    // Render the list of feed cards
-    const feedCards = [];
-    for (let i = 0; i < feed.length; i++) {
-      const post = feed[i];
-      feedCards.push(
+    // Render the list of feed cards using map
+    return feed.map(function(post) {
+      return (
         <FeedCard 
           key={post.id} 
           post={post} 
@@ -687,9 +685,7 @@ function NewsFeed() {
           t={t} 
         />
       );
-    }
-    
-    return feedCards;
+    });
   }
 }
 
@@ -708,13 +704,13 @@ function WardSelector(props) {
   const setWardFilter = props.setWardFilter;
   const t = props.t;
   
-  // Build ward options
-  const wardOptions = [];
-  for (let ward = 1; ward <= DAMAK_TOTAL_WARDS; ward++) {
-    wardOptions.push(
+  // Build ward options using Array.from and map
+  const wardOptions = Array.from({ length: DAMAK_TOTAL_WARDS }, function(_, index) {
+    const ward = index + 1;
+    return (
       <option key={ward} value={ward}>{t.ward} {ward}</option>
     );
-  }
+  });
   
   return (
     <select 

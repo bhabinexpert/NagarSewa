@@ -1,6 +1,6 @@
 import React, { useState } from "react";
-import { useLanguage } from "../../context/useLanguage";
-import { useAuth } from "../../context/useAuth";
+import { useLanguage } from "../../contexts/language/useLanguage";
+import { useAuth } from "../../contexts/auth/useAuth";
 import {
   Home,
   Users,
@@ -337,23 +337,21 @@ function AdminDashboard() {
    * @returns {JSX.Element[]} Array of option elements
    */
   function renderWardFilterOptions() {
-    const options = [];
-    
-    // Add "All Wards" option
-    options.push(
+    const options = [
       <option key="all" value="all" className="text-gray-800">{t.allWards}</option>
-    );
+    ];
     
-    // Add individual ward options
-    for (let ward = 1; ward <= DAMAK_TOTAL_WARDS; ward++) {
-      options.push(
+    // Add individual ward options using Array.from and map
+    const wardOptions = Array.from({ length: DAMAK_TOTAL_WARDS }, function(_, index) {
+      const ward = index + 1;
+      return (
         <option key={ward} value={ward} className="text-gray-800">
           {t.ward} {ward}
         </option>
       );
-    }
+    });
     
-    return options;
+    return options.concat(wardOptions);
   }
 
   /**
@@ -604,14 +602,11 @@ function AdminDashboard() {
    * @returns {JSX.Element[]} Array of issue row elements
    */
   function renderRecentIssues(issues) {
-    const issueElements = [];
-    
-    for (let i = 0; i < issues.length; i++) {
-      const issue = issues[i];
+    return issues.map(function(issue) {
       const indicatorClass = getStatusIndicatorClass(issue.status);
       const badgeClass = getStatusBadgeClass(issue.status);
       
-      issueElements.push(
+      return (
         <div key={issue.id} className="p-4 flex items-center justify-between hover:bg-gray-50">
           <div className="flex items-center gap-3">
             <div className={"w-2 h-2 rounded-full " + indicatorClass} />
@@ -628,9 +623,7 @@ function AdminDashboard() {
           </div>
         </div>
       );
-    }
-    
-    return issueElements;
+    });
   }
 
   /**
@@ -638,10 +631,7 @@ function AdminDashboard() {
    * @returns {JSX.Element[]} Array of menu button elements
    */
   function renderMenuItems() {
-    const menuElements = [];
-    
-    for (let i = 0; i < menuItems.length; i++) {
-      const item = menuItems[i];
+    return menuItems.map(function(item) {
       const IconComponent = item.icon;
       
       let buttonClass = "hover:bg-indigo-800 text-indigo-200";
@@ -652,7 +642,7 @@ function AdminDashboard() {
         badgeClass = "bg-indigo-100 text-indigo-600";
       }
       
-      menuElements.push(
+      return (
         <button
           key={item.id}
           onClick={function() { handleTabChange(item.id); }}
@@ -671,9 +661,7 @@ function AdminDashboard() {
           )}
         </button>
       );
-    }
-    
-    return menuElements;
+    });
   }
 
   /**
@@ -681,12 +669,10 @@ function AdminDashboard() {
    * @returns {string} The label of the current tab
    */
   function getCurrentTabLabel() {
-    for (let i = 0; i < menuItems.length; i++) {
-      if (menuItems[i].id === activeTab) {
-        return menuItems[i].label;
-      }
-    }
-    return t.dashboard;
+    const foundItem = menuItems.find(function(item) {
+      return item.id === activeTab;
+    });
+    return foundItem ? foundItem.label : t.dashboard;
   }
   // ============================================================
   // MAIN RENDER

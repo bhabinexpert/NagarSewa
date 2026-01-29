@@ -18,9 +18,9 @@
  */
 
 import React, { useState, useMemo } from "react";
-import { useLanguage } from "../../../context/useLanguage";
-import { useAuth } from "../../../context/useAuth";
-import { DAMAK_TOTAL_WARDS, ROLES } from "../../../context/authConstants";
+import { useLanguage } from "../../../contexts/language/useLanguage";
+import { useAuth } from "../../../contexts/auth/useAuth";
+import { DAMAK_TOTAL_WARDS, ROLES } from "../../../contexts/auth/authConstants";
 import { useCampaigns } from "../../../hooks/useData";
 import { campaignsAPI } from "../../../services/api";
 import { toast, ToastContainer } from "react-toastify";

@@ -470,11 +470,10 @@ export function AuthProvider({ children }) {
         return admin.wardNumber;
       });
     
-    // Generate list of all wards (1 to 10)
-    const allWards = [];
-    for (let i = 1; i <= DAMAK_TOTAL_WARDS; i++) {
-      allWards.push(i);
-    }
+    // Generate list of all wards (1 to 10) using Array.from
+    const allWards = Array.from({ length: DAMAK_TOTAL_WARDS }, function(_, index) {
+      return index + 1;
+    });
     
     // Return wards that are not in assignedWards
     return allWards.filter(function(ward) {

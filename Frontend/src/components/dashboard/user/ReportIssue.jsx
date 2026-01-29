@@ -22,9 +22,9 @@
  */
 
 import React, { useState, useRef, useEffect } from "react";
-import { useLanguage } from "../../context/useLanguage";
-import { useAuth } from "../../context/useAuth";
-import { issuesAPI } from "../../services/api";
+import { useLanguage } from "../../../contexts/language/useLanguage";
+import { useAuth } from "../../../contexts/auth/useAuth";
+import { issuesAPI } from "../../../services/api";
 import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import {
@@ -193,37 +193,30 @@ function MediaPreview(props) {
   const media = props.media;
   const onRemove = props.onRemove;
   
-  // Build media items array
-  const mediaItems = [];
-  
-  for (let i = 0; i < media.length; i++) {
-    const item = media[i];
-    
-    // Determine what element to render based on type
-    let mediaElement;
-    if (item.type === "image") {
-      mediaElement = <img src={item.preview} alt="Captured" className="w-full h-32 object-cover" />;
-    } else {
-      mediaElement = <video src={item.preview} className="w-full h-32 object-cover" />;
-    }
-    
-    mediaItems.push(
-      <div key={item.id} className="relative group rounded-xl overflow-hidden">
-        {mediaElement}
-        <button 
-          type="button" 
-          onClick={function() { onRemove(item.id); }} 
-          className="absolute top-2 right-2 p-1 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition"
-        >
-          <X size={16} />
-        </button>
-      </div>
-    );
-  }
-  
   return (
     <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-4">
-      {mediaItems}
+      {media.map(function(item) {
+        // Determine what element to render based on type
+        let mediaElement;
+        if (item.type === "image") {
+          mediaElement = <img src={item.preview} alt="Captured" className="w-full h-32 object-cover" />;
+        } else {
+          mediaElement = <video src={item.preview} className="w-full h-32 object-cover" />;
+        }
+        
+        return (
+          <div key={item.id} className="relative group rounded-xl overflow-hidden">
+            {mediaElement}
+            <button 
+              type="button" 
+              onClick={function() { onRemove(item.id); }} 
+              className="absolute top-2 right-2 p-1 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition"
+            >
+              <X size={16} />
+            </button>
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -279,29 +272,23 @@ function PrioritySelector(props) {
     return "border-gray-200";
   }
 
-  // Build priority buttons
-  const priorityButtons = [];
-  
-  for (let i = 0; i < levels.length; i++) {
-    const level = levels[i];
-    const isSelected = value === level.value;
-    const colorClass = getColorClass(level.color, isSelected);
-    
-    priorityButtons.push(
-      <button 
-        key={level.value} 
-        type="button" 
-        onClick={function() { onChange(level.value); }} 
-        className={"p-3 rounded-xl border-2 transition text-center " + colorClass}
-      >
-        <span className="font-medium text-sm">{level.label}</span>
-      </button>
-    );
-  }
-
   return (
     <div className="grid grid-cols-4 gap-3">
-      {priorityButtons}
+      {levels.map(function(level) {
+        const isSelected = value === level.value;
+        const colorClass = getColorClass(level.color, isSelected);
+        
+        return (
+          <button 
+            key={level.value} 
+            type="button" 
+            onClick={function() { onChange(level.value); }} 
+            className={"p-3 rounded-xl border-2 transition text-center " + colorClass}
+          >
+            <span className="font-medium text-sm">{level.label}</span>
+          </button>
+        );
+      })}
     </div>
   );
 }
@@ -422,10 +409,9 @@ function ReportIssue(props) {
   function stopCamera() {
     // Stop all tracks in the stream
     if (stream) {
-      const tracks = stream.getTracks();
-      for (let i = 0; i < tracks.length; i++) {
-        tracks[i].stop();
-      }
+      stream.getTracks().forEach(function(track) {
+        track.stop();
+      });
     }
     
     // Reset camera state
@@ -509,10 +495,8 @@ function ReportIssue(props) {
   function handleFileUpload(event) {
     const files = event.target.files;
     
-    // Process each selected file
-    for (let i = 0; i < files.length; i++) {
-      const file = files[i];
-      
+    // Process each selected file using Array.from and forEach
+    Array.from(files).forEach(function(file) {
       // Determine if it's a video or image
       let mediaType = "image";
       if (file.type.startsWith("video")) {
@@ -532,11 +516,9 @@ function ReportIssue(props) {
       
       // Add to media list
       setMedia(function(previousMedia) {
-        const updatedMedia = previousMedia.slice();
-        updatedMedia.push(newMediaItem);
-        return updatedMedia;
+        return previousMedia.concat([newMediaItem]);
       });
-    }
+    });
   }
 
   /**
@@ -546,15 +528,9 @@ function ReportIssue(props) {
    */
   function removeMedia(id) {
     setMedia(function(previousMedia) {
-      const filteredMedia = [];
-      
-      for (let i = 0; i < previousMedia.length; i++) {
-        if (previousMedia[i].id !== id) {
-          filteredMedia.push(previousMedia[i]);
-        }
-      }
-      
-      return filteredMedia;
+      return previousMedia.filter(function(item) {
+        return item.id !== id;
+      });
     });
   }
 
@@ -648,10 +624,10 @@ function ReportIssue(props) {
         submitData.append("longitude", formData.coordinates.longitude);
       }
       
-      // Add media files
-      for (let i = 0; i < media.length; i++) {
-        submitData.append("media", media[i].file);
-      }
+      // Add media files using forEach
+      media.forEach(function(item) {
+        submitData.append("media", item.file);
+      });
 
       // Step 4: Send to backend API
       await issuesAPI.create(submitData);
@@ -733,13 +709,11 @@ function ReportIssue(props) {
   // RENDER: Build Issue Type Options
   // ----------------------------------------
   
-  const issueTypeOptions = [];
-  for (let i = 0; i < t.issueTypes.length; i++) {
-    const typeName = t.issueTypes[i];
-    issueTypeOptions.push(
-      <option key={i} value={typeName}>{typeName}</option>
+  const issueTypeOptions = t.issueTypes.map(function(typeName, index) {
+    return (
+      <option key={index} value={typeName}>{typeName}</option>
     );
-  }
+  });
 
   // ----------------------------------------
   // RENDER: Main Form

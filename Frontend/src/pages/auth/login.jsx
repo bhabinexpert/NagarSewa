@@ -8,8 +8,8 @@ import {
   AlertCircle,
 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
-import { useLanguage } from "../context/useLanguage";
-import { useAuth } from "../context/useAuth";
+import { useLanguage } from "../../contexts/language/useLanguage";
+import { useAuth } from "../../contexts/auth/useAuth";
 import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 
@@ -233,27 +233,25 @@ function Login() {
    * @returns {JSX.Element[]} Array of footer link elements
    */
   function renderFooterLinks() {
-    const footerElements = [];
-    
-    for (let i = 0; i < t.footerLinks.length; i++) {
-      const item = t.footerLinks[i];
+    return t.footerLinks.flatMap(function(item, index) {
+      const elements = [];
       
       // Add separator before items (except first)
-      if (i > 0) {
-        footerElements.push(
-          <span key={"sep-" + i} className="text-white/40">•</span>
+      if (index > 0) {
+        elements.push(
+          <span key={"sep-" + index} className="text-white/40">•</span>
         );
       }
       
       // Add the link item
-      footerElements.push(
+      elements.push(
         <span key={item} className="hover:text-white transition-colors cursor-pointer px-1">
           {item}
         </span>
       );
-    }
-    
-    return footerElements;
+      
+      return elements;
+    });
   }
 
   // ============================================================

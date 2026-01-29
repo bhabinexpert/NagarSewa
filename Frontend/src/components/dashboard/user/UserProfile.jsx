@@ -35,10 +35,10 @@
  */
 
 import React, { useState, useRef } from "react";
-import { useLanguage } from "../../context/useLanguage";
-import { useAuth } from "../../context/useAuth";
-import { useUser } from "../../hooks/useData";
-import { usersAPI } from "../../services/api";
+import { useLanguage } from "../../../contexts/language/useLanguage";
+import { useAuth } from "../../../contexts/auth/useAuth";
+import { useUser } from "../../../hooks/useData";
+import { usersAPI } from "../../../services/api";
 import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import {

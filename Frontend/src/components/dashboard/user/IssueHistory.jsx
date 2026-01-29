@@ -37,10 +37,10 @@
  */
 
 import React, { useState, useMemo } from "react";
-import { useLanguage } from "../../context/useLanguage";
-import { useAuth } from "../../context/useAuth";
-import { DAMAK_TOTAL_WARDS, ROLES } from "../../context/authConstants";
-import { useIssues } from "../../hooks/useData";
+import { useLanguage } from "../../../contexts/language/useLanguage";
+import { useAuth } from "../../../contexts/auth/useAuth";
+import { DAMAK_TOTAL_WARDS, ROLES } from "../../../contexts/auth/authConstants";
+import { useIssues } from "../../../hooks/useData";
 import {
   Clock,
   CheckCircle,
@@ -549,32 +549,27 @@ function IssueHistory() {
   // Calculate counts for each filter tab
   // useMemo ensures this only recalculates when issues change
   const filterTabs = useMemo(function() {
-    // Count issues for each status
-    let pendingCount = 0;
-    let inProgressCount = 0;
-    let resolvedCount = 0;
-    let rejectedCount = 0;
-    
-    for (let i = 0; i < issues.length; i++) {
-      const issue = issues[i];
+    // Count issues for each status using reduce
+    const counts = issues.reduce(function(acc, issue) {
       if (issue.status === "pending") {
-        pendingCount = pendingCount + 1;
+        acc.pending += 1;
       } else if (issue.status === "inProgress") {
-        inProgressCount = inProgressCount + 1;
+        acc.inProgress += 1;
       } else if (issue.status === "resolved") {
-        resolvedCount = resolvedCount + 1;
+        acc.resolved += 1;
       } else if (issue.status === "rejected") {
-        rejectedCount = rejectedCount + 1;
+        acc.rejected += 1;
       }
-    }
+      return acc;
+    }, { pending: 0, inProgress: 0, resolved: 0, rejected: 0 });
     
     // Return array of tab configurations
     return [
       { id: "all", label: t.allIssues, count: issues.length },
-      { id: "pending", label: t.pending, count: pendingCount },
-      { id: "inProgress", label: t.inProgress, count: inProgressCount },
-      { id: "resolved", label: t.resolved, count: resolvedCount },
-      { id: "rejected", label: t.rejected, count: rejectedCount },
+      { id: "pending", label: t.pending, count: counts.pending },
+      { id: "inProgress", label: t.inProgress, count: counts.inProgress },
+      { id: "resolved", label: t.resolved, count: counts.resolved },
+      { id: "rejected", label: t.rejected, count: counts.rejected },
     ];
   }, [issues, t]);
 
@@ -713,13 +708,11 @@ function IssueHistory() {
       return <EmptyState t={t} />;
     }
     
-    // Render the list of issue cards
-    const issueCards = [];
-    for (let i = 0; i < issues.length; i++) {
-      const issue = issues[i];
+    // Render the list of issue cards using map
+    return issues.map(function(issue) {
       const isExpanded = expandedIssue === issue.id;
       
-      issueCards.push(
+      return (
         <IssueCard 
           key={issue.id} 
           issue={issue} 
@@ -729,9 +722,7 @@ function IssueHistory() {
           t={t} 
         />
       );
-    }
-    
-    return issueCards;
+    });
   }
 }
 
@@ -750,13 +741,13 @@ function WardSelector(props) {
   const setWardFilter = props.setWardFilter;
   const t = props.t;
   
-  // Build ward options array
-  const wardOptions = [];
-  for (let ward = 1; ward <= DAMAK_TOTAL_WARDS; ward++) {
-    wardOptions.push(
+  // Build ward options array using Array.from and map
+  const wardOptions = Array.from({ length: DAMAK_TOTAL_WARDS }, function(_, index) {
+    const ward = index + 1;
+    return (
       <option key={ward} value={ward}>{t.ward} {ward}</option>
     );
-  }
+  });
   
   return (
     <select 
