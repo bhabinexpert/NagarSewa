@@ -58,9 +58,10 @@ import {
 const newsFeedText = {
   en: {
     title: "Community News Feed",
-    subtitle: "Track all reports and programs from your area",
+    subtitle: "Track all reports, campaigns, and programs from your area",
     all: "All Posts",
     issues: "Issues",
+    campaigns: "Campaigns",
     programs: "Programs",
     notices: "Notices",
     searchPlaceholder: "Search posts...",
@@ -74,15 +75,18 @@ const newsFeedText = {
     inProgress: "In Progress",
     resolvedStatus: "Resolved",
     rejected: "Rejected",
+    approved: "Approved",
+    completed: "Completed",
     ward: "Ward",
     allWards: "All Wards",
     yourWard: "Your Ward",
   },
   np: {
     title: "समुदाय समाचार फिड",
-    subtitle: "तपाईंको क्षेत्रबाट सबै रिपोर्टहरू र कार्यक्रमहरू ट्र्याक गर्नुहोस्",
+    subtitle: "तपाईंको क्षेत्रबाट सबै रिपोर्टहरू, अभियानहरू र कार्यक्रमहरू ट्र्याक गर्नुहोस्",
     all: "सबै पोस्टहरू",
     issues: "समस्याहरू",
+    campaigns: "अभियानहरू",
     programs: "कार्यक्रमहरू",
     notices: "सूचनाहरू",
     searchPlaceholder: "पोस्टहरू खोज्नुहोस्...",
@@ -96,6 +100,8 @@ const newsFeedText = {
     inProgress: "प्रगतिमा",
     resolvedStatus: "समाधान भएको",
     rejected: "अस्वीकृत",
+    approved: "स्वीकृत",
+    completed: "सम्पन्न",
     ward: "वडा",
     allWards: "सबै वडाहरू",
     yourWard: "तपाईंको वडा",
@@ -164,9 +170,15 @@ function getTimeAgo(timestamp, language) {
  * @returns {Object|null} Style object or null if no status
  */
 function getStatusStyle(status, t) {
-  // Define all possible status styles
+  // Define all possible status styles (includes issue and campaign statuses)
   const styles = {
     pending: { 
+      bg: "bg-yellow-100", 
+      text: "text-yellow-700", 
+      icon: Clock, 
+      label: t.pending 
+    },
+    PENDING: { 
       bg: "bg-yellow-100", 
       text: "text-yellow-700", 
       icon: Clock, 
@@ -189,6 +201,36 @@ function getStatusStyle(status, t) {
       text: "text-red-700", 
       icon: XCircle, 
       label: t.rejected 
+    },
+    REJECTED: { 
+      bg: "bg-red-100", 
+      text: "text-red-700", 
+      icon: XCircle, 
+      label: t.rejected 
+    },
+    approved: { 
+      bg: "bg-green-100", 
+      text: "text-green-700", 
+      icon: CheckCircle, 
+      label: t.approved 
+    },
+    APPROVED: { 
+      bg: "bg-green-100", 
+      text: "text-green-700", 
+      icon: CheckCircle, 
+      label: t.approved 
+    },
+    completed: { 
+      bg: "bg-blue-100", 
+      text: "text-blue-700", 
+      icon: CheckCircle, 
+      label: t.completed 
+    },
+    COMPLETED: { 
+      bg: "bg-blue-100", 
+      text: "text-blue-700", 
+      icon: CheckCircle, 
+      label: t.completed 
     },
   };
   
@@ -218,6 +260,11 @@ function getTypeStyle(type) {
       bg: "bg-red-100", 
       text: "text-red-700", 
       icon: AlertCircle 
+    },
+    campaign: { 
+      bg: "bg-green-100", 
+      text: "text-green-700", 
+      icon: Megaphone 
     },
     program: { 
       bg: "bg-blue-100", 
@@ -460,7 +507,7 @@ function NewsFeed() {
   // STATE VARIABLES
   // -------------------------------------------------------------------------
   
-  // Current filter selection ('all', 'issues', 'programs', 'notices')
+  // Current filter selection ('all', 'issues', 'campaigns', 'programs', 'notices')
   const [filter, setFilter] = useState("all");
   
   // Search query text
@@ -522,6 +569,7 @@ function NewsFeed() {
   const filterTabs = [
     { id: "all", label: t.all },
     { id: "issues", label: t.issues },
+    { id: "campaigns", label: t.campaigns },
     { id: "programs", label: t.programs },
     { id: "notices", label: t.notices },
   ];
