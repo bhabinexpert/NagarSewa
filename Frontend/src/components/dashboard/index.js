@@ -4,3 +4,4 @@ export { default as UserProfile } from './UserProfile';
 export { default as IssueHistory } from './IssueHistory';
 export { default as Notifications } from './Notifications';
 export { default as NewsFeed } from './NewsFeed';
+export { default as RequestCampaign } from './RequestCampaign';

@@ -21,12 +21,14 @@ import {
   CheckCircle,
   Clock,
   Send,
+  Megaphone,
 } from "lucide-react";
 import ReportIssue from "../../components/dashboard/ReportIssue";
 import UserProfile from "../../components/dashboard/UserProfile";
 import IssueHistory from "../../components/dashboard/IssueHistory";
 import Notifications from "../../components/dashboard/Notifications";
 import NewsFeed from "../../components/dashboard/NewsFeed";
+import RequestCampaign from "../../components/dashboard/RequestCampaign";
 import { Link } from "react-router-dom";
 
 // ============================================================
@@ -39,6 +41,7 @@ const dashboardText = {
     welcome: "Welcome back",
     dashboard: "Dashboard",
     reportIssue: "Report Issue",
+    requestCampaign: "Request Campaign",
     profile: "Profile & KYC",
     history: "My History",
     notifications: "Notifications",
@@ -56,6 +59,7 @@ const dashboardText = {
     welcome: "पुन: स्वागत छ",
     dashboard: "ड्यासबोर्ड",
     reportIssue: "समस्या रिपोर्ट",
+    requestCampaign: "अभियान अनुरोध",
     profile: "प्रोफाइल र KYC",
     history: "मेरो इतिहास",
     notifications: "सूचनाहरू",
@@ -125,6 +129,7 @@ function UserDashboard() {
   const menuItems = [
     { id: "dashboard", icon: Home, label: t.dashboard },
     { id: "report", icon: Camera, label: t.reportIssue },
+    { id: "campaign", icon: Megaphone, label: t.requestCampaign },
     { id: "profile", icon: User, label: t.profile },
     { id: "history", icon: History, label: t.history },
     { id: "notifications", icon: Bell, label: t.notifications, badge: 3 },
@@ -176,6 +181,9 @@ function UserDashboard() {
   function renderContent() {
     if (activeTab === "report") {
       return <ReportIssue onNavigate={handleTabChange} />;
+    }
+    if (activeTab === "campaign") {
+      return <RequestCampaign />;
     }
     if (activeTab === "profile") {
       return <UserProfile />;
