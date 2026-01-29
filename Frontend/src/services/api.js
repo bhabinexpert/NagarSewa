@@ -595,6 +595,134 @@ export const notificationsAPI = {
 };
 
 // =============================================================================
+// CAMPAIGNS API - Community Campaign Requests
+// =============================================================================
+
+/**
+ * Functions for managing campaign requests.
+ * Users can request campaigns, admins can approve/reject them.
+ * 
+ * BACKEND ENDPOINTS:
+ * - GET /campaigns → Get list of campaigns
+ * - GET /campaigns/:id → Get single campaign details
+ * - POST /campaigns → Create a new campaign request
+ * - PATCH /campaigns/:id/status → Update campaign status (admin)
+ * - DELETE /campaigns/:id → Delete a campaign (admin)
+ * - GET /campaigns/stats/overview → Get campaign statistics (admin)
+ */
+export const campaignsAPI = {
+  
+  /**
+   * Get a list of campaigns with optional filters.
+   * 
+   * @param {Object} params - Filter options (all optional)
+   *   - status: 'pending', 'approved', 'rejected', or 'completed'
+   *   - ward: Ward number to filter by
+   *   - category: Campaign category
+   *   - search: Text to search for
+   *   - sort: 'newest' or 'oldest'
+   *   - page: Page number (for pagination)
+   *   - limit: How many items per page
+   * 
+   * @returns {Promise} List of campaigns with total count
+   * 
+   * EXAMPLE:
+   *   const result = await campaignsAPI.getAll({ status: 'pending' });
+   */
+  getAll: function(params = {}) {
+    const queryString = buildQueryString(params);
+    return apiRequest(`/campaigns?${queryString}`);
+  },
+
+  /**
+   * Get a single campaign by its ID.
+   * 
+   * @param {string} id - The campaign's unique ID
+   * @returns {Promise} The campaign details
+   */
+  getById: function(id) {
+    return apiRequest(`/campaigns/${id}`);
+  },
+
+  /**
+   * Create a new campaign request.
+   * 
+   * @param {Object} campaignData - The campaign data
+   *   - title: Campaign title (required)
+   *   - description: Detailed description (required)
+   *   - category: Campaign type (required)
+   *   - targetWard: Target ward number (required)
+   *   - proposedDate: Proposed date for the campaign (optional)
+   *   - proposedLocation: Specific location (optional)
+   *   - estimatedParticipants: Expected participants (optional)
+   *   - requirements: Resources needed (optional)
+   *   - contactPhone: Contact for coordination (optional)
+   * 
+   * @returns {Promise} The created campaign
+   * 
+   * EXAMPLE:
+   *   await campaignsAPI.create({
+   *     title: 'Community Clean-up Drive',
+   *     description: 'Let us clean our ward together',
+   *     category: 'Environment',
+   *     targetWard: 5
+   *   });
+   */
+  create: function(campaignData) {
+    return apiRequest('/campaigns', {
+      method: 'POST',
+      body: JSON.stringify(campaignData)
+    });
+  },
+
+  /**
+   * Update the status of a campaign (for admins).
+   * 
+   * @param {string} id - The campaign's ID
+   * @param {Object} data - Status update info
+   *   - status: New status ('APPROVED', 'REJECTED', 'COMPLETED')
+   *   - adminResponse: Response message (optional but recommended)
+   *   - rejectionReason: Reason for rejection (required if rejecting)
+   * 
+   * @returns {Promise} The updated campaign
+   * 
+   * EXAMPLE:
+   *   await campaignsAPI.updateStatus('abc123', {
+   *     status: 'APPROVED',
+   *     adminResponse: 'Your campaign has been approved. Coordination will begin soon.'
+   *   });
+   */
+  updateStatus: function(id, data) {
+    return apiRequest(`/campaigns/${id}/status`, {
+      method: 'PATCH',
+      body: JSON.stringify(data)
+    });
+  },
+
+  /**
+   * Delete a campaign (admin only).
+   * 
+   * @param {string} id - The campaign's ID
+   * @returns {Promise} Confirmation
+   */
+  delete: function(id) {
+    return apiRequest(`/campaigns/${id}`, {
+      method: 'DELETE'
+    });
+  },
+
+  /**
+   * Get campaign statistics (admin only).
+   * 
+   * @returns {Promise} Statistics object with counts by status
+   */
+  getStats: function() {
+    return apiRequest('/campaigns/stats/overview');
+  }
+};
+
+
+// =============================================================================
 // NEWS FEED API - Community Feed
 // =============================================================================
 
@@ -756,6 +884,7 @@ export default {
   issues: issuesAPI,
   users: usersAPI,
   notifications: notificationsAPI,
+  campaigns: campaignsAPI,
   feed: feedAPI,
   analytics: analyticsAPI,
   broadcasts: broadcastsAPI
