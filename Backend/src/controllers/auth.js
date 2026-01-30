@@ -54,39 +54,7 @@ export const login = async (req, res) => {
       return res.status(400).json({ message: "Email and password required" });
     }
 
-    // Check if super admin
-    if (User.isSuperAdmin(email, password)) {
-      const token = jwt.sign(
-        { 
-          id: 'super-admin', 
-          email: 'superadmin@damak.gov.np',
-          role: 'super_admin',
-          wardNumber: null
-        },
-        process.env.JWT_SECRET,
-        { expiresIn: '24h' }
-      );
-      
-      return res.json({ 
-        message: "Login successful", 
-        token, 
-        user: {
-          id: 'super-admin',
-          email: 'superadmin@damak.gov.np',
-          full_name: 'Super Admin',
-          role: 'super_admin',
-          wardNumber: null,
-          jurisdiction: {
-            district: 'Jhapa',
-            municipality: 'Damak',
-            wardNumber: null
-          }
-        },
-        redirectTo: '/admin'
-      });
-    }
-
-    // Verify credentials for regular users and ward admins
+    // Verify credentials from database (all users including super admin)
     const user = await User.verifyPassword(email, password);
     if (!user) {
       return res.status(401).json({ message: "Invalid credentials" });
@@ -129,7 +97,7 @@ export const login = async (req, res) => {
     };
 
     // Determine redirect based on role
-    const redirectTo = user.role === 'ward_admin' ? '/admin' : '/user';
+    const redirectTo = (user.role === 'ward_admin' || user.role === 'SUPER_ADMIN') ? '/admin' : '/user';
 
     res.json({ message: "Login successful", token, user: userResponse, redirectTo });
   } catch (error) {

@@ -141,12 +141,5 @@ export const User = {
     `;
     const result = await query(sql, [!isActive, adminId]);
     return result.rows[0];
-  },
-
-  // Check if super admin credentials
-  isSuperAdmin(email, password) {
-    const SUPER_ADMIN_EMAIL = process.env.SUPER_ADMIN_EMAIL || 'superadmin@damak.gov.np';
-    const SUPER_ADMIN_PASSWORD = process.env.SUPER_ADMIN_PASSWORD || 'SuperAdmin@123';
-    return email.toLowerCase() === SUPER_ADMIN_EMAIL.toLowerCase() && password === SUPER_ADMIN_PASSWORD;
   }
 };
