@@ -1,33 +1,4 @@
-/**
- * AdminAnalytics Component
- *
- * Dashboard showing analytics and statistics for issue management.
- * Displays overview metrics, charts by type/status/ward, and trends.
- *
- * @component
- *
- * BACKEND INTEGRATION:
- * - GET /api/analytics/overview - Overview statistics
- *   Query params: ward, period (week, month, year)
- *   Response: { totalReports, resolvedRate, avgResTime, activeUsers, changes }
- *
- * - GET /api/analytics/issues - Issue breakdown stats
- *   Response: { byType: [], byStatus: [], byWard: [] }
- *
- * - GET /api/analytics/trends - Monthly trend data
- *   Response: [{ month, reports, resolved }]
- *
- * RESPONSE FORMAT (GET /api/analytics/overview):
- * {
- *   success: true,
- *   data: {
- *     totalReports: { value: number, change: number, trend: 'up' | 'down' },
- *     resolvedRate: { value: number, change: number, trend: 'up' | 'down' },
- *     avgResTime: { value: number, change: number, trend: 'up' | 'down' },
- *     activeUsers: { value: number, change: number, trend: 'up' | 'down' }
- *   }
- * }
- */
+// AdminAnalytics Component
 
 import React from "react";
 import { useLanguage } from "../../../contexts/language/useLanguage";
@@ -45,9 +16,9 @@ import {
   Loader,
 } from "lucide-react";
 
-// ============================================================================
+
 // TRANSLATIONS
-// ============================================================================
+
 
 const analyticsText = {
   en: {
@@ -100,9 +71,9 @@ const analyticsText = {
   },
 };
 
-// ============================================================================
+
 // HELPER FUNCTIONS
-// ============================================================================
+
 
 /**
  * Get status icon component based on status string.
@@ -144,9 +115,9 @@ function getStatusBarColor(color) {
   }
 }
 
-// ============================================================================
+
 // SUB-COMPONENTS
-// ============================================================================
+
 
 /**
  * Loading state component.
@@ -386,18 +357,18 @@ function TrendChart(props) {
   );
 }
 
-// ============================================================================
+
 // MAIN COMPONENT
-// ============================================================================
+
 
 /**
  * AdminAnalytics - Main component for analytics dashboard.
  * @returns {JSX.Element} The rendered component
  */
 function AdminAnalytics() {
-  // ============================================================================
+ 
   // HOOKS AND CONTEXT
-  // ============================================================================
+
 
   const languageContext = useLanguage();
   const language = languageContext.language;
@@ -410,9 +381,9 @@ function AdminAnalytics() {
   const error = analyticsData.error;
   const refetch = analyticsData.refetch;
 
-  // ============================================================================
+  
   // CONDITIONAL RENDERS
-  // ============================================================================
+ 
 
   // Loading state
   if (loading) {
@@ -442,9 +413,9 @@ function AdminAnalytics() {
     );
   }
 
-  // ============================================================================
+  
   // DATA EXTRACTION
-  // ============================================================================
+ 
 
   const overview = analytics.overview;
   const issuesByType = analytics.issuesByType;
@@ -452,9 +423,9 @@ function AdminAnalytics() {
   const issuesByWard = analytics.issuesByWard;
   const monthlyTrends = analytics.monthlyTrends;
 
-  // ============================================================================
+ 
   // RENDER
-  // ============================================================================
+  
 
   // Render overview stats cards
   let overviewSection = null;

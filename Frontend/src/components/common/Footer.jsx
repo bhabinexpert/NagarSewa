@@ -19,7 +19,7 @@ const footerContent = {
     email: "support@nagarsewa.org",
     phone: "+977-1-5970000",
     address: "Kathmandu, Nepal",
-    hours: "Sun–Fri: 10:00 AM – 6:00 PM",
+    hours: "Sun–Fri: 10:00 AM – 5:00 PM",
     citizenVoice: "Citizen Voice Desk",
     citizenVoiceDesc:
       "A direct channel for local communities to reach municipal authorities with verified reports.",
@@ -33,7 +33,7 @@ const footerContent = {
     email: "support@nagarsewa.org",
     phone: "+977-1-5970000",
     address: "काठमाडौँ, नेपाल",
-    hours: "आइत–शुक्र: १०:०० बिहान – ६:०० बेलुका",
+    hours: "आइत–शुक्र: १०:०० बिहान – ५:०० बेलुका",
     citizenVoice: "नागरिक आवाज डेस्क",
     citizenVoiceDesc:
       "स्थानीय समुदायका प्रमाणित रिपोर्टलाई नगरपालिका निकायसम्म पुर्‍याउने प्रत्यक्ष माध्यम।",

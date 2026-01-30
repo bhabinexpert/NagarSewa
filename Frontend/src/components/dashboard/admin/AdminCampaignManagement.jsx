@@ -4,17 +4,6 @@
  * Admin interface for managing community campaign requests.
  * Ward admins can approve/reject campaigns for their ward.
  * Super admins can manage all campaigns.
- *
- * @component
- *
- * BACKEND INTEGRATION:
- * - GET /api/campaigns - List campaigns with filters
- *   Query params: status, ward, category, search, sort, page, limit
- *
- * - PATCH /api/campaigns/:id/status - Update campaign status
- *   Body: { status: string, adminResponse?: string, rejectionReason?: string }
- *
- * - DELETE /api/campaigns/:id - Delete a campaign
  */
 
 import React, { useState, useMemo } from "react";
@@ -50,9 +39,9 @@ import {
   FileText,
 } from "lucide-react";
 
-// ============================================================================
+
 // TRANSLATIONS
-// ============================================================================
+
 
 const campaignManagementText = {
   en: {
@@ -161,9 +150,9 @@ const campaignManagementText = {
   },
 };
 
-// ============================================================================
+
 // HELPER FUNCTIONS
-// ============================================================================
+
 
 function getStatusStyle(status) {
   const styles = {
@@ -185,9 +174,9 @@ function formatDateTime(dateString) {
   return new Date(dateString).toLocaleString();
 }
 
-// ============================================================================
+
 // CAMPAIGN CARD SUB-COMPONENT
-// ============================================================================
+
 
 function CampaignCard({ campaign, t, onStatusUpdate, onDelete, isUpdating }) {
   const [expanded, setExpanded] = useState(false);
@@ -490,9 +479,9 @@ function CampaignCard({ campaign, t, onStatusUpdate, onDelete, isUpdating }) {
   );
 }
 
-// ============================================================================
+
 // MAIN COMPONENT
-// ============================================================================
+
 
 export default function AdminCampaignManagement({ wardFilter, isSuperAdmin }) {
   const { language } = useLanguage();
