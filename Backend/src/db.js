@@ -1,106 +1,43 @@
-/**
- * =============================================================================
- * DATABASE CONNECTION - PostgreSQL Setup
- * =============================================================================
- * 
- * This file sets up the connection to our PostgreSQL database.
- * 
- * WHAT IS POSTGRESQL?
- * PostgreSQL (or "Postgres") is a powerful, open-source database system.
- * It stores all our data: users, issues, notifications, etc.
- * 
- * CONFIGURATION:
- * Database settings are stored in the .env file:
- *   - PG_USER: Database username
- *   - PG_HOST: Database server address (usually 'localhost')
- *   - PG_DATABASE: Name of the database
- *   - PG_PASSWORD: Database password
- *   - PG_PORT: Port number (usually 5432)
- * 
- * HOW TO USE:
- *   import db, { query } from './db.js';
- *   
- *   // Run a SQL query
- *   const result = await query('SELECT * FROM users WHERE id = $1', [userId]);
- */
-
+// Database connection using Pool for better connection management
 import pg from 'pg';
 import dotenv from 'dotenv';
 
+dotenv.config({ quiet: true });
 
-// Load environment variables from .env file
-dotenv.config();
+const { Pool } = pg;
 
-
-// -----------------------------------------------------------------------------
-// CREATE DATABASE CLIENT
-// -----------------------------------------------------------------------------
-
-/**
- * Create a new PostgreSQL client.
- * This client will maintain a connection to the database.
- * 
- * We use environment variables for security - never hardcode passwords!
- */
-const db = new pg.Client({
-  user: process.env.PG_USER,         // Database username
-  host: process.env.PG_HOST,         // Database server address
-  database: process.env.PG_DATABASE, // Database name
-  password: process.env.PG_PASSWORD, // Database password
-  port: process.env.PG_PORT          // Database port (usually 5432)
+// Create connection pool
+const pool = new Pool({
+  user: process.env.PG_USER,
+  host: process.env.PG_HOST,
+  database: process.env.PG_DATABASE,
+  password: process.env.PG_PASSWORD,
+  port: process.env.PG_PORT || 5432,
 });
 
-
-// -----------------------------------------------------------------------------
-// ERROR HANDLING
-// -----------------------------------------------------------------------------
-
-/**
- * Handle unexpected database errors.
- * If the connection drops or an error occurs, log it and exit.
- */
-db.on('error', function(err) {
-  console.error("❌ Database error:", err);
-  process.exit(-1);
-});
-
-
-// -----------------------------------------------------------------------------
-// QUERY HELPER FUNCTION
-// -----------------------------------------------------------------------------
-
-/**
- * Execute a SQL query on the database.
- * 
- * @param {string} text - The SQL query string (use $1, $2, etc. for parameters)
- * @param {Array} params - Array of values to substitute for $1, $2, etc.
- * @returns {Promise} Query result
- * 
- * EXAMPLES:
- * 
- *   // Get all users
- *   const result = await query('SELECT * FROM users');
- *   
- *   // Get user by email (use $1 to prevent SQL injection)
- *   const result = await query('SELECT * FROM users WHERE email = $1', ['test@example.com']);
- *   
- *   // Insert a new user
- *   const result = await query(
- *     'INSERT INTO users (name, email) VALUES ($1, $2) RETURNING *',
- *     ['Ram', 'ram@example.com']
- *   );
- */
-export function query(text, params) {
-  return db.query(text, params);
+// Test database connection
+export async function testConnection() {
+  try {
+    const client = await pool.connect();
+    await client.query('SELECT NOW()');
+    client.release();
+    console.log('✅ Database connected successfully');
+    return true;
+  } catch (error) {
+    console.error('❌ Database connection failed:', error.message);
+    return false;
+  }
 }
 
+// Query wrapper
+export async function query(text, params) {
+  try {
+    const result = await pool.query(text, params);
+    return result;
+  } catch (error) {
+    console.error('Query error:', error);
+    throw error;
+  }
+}
 
-// -----------------------------------------------------------------------------
-// EXPORT
-// -----------------------------------------------------------------------------
-
-/**
- * Export the database client as default.
- * This is used in server.js to connect: await db.connect()
- */
-export default db;
+export default pool;
