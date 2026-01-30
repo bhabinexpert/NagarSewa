@@ -27,6 +27,7 @@ import {
   AlertCircle,
   CheckCircle,
   User,
+  Lock,
 } from "lucide-react";
 import { toast } from "react-toastify";
 
@@ -49,6 +50,8 @@ const panelText = {
     phonePlaceholder: "98XXXXXXXX",
     selectWard: "Select Ward",
     wardPlaceholder: "Choose ward to assign",
+    password: "Password",
+    passwordPlaceholder: "Secure password (min 8 chars)",
     create: "Create Admin",
     creating: "Creating...",
     cancel: "Cancel",
@@ -95,6 +98,8 @@ const panelText = {
     phonePlaceholder: "९८XXXXXXXX",
     selectWard: "वडा छान्नुहोस्",
     wardPlaceholder: "नियुक्त गर्न वडा छान्नुहोस्",
+    password: "पासवर्ड",
+    passwordPlaceholder: "सुरक्षित पासवर्ड (न्यूनतम ८ अक्षर)",
     create: "प्रशासक सिर्जना गर्नुहोस्",
     creating: "सिर्जना हुँदैछ...",
     cancel: "रद्द गर्नुहोस्",
@@ -227,6 +232,7 @@ function SuperAdminPanel() {
     email: "",
     phone: "",
     wardNumber: "",
+    password: "",
   });
 
   // ============================================================================
@@ -272,37 +278,46 @@ function SuperAdminPanel() {
    * Handle creating a new ward admin.
    * Validates form data and submits to the API.
    */
-  function handleCreateAdmin() {
-    // Validate required fields
-    if (!formData.fullName || !formData.email || !formData.wardNumber) {
+  async function handleCreateAdmin() {
+    // Validate required fields including password
+    if (!formData.fullName || !formData.email || !formData.wardNumber || !formData.password) {
       toast.error(t.errorRequired, { position: "top-right" });
+      return;
+    }
+
+    // Validate password strength
+    if (formData.password.length < 8) {
+      toast.error("Password must be at least 8 characters long", { position: "top-right" });
       return;
     }
 
     setIsSubmitting(true);
 
-    // Create the admin data object
+    // Create the admin data object with password
     const adminData = {
       fullName: formData.fullName,
       email: formData.email,
       phone: formData.phone,
       wardNumber: parseInt(formData.wardNumber),
+      password: formData.password
     };
 
-    const result = createWardAdmin(adminData);
+    try {
+      const result = await createWardAdmin(adminData);
 
-    // Use setTimeout to simulate async operation
-    setTimeout(function () {
       if (result.success) {
         toast.success(t.successCreate, { position: "top-right" });
-        // Reset form
-        setFormData({ fullName: "", email: "", phone: "", wardNumber: "" });
+        // Reset form including password field
+        setFormData({ fullName: "", email: "", phone: "", wardNumber: "", password: "" });
         setShowCreateForm(false);
       } else {
         toast.error(result.error, { position: "top-right" });
       }
+    } catch (error) {
+      toast.error("An error occurred. Please try again.", { position: "top-right" });
+    } finally {
       setIsSubmitting(false);
-    }, 500);
+    }
   }
 
   /**
@@ -310,15 +325,19 @@ function SuperAdminPanel() {
    * Shows confirmation dialog before deactivating.
    * @param {string} adminId - The ID of the admin to deactivate
    */
-  function handleDeactivate(adminId) {
+  async function handleDeactivate(adminId) {
     const confirmed = window.confirm(t.confirmDeactivate);
 
     if (confirmed) {
-      const result = deactivateWardAdmin(adminId);
-      if (result.success) {
-        toast.success(t.successDeactivate, { position: "top-right" });
-      } else {
-        toast.error(result.error, { position: "top-right" });
+      try {
+        const result = await deactivateWardAdmin(adminId);
+        if (result.success) {
+          toast.success(t.successDeactivate, { position: "top-right" });
+        } else {
+          toast.error(result.error, { position: "top-right" });
+        }
+      } catch (error) {
+        toast.error("An error occurred. Please try again.", { position: "top-right" });
       }
     }
   }
@@ -327,13 +346,17 @@ function SuperAdminPanel() {
    * Handle reactivating a ward admin.
    * @param {string} adminId - The ID of the admin to reactivate
    */
-  function handleReactivate(adminId) {
-    const result = reactivateWardAdmin(adminId);
+  async function handleReactivate(adminId) {
+    try {
+      const result = await reactivateWardAdmin(adminId);
 
-    if (result.success) {
-      toast.success(t.successReactivate, { position: "top-right" });
-    } else {
-      toast.error(result.error, { position: "top-right" });
+      if (result.success) {
+        toast.success(t.successReactivate, { position: "top-right" });
+      } else {
+        toast.error(result.error, { position: "top-right" });
+      }
+    } catch (error) {
+      toast.error("An error occurred. Please try again.", { position: "top-right" });
     }
   }
 
@@ -670,6 +693,29 @@ function SuperAdminPanel() {
                     {renderWardOptions()}
                   </select>
                 </div>
+              </div>
+
+              {/* Password */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  {t.password} <span className="text-red-500">*</span>
+                </label>
+                <div className="relative">
+                  <Lock
+                    className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+                    size={18}
+                  />
+                  <input
+                    type="password"
+                    name="password"
+                    value={formData.password}
+                    onChange={handleInputChange}
+                    placeholder={t.passwordPlaceholder}
+                    className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                    minLength="8"
+                  />
+                </div>
+                <p className="mt-1 text-xs text-gray-500">Minimum 8 characters required</p>
               </div>
             </div>
 
