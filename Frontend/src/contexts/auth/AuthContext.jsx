@@ -1,24 +1,25 @@
 /**
  * =============================================================================
- * AUTHENTICATION PROVIDER - Manages User Login State
+ * AUTHENTICATION PROVIDER - Manages User Login State with Backend Integration
  * =============================================================================
  * 
  * This is the main authentication component for the app.
  * It handles:
- * - User login and logout
+ * - User login and logout with real backend API
  * - Storing user session in browser
  * - Role-based access control (super admin, ward admin, regular user)
- * - Ward admin management
+ * - Real-time state updates with useEffect
  * 
  * HOW IT WORKS:
- * 1. When app loads, it checks if there's a saved user in localStorage
- * 2. When user logs in, it validates credentials and creates a session
+ * 1. When app loads, it checks if there's a saved token in localStorage
+ * 2. When user logs in, it calls the backend API and stores the token
  * 3. When user logs out, it clears the session
  * 4. All components can access user info through the useAuth() hook
  */
 
 import { useState, useEffect } from "react";
-import { AuthContext, DAMAK_TOTAL_WARDS, ROLES, mockWardAdmins, superAdminCredentials } from "./authConstants";
+import { AuthContext, DAMAK_TOTAL_WARDS, ROLES } from "./authConstants";
+import api from "../../services/api";
 
 
 /**
@@ -38,57 +39,18 @@ export function AuthProvider({ children }) {
   /**
    * The currently logged-in user.
    * null if no one is logged in.
-   * 
-   * We initialize from localStorage so the user stays logged in
-   * even after refreshing the page.
    */
-  const [currentUser, setCurrentUser] = useState(function() {
-    // Try to load saved user from browser storage
-    const savedUser = localStorage.getItem("nagarsewa_user");
-    
-    if (savedUser) {
-      try {
-        // Parse the JSON string back to an object
-        return JSON.parse(savedUser);
-      } catch {
-        // If parsing fails, remove the corrupted data
-        localStorage.removeItem("nagarsewa_user");
-        return null;
-      }
-    }
-    
-    return null;
-  });
-  
-  /**
-   * List of all ward administrators.
-   * In a real app, this would come from the backend.
-   */
-  const [wardAdmins, setWardAdmins] = useState(mockWardAdmins);
-  
-  /**
-   * List of disabled user accounts.
-   * Disabled users cannot log in.
-   */
-  const [disabledUsers, setDisabledUsers] = useState(function() {
-    const savedDisabled = localStorage.getItem("nagarsewa_disabled_users");
-    
-    if (savedDisabled) {
-      try {
-        return JSON.parse(savedDisabled);
-      } catch {
-        return [];
-      }
-    }
-    
-    return [];
-  });
+  const [currentUser, setCurrentUser] = useState(null);
   
   /**
    * Loading state for async operations.
-   * Currently not used but available for future API calls.
    */
-  const [isLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  
+  /**
+   * List of all ward administrators (for super admin).
+   */
+  const [wardAdmins, setWardAdmins] = useState([]);
   
   
   // =========================================================================
@@ -96,25 +58,69 @@ export function AuthProvider({ children }) {
   // =========================================================================
   
   /**
-   * Save the current user to localStorage whenever it changes.
-   * This keeps the user logged in even after page refresh.
+   * On component mount, check if user is already logged in.
+   * If there's a token, validate it with the backend.
+   */
+  useEffect(function() {
+    async function checkAuth() {
+      const token = localStorage.getItem("authToken");
+      
+      if (token) {
+        try {
+          // Validate token with backend
+          const response = await api.auth.getCurrentUser();
+          setCurrentUser(response.user);
+        } catch (error) {
+          // Token is invalid, clear it
+          localStorage.removeItem("authToken");
+          localStorage.removeItem("nagarsewa_user");
+        }
+      }
+      
+      setIsLoading(false);
+    }
+    
+    checkAuth();
+  }, []);
+  
+  /**
+   * Save user to localStorage whenever it changes.
    */
   useEffect(function() {
     if (currentUser) {
-      // Save user to browser storage
       localStorage.setItem("nagarsewa_user", JSON.stringify(currentUser));
     } else {
-      // Remove user from storage when logged out
       localStorage.removeItem("nagarsewa_user");
     }
   }, [currentUser]);
   
   /**
-   * Save disabled users list to localStorage whenever it changes.
+   * Load ward admins when user is super admin.
    */
   useEffect(function() {
-    localStorage.setItem("nagarsewa_disabled_users", JSON.stringify(disabledUsers));
-  }, [disabledUsers]);
+    async function loadWardAdmins() {
+      if (currentUser && currentUser.role === ROLES.SUPER_ADMIN) {
+        try {
+          const response = await api.admin.getAllWardAdmins();
+          const formattedAdmins = response.admins.map(admin => ({
+            id: admin.id,
+            email: admin.email,
+            fullName: admin.full_name,
+            role: ROLES.WARD_ADMIN,
+            wardNumber: admin.ward_number,
+            phone: admin.phone,
+            isActive: !admin.is_disabled, // Convert is_disabled to isActive
+            createdAt: admin.created_at
+          }));
+          setWardAdmins(formattedAdmins);
+        } catch (error) {
+          console.error('Error loading ward admins:', error);
+        }
+      }
+    }
+    
+    loadWardAdmins();
+  }, [currentUser]);
   
   
   // =========================================================================
@@ -122,103 +128,59 @@ export function AuthProvider({ children }) {
   // =========================================================================
   
   /**
-   * Log in a user with email and password.
-   * 
-   * This function checks:
-   * 1. Is the account disabled?
-   * 2. Is this the super admin?
-   * 3. Is this a ward admin?
-   * 4. Otherwise, treat as regular user
+   * Log in a user with email and password using backend API.
    * 
    * @param {string} email - User's email address
    * @param {string} password - User's password
    * @returns {Object} Result with success status and user/error info
    */
-  function login(email, password) {
-    // Step 1: Check if the user's account is disabled
-    const isUserDisabled = disabledUsers.find(function(disabled) {
-      return disabled.email.toLowerCase() === email.toLowerCase();
-    });
-    
-    if (isUserDisabled) {
+  async function login(email, password) {
+    try {
+      setIsLoading(true);
+      
+      // Call backend API
+      const response = await api.auth.login({ email, password });
+      
+      // Store token
+      localStorage.setItem("authToken", response.token);
+      
+      // Set user in state
+      setCurrentUser(response.user);
+      
+      setIsLoading(false);
+      
+      return { 
+        success: true, 
+        user: response.user, 
+        redirectTo: response.redirectTo || (response.user.role === 'user' ? '/user' : '/admin')
+      };
+      
+    } catch (error) {
+      setIsLoading(false);
+      
+      // Check if account is disabled
+      if (error.message.includes('disabled')) {
+        return {
+          success: false,
+          error: error.message,
+          isDisabled: true
+        };
+      }
+      
       return {
         success: false,
-        error: "Your account has been disabled. Please contact the administrator.",
-        isDisabled: true
+        error: error.message || "Login failed. Please check your credentials."
       };
     }
-    
-    // Step 2: Check if this is the super admin
-    const isSuperAdminLogin = (
-      email.toLowerCase() === superAdminCredentials.email &&
-      password === superAdminCredentials.password
-    );
-    
-    if (isSuperAdminLogin) {
-      const user = {
-        id: "super-admin",
-        email: superAdminCredentials.email,
-        fullName: superAdminCredentials.fullName,
-        role: ROLES.SUPER_ADMIN,
-        jurisdiction: {
-          district: "Jhapa",
-          municipality: "Damak",
-          wardNumber: null  // Super admin can access all wards
-        }
-      };
-      
-      setCurrentUser(user);
-      return { success: true, user: user, redirectTo: "/admin" };
-    }
-    
-    // Step 3: Check if this is a ward admin
-    const wardAdmin = wardAdmins.find(function(admin) {
-      return admin.email.toLowerCase() === email.toLowerCase() && admin.isActive;
-    });
-    
-    if (wardAdmin) {
-      const user = {
-        id: wardAdmin.id,
-        email: wardAdmin.email,
-        fullName: wardAdmin.fullName,
-        role: ROLES.WARD_ADMIN,
-        wardNumber: wardAdmin.wardNumber,
-        jurisdiction: {
-          district: "Jhapa",
-          municipality: "Damak",
-          wardNumber: wardAdmin.wardNumber
-        }
-      };
-      
-      setCurrentUser(user);
-      return { success: true, user: user, redirectTo: "/admin" };
-    }
-
-    // Step 4: Treat as regular user
-    // In a real app, you would verify the password with the backend here
-    const user = {
-      id: `user-${Date.now()}`,
-      email: email,
-      fullName: email.split("@")[0],  // Use part before @ as name
-      role: ROLES.USER,
-      kycVerified: false,  // New users need to verify their identity
-      jurisdiction: {
-        district: "Jhapa",
-        municipality: "Damak",
-        wardNumber: null  // Will be set from signup data
-      }
-    };
-    
-    setCurrentUser(user);
-    return { success: true, user: user, redirectTo: "/user" };
   }
   
   /**
    * Log out the current user.
-   * Clears the user from state and removes from localStorage.
+   * Clears the user from state and removes token.
    */
   function logout() {
     setCurrentUser(null);
+    localStorage.removeItem("authToken");
     localStorage.removeItem("nagarsewa_user");
   }
   
@@ -296,54 +258,45 @@ export function AuthProvider({ children }) {
   // =========================================================================
   
   /**
-   * Create a new ward admin account.
+   * Create a new ward admin account using backend API.
    * Only super admin can do this.
    * 
    * @param {Object} adminData - The new admin's information
    * @returns {Object} Success/failure result
    */
-  function createWardAdmin(adminData) {
-    // Only super admin can create ward admins
+  async function createWardAdmin(adminData) {
     if (!isSuperAdmin()) {
       return { success: false, error: "Only super admin can create ward admins" };
     }
     
-    // Check if this ward already has an active admin
-    const existingAdmin = wardAdmins.find(function(admin) {
-      return admin.wardNumber === adminData.wardNumber && admin.isActive;
-    });
-    
-    if (existingAdmin) {
-      return {
-        success: false,
-        error: `Ward ${adminData.wardNumber} already has an active admin`
+    try {
+      // Call backend API
+      const response = await api.admin.createWardAdmin({
+        full_name: adminData.fullName,
+        email: adminData.email,
+        phone: adminData.phone,
+        ward_number: adminData.wardNumber,
+        password: adminData.password
+      });
+      
+      // Add to local state with functional update for immediate UI refresh
+      const newAdmin = {
+        id: response.admin.id,
+        email: response.admin.email,
+        fullName: response.admin.full_name,
+        role: ROLES.WARD_ADMIN,
+        wardNumber: response.admin.ward_number,
+        phone: response.admin.phone,
+        isActive: !response.admin.is_disabled, // Convert is_disabled to isActive
+        createdAt: response.admin.created_at
       };
+      
+      setWardAdmins(prevAdmins => [...prevAdmins, newAdmin]);
+      
+      return { success: true, admin: newAdmin };
+    } catch (error) {
+      return { success: false, error: error.message || "Failed to create ward admin" };
     }
-    
-    // Check if email is already registered
-    const emailExists = wardAdmins.find(function(admin) {
-      return admin.email.toLowerCase() === adminData.email.toLowerCase();
-    });
-    
-    if (emailExists) {
-      return { success: false, error: "Email already registered" };
-    }
-    
-    // Create the new admin
-    const newAdmin = {
-      id: `admin-${Date.now()}`,
-      email: adminData.email,
-      fullName: adminData.fullName,
-      role: ROLES.WARD_ADMIN,
-      wardNumber: adminData.wardNumber,
-      phone: adminData.phone || "",
-      isActive: true,
-      createdAt: new Date().toISOString().split("T")[0]
-    };
-    
-    // Add to the list
-    setWardAdmins([...wardAdmins, newAdmin]);
-    return { success: true, admin: newAdmin };
   }
   
   /**
@@ -359,82 +312,69 @@ export function AuthProvider({ children }) {
       return { success: false, error: "Only super admin can update ward admins" };
     }
     
-    const updatedAdmins = wardAdmins.map(function(admin) {
-      if (admin.id === adminId) {
-        return { ...admin, ...updates };
-      }
-      return admin;
-    });
+    setWardAdmins(prevAdmins => 
+      prevAdmins.map(admin => 
+        admin.id === adminId ? { ...admin, ...updates } : admin
+      )
+    );
     
-    setWardAdmins(updatedAdmins);
     return { success: true };
   }
   
   /**
-   * Deactivate a ward admin account.
+   * Deactivate a ward admin account using backend API.
    * Only super admin can do this.
    * 
    * @param {string} adminId - The admin's ID
    * @returns {Object} Success/failure result
    */
-  function deactivateWardAdmin(adminId) {
+  async function deactivateWardAdmin(adminId) {
     if (!isSuperAdmin()) {
       return { success: false, error: "Only super admin can deactivate ward admins" };
     }
 
-    // Update the admin's status to inactive
-    const updatedAdmins = wardAdmins.map(function(admin) {
-      if (admin.id === adminId) {
-        return { ...admin, isActive: false };
-      }
-      return admin;
-    });
-    
-    setWardAdmins(updatedAdmins);
-    return { success: true };
+    try {
+      await api.admin.deactivateWardAdmin(adminId);
+      
+      // Update local state with functional update for immediate UI refresh
+      setWardAdmins(prevAdmins => 
+        prevAdmins.map(admin => 
+          admin.id === adminId ? { ...admin, isActive: false } : admin
+        )
+      );
+      
+      return { success: true };
+    } catch (error) {
+      return { success: false, error: error.message || "Failed to deactivate admin" };
+    }
   }
   
   /**
-   * Reactivate a deactivated ward admin.
+   * Reactivate a deactivated ward admin using backend API.
    * Only super admin can do this.
    * 
    * @param {string} adminId - The admin's ID
    * @returns {Object} Success/failure result
    */
-  function reactivateWardAdmin(adminId) {
+  async function reactivateWardAdmin(adminId) {
     if (!isSuperAdmin()) {
       return { success: false, error: "Only super admin can reactivate ward admins" };
     }
     
-    // Find the admin to reactivate
-    const admin = wardAdmins.find(function(a) {
-      return a.id === adminId;
-    });
-    
-    if (admin) {
-      // Check if their ward already has an active admin
-      const activeAdminForWard = wardAdmins.find(function(a) {
-        return a.wardNumber === admin.wardNumber && a.isActive && a.id !== adminId;
-      });
+    try {
+      await api.admin.reactivateWardAdmin(adminId);
       
-      if (activeAdminForWard) {
-        return {
-          success: false,
-          error: `Ward ${admin.wardNumber} already has an active admin`
-        };
-      }
+      // Update local state with functional update for immediate UI refresh
+      setWardAdmins(prevAdmins => 
+        prevAdmins.map(admin => 
+          admin.id === adminId ? { ...admin, isActive: true } : admin
+        )
+      );
+      
+      return { success: true };
+    } catch (error) {
+      return { success: false, error: error.message || "Failed to reactivate admin" };
     }
-    
-    // Reactivate the admin
-    const updatedAdmins = wardAdmins.map(function(admin) {
-      if (admin.id === adminId) {
-        return { ...admin, isActive: true };
-      }
-      return admin;
-    });
-    
-    setWardAdmins(updatedAdmins);
-    return { success: true };
   }
   
   /**
