@@ -34,6 +34,9 @@ const loginText = {
     footerLinks: ["Services", "About", "Contact", "Privacy"],
     copyright: "© 2023 NagarSewa - Digital Public Service Platform",
     errorRequired: "Please fill in all required fields",
+    errorEmailInvalid: "Please enter a valid email address",
+    errorPasswordShort: "Password must be at least 8 characters",
+    errorInvalidCredentials: "Invalid email or password. Please try again.",
     success: "Login successful! Redirecting to dashboard...",
     toggleLabel: "नेपाली",
     accountDisabled: "Your account has been disabled. Please contact the administrator.",
@@ -54,6 +57,9 @@ const loginText = {
     footerLinks: ["सेवाहरू", "बारेमा", "सम्पर्क", "गोपनीयता"],
     copyright: "© 2023 नगरसेवा - डिजिटल सार्वजनिक सेवा प्लेटफर्म",
     errorRequired: "कृपया सबै आवश्यक फिल्डहरू भर्नुहोस्",
+    errorEmailInvalid: "कृपया मान्य इमेल ठेगाना प्रविष्ट गर्नुहोस्",
+    errorPasswordShort: "पासवर्ड कम्तिमा ८ अक्षरको हुनुपर्छ",
+    errorInvalidCredentials: "अमान्य इमेल वा पासवर्ड। कृपया पुन: प्रयास गर्नुहोस्।",
     success: "सफलतापूर्वक लग इन! ड्यासबोर्डमा पुन: निर्देशित गर्दै...",
     toggleLabel: "English",
     accountDisabled: "तपाईंको खाता अक्षम गरिएको छ। कृपया प्रशासकलाई सम्पर्क गर्नुहोस्।",
@@ -144,21 +150,50 @@ function Login() {
   }
 
   /**
+   * Validate email format.
+   * @param {string} email - Email to validate
+   * @returns {boolean} True if valid email format
+   */
+  function isValidEmail(email) {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
+  }
+
+  /**
    * Handle form submission.
    * Validates input and attempts to log in the user.
    */
-  function handleSubmit() {
+  async function handleSubmit() {
     // Check if email and password are filled
     if (!formData.email || !formData.password) {
-      setError(t.errorRequired);
+      const errorMsg = t.errorRequired;
+      setError(errorMsg);
+      toast.error(errorMsg, { position: "top-right", autoClose: 3000 });
+      return;
+    }
+
+    // Validate email format
+    if (!isValidEmail(formData.email)) {
+      const errorMsg = t.errorEmailInvalid;
+      setError(errorMsg);
+      toast.error(errorMsg, { position: "top-right", autoClose: 3000 });
+      return;
+    }
+
+    // Validate password length
+    if (formData.password.length < 8) {
+      const errorMsg = t.errorPasswordShort;
+      setError(errorMsg);
+      toast.error(errorMsg, { position: "top-right", autoClose: 3000 });
       return;
     }
     
     setIsLoading(true);
+    setError('');
     
-    setTimeout(function() {
-      // Use auth context for login
-      const result = login(formData.email, formData.password);
+    try {
+      // Use auth context for login (now async)
+      const result = await login(formData.email, formData.password);
       
       if (result.success) {
         console.log('Login successful:', formData.email, 'Role:', result.user.role);
@@ -180,16 +215,30 @@ function Login() {
             autoClose: 5000,
           });
         } else {
-          if (result.error) {
-            setError(result.error);
-          } else {
-            setError("Login failed");
-          }
+          // Show user-friendly error message
+          const errorMessage = result.error && result.error.includes("Invalid") 
+            ? t.errorInvalidCredentials 
+            : (result.error || "Login failed");
+          setError(errorMessage);
+          toast.error(errorMessage, {
+            position: "top-right",
+            autoClose: 4000,
+          });
         }
       }
-      
+    } catch (err) {
+      console.error('Login error:', err);
+      const errorMessage = err.message && err.message.includes("credentials")
+        ? t.errorInvalidCredentials
+        : (err.message || "An error occurred during login");
+      setError(errorMessage);
+      toast.error(errorMessage, {
+        position: "top-right",
+        autoClose: 4000,
+      });
+    } finally {
       setIsLoading(false);
-    }, 1000);
+    }
   }
 
   /**
@@ -212,20 +261,6 @@ function Login() {
    */
   function togglePasswordVisibility() {
     setShowPassword(!showPassword);
-  }
-
-  /**
-   * Set form data for demo login.
-   * @param {string} email - Demo email
-   * @param {string} password - Demo password
-   */
-  function setDemoCredentials(email, password) {
-    const newFormData = {
-      email: email,
-      password: password,
-      rememberMe: false
-    };
-    setFormData(newFormData);
   }
 
   /**
@@ -376,41 +411,6 @@ function Login() {
                   t.signIn
                 )}
               </button>
-
-              {/* Demo Login Buttons */}
-              <div className="border-t border-gray-200 pt-3 mt-3">
-                <p className="text-xs text-gray-500 text-center mb-2">Quick Demo Login:</p>
-                <div className="flex flex-wrap gap-2 justify-center">
-                  <button
-                    type="button"
-                    onClick={function() { setDemoCredentials('superadmin@damak.gov.np', 'superadmin123'); }}
-                    className="px-3 py-1.5 text-xs bg-purple-100 text-purple-700 rounded-lg hover:bg-purple-200 transition"
-                  >
-                    Super Admin
-                  </button>
-                  <button
-                    type="button"
-                    onClick={function() { setDemoCredentials('ward1@damak.gov.np', 'admin123'); }}
-                    className="px-3 py-1.5 text-xs bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition"
-                  >
-                    Ward 1 Admin
-                  </button>
-                  <button
-                    type="button"
-                    onClick={function() { setDemoCredentials('ward5@damak.gov.np', 'admin123'); }}
-                    className="px-3 py-1.5 text-xs bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition"
-                  >
-                    Ward 5 Admin
-                  </button>
-                  <button
-                    type="button"
-                    onClick={function() { setDemoCredentials('user@example.com', 'user123'); }}
-                    className="px-3 py-1.5 text-xs bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition"
-                  >
-                    Regular User
-                  </button>
-                </div>
-              </div>
 
               {/* Create Account Link */}
               <div className="text-center pt-1">
