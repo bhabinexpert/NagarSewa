@@ -1,50 +1,117 @@
-# NagarSewa
+# NagarSewa (नगरसेवा)
 
-A comprehensive civic engagement platform for Nepalese municipalities that enables citizens to report issues, participate in community campaigns, and engage with local government services.
+<div align="center">
 
-## � BACKEND COMPLETION STATUS: PRODUCTION-READY
+**Digital Public Service Platform for Nepalese Municipalities**
 
-✅ **Professional backend structure implemented**  
-✅ **All dummy data removed - clean production setup**  
-✅ **Comprehensive documentation and comments added**  
-✅ **Frontend integration ready**  
-✅ **Security best practices applied**
+[![Node.js](https://img.shields.io/badge/Node.js-v24.12.0-green.svg)](https://nodejs.org/)
+[![React](https://img.shields.io/badge/React-18-blue.svg)](https://reactjs.org/)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-blue.svg)](https://www.postgresql.org/)
+[![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-**📖 Read the complete guide:** [BACKEND_COMPLETION_SUMMARY.md](BACKEND_COMPLETION_SUMMARY.md)
+</div>
 
----
+## 📖 Overview
 
-## �🏗️ Project Structure
+NagarSewa is a comprehensive civic engagement platform designed specifically for Nepalese municipalities. It bridges the gap between citizens and local government by providing a digital infrastructure for:
+
+- 🏛️ **Ward-based Administration** - Multi-tier admin system with super admin and ward-specific administrators
+- 📋 **Issue Reporting & Tracking** - Citizens can report civic issues with real-time status updates
+- 🎯 **Community Campaigns** - Request and participate in community development initiatives
+- 📊 **Analytics Dashboard** - Data-driven insights for municipal decision-making
+- 🔔 **Notification System** - Real-time updates for citizens and administrators
+- 🌐 **Bilingual Support** - Full English and Nepali language support
+
+## 🏗️ Architecture
+
+## 🏗️ Architecture
 
 ```
 NagarSewa/
-├── Backend/                    # Node.js/Express API Server
-│   ├── docs/                   # API Documentation
-│   │   └── integration.md      # Frontend-Backend Integration Guide
+├── Backend/                           # Node.js/Express REST API
 │   ├── src/
-│   │   ├── config/             # Database and app configuration
-│   │   ├── controllers/        # Request handlers and business logic
-│   │   ├── middleware/         # Authentication, validation, error handling
-│   │   ├── models/             # Database models and schemas
-│   │   ├── routes/             # API route definitions
-│   │   ├── services/           # External services (email, file upload, etc.)
-│   │   ├── utils/              # Helper functions and constants
-│   │   ├── app.js              # Express application setup
-│   │   └── server.js           # Server entry point
-│   ├── package.json
-│   ├── .env.example            # Environment variables template
-│   └── BACKEND_SETUP_GUIDE.txt
-├── Frontend/                   # React/Vite Frontend Application
+│   │   ├── api/                       # Third-party API integrations
+│   │   │   └── api.location.js        # Nepal location services
+│   │   ├── controllers/               # Business logic layer
+│   │   │   └── Authorization.controllers.js
+│   │   ├── middleware/                # Request processing
+│   │   │   └── auth.js                # JWT authentication & authorization
+│   │   ├── models/                    # Data access layer
+│   │   │   ├── User.js                # User & admin management
+│   │   │   ├── Issue.js               # Issue tracking
+│   │   │   └── Campaign.js            # Campaign management
+│   │   ├── routes/                    # API endpoints
+│   │   │   ├── adminRoutes.js         # Admin operations
+│   │   │   ├── campaigns.js           # Campaign routes
+│   │   │   └── userRoute.js           # User operations
+│   │   ├── db.js                      # PostgreSQL connection
+│   │   ├── app.js                     # Express configuration
+│   │   └── server.js                  # Application entry point
+│   ├── .env                           # Environment variables
+│   └── package.json
+│
+├── Frontend/                          # React/Vite SPA
 │   ├── src/
-│   │   ├── components/         # Reusable UI components
-│   │   ├── pages/              # Page components
-│   │   ├── contexts/           # React contexts (auth, language)
-│   │   ├── services/           # API service layer
-│   │   └── utils/              # Frontend utilities
-│   ├── package.json
-│   └── vite.config.js
+│   │   ├── components/                # Reusable UI components
+│   │   │   ├── common/                # Header, Footer, etc.
+│   │   │   ├── dashboard/             # Dashboard components
+│   │   │   │   ├── admin/             # Admin panel components
+│   │   │   │   └── user/              # User dashboard components
+│   │   │   └── landing/               # Landing page sections
+│   │   ├── contexts/                  # React Context providers
+│   │   │   ├── auth/                  # Authentication state
+│   │   │   └── language/              # i18n state management
+│   │   ├── pages/                     # Route pages
+│   │   │   ├── auth/                  # Login/Signup
+│   │   │   └── dashboard/             # Dashboard views
+│   │   ├── services/                  # API client
+│   │   │   └── api.js                 # HTTP service layer
+│   │   ├── utils/                     # Helper functions
+│   │   │   └── nepalLocation.js       # Nepal geographic data
+│   │   ├── App.jsx                    # Root component
+│   │   └── main.jsx                   # Application entry
+│   ├── vite.config.js
+│   └── package.json
+│
 └── README.md
 ```
+
+## ✨ Key Features
+
+### 🔐 Authentication & Authorization
+- **JWT-based Authentication** - Secure token-based authentication
+- **Role-based Access Control** - Three-tier system (Super Admin, Ward Admin, User)
+- **Password Security** - bcrypt hashing with salt rounds
+- **Session Management** - 24-hour token expiry with auto-validation
+
+### 👥 User Management
+- **Self-registration** - Citizens can create accounts independently
+- **KYC Verification** - Admin-approved identity verification
+- **Profile Management** - Update personal information and preferences
+- **Ward Assignment** - Automatic ward-based data segregation
+
+### 🛡️ Admin System
+- **Super Admin** - Full system access across all 10 wards
+  - Create and manage ward administrators
+  - View system-wide analytics
+  - Deactivate/Reactivate admin accounts
+- **Ward Admin** - Ward-specific administrative access
+  - Manage issues within their ward
+  - Approve campaign requests
+  - KYC verification for ward residents
+  - Ward-specific dashboard and reports
+
+### 📱 User Features
+- **Issue Reporting** - Report civic issues with photos and location
+- **Campaign Requests** - Request community development campaigns
+- **Real-time Tracking** - Monitor issue status and resolution
+- **Notifications** - Stay updated on issue progress
+- **News Feed** - Community updates and announcements
+
+### 🌍 Localization
+- **Bilingual Interface** - Seamless English/Nepali switching
+- **Nepal-specific Data** - Province, district, and ward information
+- **Culturally Relevant** - Designed for Nepalese civic processes
 
 ## 🚀 Quick Start
 
