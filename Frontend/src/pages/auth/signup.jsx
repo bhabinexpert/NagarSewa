@@ -83,10 +83,13 @@ const signupText = {
     copyright: "© 2023 NagarSewa",
     alerts: {
       name: "Please enter your full name",
+      nameShort: "Name must be at least 3 characters",
       email: "Please enter your email",
+      emailInvalid: "Please enter a valid email address (e.g., user@example.com)",
       phone: "Please enter your phone number",
-      phoneInvalid: "Please enter a valid phone number",
+      phoneInvalid: "Please enter a valid 10-digit Nepali phone number (starting with 9)",
       password: "Please enter a password",
+      passwordWeak: "Password is too weak. Please use at least 8 characters with uppercase, lowercase, and numbers",
       mismatch: "Passwords do not match",
       terms: "Please accept the terms and conditions",
       province: "Please select your province",
@@ -164,10 +167,13 @@ const signupText = {
     copyright: "© 2023 नगरसेवा",
     alerts: {
       name: "कृपया आफ्नो पुरा नाम प्रविष्ट गर्नुहोस्",
+      nameShort: "नाम कम्तिमा ३ अक्षरको हुनुपर्छ",
       email: "कृपया आफ्नो इमेल प्रविष्ट गर्नुहोस्",
+      emailInvalid: "कृपया मान्य इमेल ठेगाना प्रविष्ट गर्नुहोस् (उदाहरण: user@example.com)",
       phone: "कृपया आफ्नो फोन नम्बर प्रविष्ट गर्नुहोस्",
-      phoneInvalid: "कृपया मान्य फोन नम्बर प्रविष्ट गर्नुहोस्",
+      phoneInvalid: "कृपया मान्य १० अङ्कको नेपाली फोन नम्बर प्रविष्ट गर्नुहोस् (९ बाट सुरु हुने)",
       password: "कृपया पासवर्ड प्रविष्ट गर्नुहोस्",
+      passwordWeak: "पासवर्ड धेरै कमजोर छ। कृपया कम्तिमा ८ अक्षर ठूलो, सानो अक्षर र सङ्ख्यासहित प्रयोग गर्नुहोस्",
       mismatch: "पासवर्ड मिलेन",
       terms: "कृपया सर्तहरू स्वीकार गर्नुहोस्",
       province: "कृपया आफ्नो प्रदेश छान्नुहोस्",
@@ -703,19 +709,41 @@ export default function Signup() {
   // ============================================================
 
   /**
+   * Validate email format.
+   * @param {string} email - Email to validate
+   * @returns {boolean} True if valid email format
+   */
+  function isValidEmail(email) {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
+  }
+
+  /**
    * Handle form submission with validation.
    * Validates all required fields before submitting.
    */
   function handleSubmit() {
-    // Basic validation
+    // Validate full name
     if (!formData.fullName) {
       toast.error(t.alerts.name, { position: "top-right", autoClose: 3000 });
       return;
     }
+    if (formData.fullName.trim().length < 3) {
+      toast.error(t.alerts.nameShort, { position: "top-right", autoClose: 3000 });
+      return;
+    }
+
+    // Validate email
     if (!formData.email) {
       toast.error(t.alerts.email, { position: "top-right", autoClose: 3000 });
       return;
     }
+    if (!isValidEmail(formData.email)) {
+      toast.error(t.alerts.emailInvalid, { position: "top-right", autoClose: 4000 });
+      return;
+    }
+
+    // Validate phone
     if (!formData.phone) {
       toast.error(t.alerts.phone, { position: "top-right", autoClose: 3000 });
       return;
@@ -760,6 +788,8 @@ export default function Signup() {
       toast.error(t.alerts.ward, { position: "top-right", autoClose: 3000 });
       return;
     }
+
+    // Validate password
     if (!formData.password) {
       toast.error(t.alerts.password, {
         position: "top-right",
@@ -767,6 +797,17 @@ export default function Signup() {
       });
       return;
     }
+
+    // Check password strength (require at least score 2 - Medium)
+    if (passwordStrength.score < 2) {
+      toast.error(t.alerts.passwordWeak, {
+        position: "top-right",
+        autoClose: 5000,
+      });
+      return;
+    }
+
+    // Validate password match
     if (!passwordsMatch) {
       toast.error(t.alerts.mismatch, {
         position: "top-right",
