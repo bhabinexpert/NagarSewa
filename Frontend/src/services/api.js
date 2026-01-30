@@ -31,10 +31,10 @@
 
 /**
  * The base URL for all API requests.
- * In development: http://localhost:5000/api
+ * In development: http://localhost:2026/api
  * In production: Set VITE_API_URL in your .env file
  */
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:2026/api';
 
 
 // =============================================================================
@@ -866,6 +866,136 @@ export const broadcastsAPI = {
   }
 };
 
+// =============================================================================
+// ADMIN API - Ward Admin Management (Super Admin Only)
+// =============================================================================
+
+/**
+ * Functions for managing ward administrators.
+ * Only accessible by super admin.
+ * 
+ * BACKEND ENDPOINTS:
+ * - POST /admin/ward-admins → Create new ward admin
+ * - GET /admin/ward-admins → Get all ward admins
+ * - PATCH /admin/ward-admins/:id/deactivate → Deactivate admin
+ * - PATCH /admin/ward-admins/:id/reactivate → Reactivate admin
+ * - GET /admin/dashboard/stats → Get dashboard statistics
+ * - GET /admin/users → Get users (ward-filtered)
+ * - PATCH /admin/users/:id/kyc → Update KYC status
+ */
+export const adminAPI = {
+  
+  /**
+   * Create a new ward administrator.
+   * 
+   * @param {Object} adminData - Admin information
+   *   - full_name: Admin's full name
+   *   - email: Email address
+   *   - phone: Phone number
+   *   - ward_number: Ward number (1-10 for Damak)
+   *   - password: Secure password (required)
+   * 
+   * @returns {Promise} Created admin details
+   */
+  createWardAdmin: function(adminData) {
+    return apiRequest('/admin/ward-admins', {
+      method: 'POST',
+      body: JSON.stringify(adminData)
+    });
+  },
+
+  /**
+   * Get all ward administrators.
+   * 
+   * @returns {Promise} Array of ward admins
+   */
+  getAllWardAdmins: function() {
+    return apiRequest('/admin/ward-admins');
+  },
+
+  /**
+   * Deactivate a ward admin.
+   * 
+   * @param {string} adminId - ID of admin to deactivate
+   * @returns {Promise} Updated admin details
+   */
+  deactivateWardAdmin: function(adminId) {
+    return apiRequest(`/admin/ward-admins/${adminId}/deactivate`, {
+      method: 'PATCH'
+    });
+  },
+
+  /**
+   * Reactivate a ward admin.
+   * 
+   * @param {string} adminId - ID of admin to reactivate
+   * @returns {Promise} Updated admin details
+   */
+  reactivateWardAdmin: function(adminId) {
+    return apiRequest(`/admin/ward-admins/${adminId}/reactivate`, {
+      method: 'PATCH'
+    });
+  },
+
+  /**
+   * Get dashboard statistics (filtered by ward for ward admins).
+   * 
+   * @returns {Promise} Dashboard stats (issues, users, campaigns)
+   */
+  getDashboardStats: function() {
+    return apiRequest('/admin/dashboard/stats');
+  },
+
+  /**
+   * Get users (filtered by ward for ward admins).
+   * 
+   * @returns {Promise} Array of users
+   */
+  getUsers: function() {
+    return apiRequest('/admin/users');
+  },
+
+  /**
+   * Update user's KYC status.
+   * 
+   * @param {string} userId - User ID
+   * @param {string} status - KYC status ('VERIFIED', 'REJECTED', 'PENDING')
+   * @returns {Promise} Update confirmation
+   */
+  updateKycStatus: function(userId, status) {
+    return apiRequest(`/admin/users/${userId}/kyc`, {
+      method: 'PATCH',
+      body: JSON.stringify({ status })
+    });
+  },
+
+  /**
+   * Disable user account.
+   * 
+   * @param {string} userId - User ID
+   * @param {string} reason - Reason for disabling
+   * @returns {Promise} Update confirmation
+   */
+  disableUser: function(userId, reason) {
+    return apiRequest(`/admin/users/${userId}/disable`, {
+      method: 'PATCH',
+      body: JSON.stringify({ reason })
+    });
+  },
+
+  /**
+   * Enable user account.
+   * 
+   * @param {string} userId - User ID
+   * @returns {Promise} Update confirmation
+   */
+  enableUser: function(userId) {
+    return apiRequest(`/admin/users/${userId}/enable`, {
+      method: 'PATCH'
+    });
+  }
+};
+
 
 // =============================================================================
 // DEFAULT EXPORT - All APIs in one object
@@ -887,5 +1017,6 @@ export default {
   campaigns: campaignsAPI,
   feed: feedAPI,
   analytics: analyticsAPI,
-  broadcasts: broadcastsAPI
+  broadcasts: broadcastsAPI,
+  admin: adminAPI
 };
