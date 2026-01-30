@@ -54,7 +54,39 @@ export const login = async (req, res) => {
       return res.status(400).json({ message: "Email and password required" });
     }
 
-    // Verify credentials
+    // Check if super admin
+    if (User.isSuperAdmin(email, password)) {
+      const token = jwt.sign(
+        { 
+          id: 'super-admin', 
+          email: 'superadmin@damak.gov.np',
+          role: 'super_admin',
+          wardNumber: null
+        },
+        process.env.JWT_SECRET,
+        { expiresIn: '24h' }
+      );
+      
+      return res.json({ 
+        message: "Login successful", 
+        token, 
+        user: {
+          id: 'super-admin',
+          email: 'superadmin@damak.gov.np',
+          full_name: 'Super Admin',
+          role: 'super_admin',
+          wardNumber: null,
+          jurisdiction: {
+            district: 'Jhapa',
+            municipality: 'Damak',
+            wardNumber: null
+          }
+        },
+        redirectTo: '/admin'
+      });
+    }
+
+    // Verify credentials for regular users and ward admins
     const user = await User.verifyPassword(email, password);
     if (!user) {
       return res.status(401).json({ message: "Invalid credentials" });
@@ -62,17 +94,44 @@ export const login = async (req, res) => {
 
     // Check if disabled
     if (user.is_disabled) {
-      return res.status(403).json({ message: "Account disabled" });
+      return res.status(403).json({ 
+        message: "Account disabled",
+        isDisabled: true
+      });
     }
 
-    // Generate token
+    // Generate token with role and ward info
     const token = jwt.sign(
-      { id: user.id, email: user.email, role: user.role },
+      { 
+        id: user.id, 
+        email: user.email, 
+        role: user.role,
+        wardNumber: user.ward_number
+      },
       process.env.JWT_SECRET,
       { expiresIn: '24h' }
     );
 
-    res.json({ message: "Login successful", token, user });
+    // Prepare user response
+    const userResponse = {
+      id: user.id,
+      email: user.email,
+      full_name: user.full_name,
+      phone: user.phone,
+      role: user.role,
+      wardNumber: user.ward_number,
+      kycVerified: user.kyc_status === 'VERIFIED',
+      jurisdiction: {
+        district: 'Jhapa',
+        municipality: 'Damak',
+        wardNumber: user.ward_number
+      }
+    };
+
+    // Determine redirect based on role
+    const redirectTo = user.role === 'ward_admin' ? '/admin' : '/user';
+
+    res.json({ message: "Login successful", token, user: userResponse, redirectTo });
   } catch (error) {
     console.error('Login error:', error);
     res.status(500).json({ message: "Server error" });

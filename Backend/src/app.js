@@ -5,6 +5,7 @@ import dotenv from 'dotenv';
 import authRoutes from './routes/auth.js';
 import campaignRoutes from './routes/campaigns.js';
 import issueRoutes from './routes/issues.js';
+import adminRoutes from './routes/admin.js';
 
 dotenv.config({ quiet: true });
 
@@ -22,6 +23,7 @@ app.get('/health', (req, res) => {
 
 // API routes
 app.use('/api/auth', authRoutes);
+app.use('/api/admin', adminRoutes);
 app.use('/api/campaigns', campaignRoutes);
 app.use('/api/issues', issueRoutes);
 

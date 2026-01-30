@@ -99,5 +99,54 @@ export const User = {
 
     const result = await query(sql, values);
     return result.rows;
+  },
+
+  // Create ward admin (super admin only)
+  async createWardAdmin(adminData) {
+    const sql = `
+      INSERT INTO users (full_name, email, password, phone, role, ward_number, kyc_status)
+      VALUES ($1, $2, $3, $4, 'ward_admin', $5, 'VERIFIED')
+      RETURNING id, full_name, email, phone, role, ward_number, created_at
+    `;
+    const values = [
+      adminData.full_name,
+      adminData.email.toLowerCase(),
+      adminData.password,
+      adminData.phone || null,
+      adminData.ward_number
+    ];
+    const result = await query(sql, values);
+    return result.rows[0];
+  },
+
+  // Get all ward admins
+  async getAllWardAdmins() {
+    const sql = `
+      SELECT id, full_name, email, phone, ward_number, is_disabled, created_at 
+      FROM users 
+      WHERE role = 'ward_admin'
+      ORDER BY ward_number ASC
+    `;
+    const result = await query(sql);
+    return result.rows;
+  },
+
+  // Toggle ward admin active status
+  async toggleAdminStatus(adminId, isActive) {
+    const sql = `
+      UPDATE users 
+      SET is_disabled = $1, updated_at = NOW()
+      WHERE id = $2 AND role = 'ward_admin'
+      RETURNING id, full_name, email, ward_number, is_disabled
+    `;
+    const result = await query(sql, [!isActive, adminId]);
+    return result.rows[0];
+  },
+
+  // Check if super admin credentials
+  isSuperAdmin(email, password) {
+    const SUPER_ADMIN_EMAIL = 'superadmin@damak.gov.np';
+    const SUPER_ADMIN_PASSWORD = 'SuperAdmin@123';
+    return email.toLowerCase() === SUPER_ADMIN_EMAIL.toLowerCase() && password === SUPER_ADMIN_PASSWORD;
   }
 };
