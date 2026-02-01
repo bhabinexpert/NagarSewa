@@ -11,6 +11,8 @@
 import React, { useState } from "react";
 import { useLanguage } from "../../../contexts/language/useLanguage";
 import { DAMAK_TOTAL_WARDS } from "../../../contexts/auth/authConstants";
+import { useIssues } from "../../../hooks/useData";
+import { issuesAPI } from "../../../services/api";
 import {
   Search,
   Clock,
@@ -87,37 +89,8 @@ const text = {
 };
 
 // ============================================================================
-// MOCK DATA
+// HELPER FUNCTIONS
 // ============================================================================
-
-const mockIssues = [
-  {
-    id: "ISS-001",
-    type: "Road Damage",
-    typeNp: "सडक क्षति",
-    description: "Large pothole near market",
-    wardNumber: 1,
-    location: "Main Road",
-    status: "pending",
-    reportedBy: "Ram Sharma",
-    reportedOn: "2024-01-15",
-    superAdminPriority: null,
-    priorityNote: null,
-  },
-  {
-    id: "ISS-002",
-    type: "Water Supply",
-    typeNp: "पानी आपूर्ति",
-    description: "No water for 3 days",
-    wardNumber: 3,
-    location: "Sector 4",
-    status: "pending",
-    reportedBy: "Sita Devi",
-    reportedOn: "2024-01-16",
-    superAdminPriority: "urgent",
-    priorityNote: "Critical - affects 200 households",
-  },
-  {
     id: "ISS-003",
     type: "Street Light",
     typeNp: "सडक बत्ती",
@@ -302,11 +275,15 @@ function SuperAdminIssues() {
   const language = languageContext.language;
   const t = text[language];
 
+  // ============================================================
+  // FETCH REAL DATA
+  // ============================================================
+  const { issues: apiIssues, loading, error, refetch } = useIssues({});
+
   // ============================================================================
   // STATE
   // ============================================================================
 
-  const [issues, setIssues] = useState(mockIssues);
   const [filter, setFilter] = useState("all");
   const [wardFilter, setWardFilter] = useState("all");
   const [search, setSearch] = useState("");
@@ -323,12 +300,12 @@ function SuperAdminIssues() {
   // DATA PROCESSING
   // ============================================================================
 
-  // Filter and sort issues
-  const filteredList = filterIssues(issues, wardFilter, filter, search);
+  // Filter and sort issues from API
+  const filteredList = filterIssues(apiIssues, wardFilter, filter, search);
   const filteredIssues = sortIssues(filteredList, sortOrder);
 
   // Calculate stats
-  const stats = calculateStats(issues);
+  const stats = calculateStats(apiIssues);
 
   // Priority options
   const priorityOptions = [
@@ -375,29 +352,26 @@ function SuperAdminIssues() {
   /**
    * Save the priority for the selected issue.
    */
-  function savePriority() {
+  async function savePriority() {
     if (!selectedPriority) {
       return;
     }
 
-    setIssues(function (previousIssues) {
-      return previousIssues.map(function(issue) {
-        if (issue.id === selectedIssue.id) {
-          return {
-            ...issue,
-            superAdminPriority: selectedPriority,
-            priorityNote: priorityNote,
-          };
-        }
-        return issue;
-      });
-    });
+    try {
+      await issuesAPI.setPriority(selectedIssue.id, selectedPriority, priorityNote);
 
-    // Close modal and reset state
-    setShowModal(false);
-    setSelectedIssue(null);
-    setSelectedPriority("");
-    setPriorityNote("");
+      // Reload issues after update
+      refetch();
+
+      // Close modal and reset state
+      setShowModal(false);
+      setSelectedIssue(null);
+      setSelectedPriority("");
+      setPriorityNote("");
+    } catch (error) {
+      console.error('Failed to set priority:', error);
+      alert('Failed to set priority. Please try again.');
+    }
   }
 
   /**
