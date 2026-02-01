@@ -642,7 +642,7 @@ function AdminIssueManagement() {
 
     try {
       // Backend: PATCH /api/issues/:id/status
-      await issuesAPI.updateStatus(issueId, { status: status, response: response });
+      await issuesAPI.updateStatus(issueId, status, response);
       toast.success(t.statusUpdated, { position: "top-right", autoClose: 3000 });
       refetch();
     } catch (err) {
@@ -667,7 +667,7 @@ function AdminIssueManagement() {
 
     try {
       // Backend: PATCH /api/issues/:id/priority
-      await issuesAPI.setPriority(issueId, { priority: priority, note: note });
+      await issuesAPI.setPriority(issueId, priority, note);
       toast.success(t.priorityUpdated, { position: "top-right", autoClose: 3000 });
       refetch();
     } catch (err) {
