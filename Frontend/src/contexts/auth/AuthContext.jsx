@@ -68,7 +68,7 @@ export function AuthProvider({ children }) {
       if (token) {
         try {
           // Validate token with backend
-          const response = await api.auth.getCurrentUser();
+          const response = await api.auth.getMe();
           setCurrentUser(response.user);
         } catch (error) {
           // Token is invalid, clear it
@@ -101,7 +101,7 @@ export function AuthProvider({ children }) {
     async function loadWardAdmins() {
       if (currentUser && currentUser.role === ROLES.SUPER_ADMIN) {
         try {
-          const response = await api.admin.getAllWardAdmins();
+          const response = await api.admin.getWardAdmins();
           const formattedAdmins = response.admins.map(admin => ({
             id: admin.id,
             email: admin.email,
