@@ -1,5 +1,7 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useLanguage } from "../../contexts/language/useLanguage";
+import { useAuth } from "../../contexts/auth/useAuth";
+import { useIssues } from "../../hooks/useData";
 import {
   Camera,
   Image,
@@ -26,7 +28,6 @@ import {
 import ReportIssue from "../../components/dashboard/user/ReportIssue";
 import UserProfile from "../../components/dashboard/user/UserProfile";
 import IssueHistory from "../../components/dashboard/user/IssueHistory";
-import Notifications from "../../components/dashboard/user/Notifications";
 import NewsFeed from "../../components/dashboard/user/NewsFeed";
 import RequestCampaign from "../../components/dashboard/user/RequestCampaign";
 import { Link } from "react-router-dom";
@@ -44,7 +45,6 @@ const dashboardText = {
     requestCampaign: "Request Campaign",
     profile: "Profile & KYC",
     history: "My History",
-    notifications: "Notifications",
     newsFeed: "News Feed",
     settings: "Settings",
     logout: "Logout",
@@ -62,7 +62,6 @@ const dashboardText = {
     requestCampaign: "अभियान अनुरोध",
     profile: "प्रोफाइल र KYC",
     history: "मेरो इतिहास",
-    notifications: "सूचनाहरू",
     newsFeed: "समाचार फिड",
     settings: "सेटिङहरू",
     logout: "लग आउट",
@@ -93,6 +92,9 @@ function UserDashboard() {
   const language = languageContext.language;
   const toggleLanguage = languageContext.toggleLanguage;
   
+  const authContext = useAuth();
+  const currentUser = authContext.currentUser;
+  
   const t = dashboardText[language];
   
   // ============================================================
@@ -103,24 +105,26 @@ function UserDashboard() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   // ============================================================
-  // MOCK USER DATA
+  // REAL USER DATA FROM AUTH CONTEXT
   // ============================================================
   const user = {
-    name: "Ram Bahadur",
-    email: "ram@example.com",
+    name: currentUser?.fullName || "User",
+    email: currentUser?.email || "",
     avatar: null,
-    location: "Kathmandu, Ward 5",
-    isVerified: false,
+    location: `${currentUser?.jurisdiction?.municipality || "Damak"}, Ward ${currentUser?.wardNumber || "N/A"}`,
+    isVerified: currentUser?.kycVerified || false,
   };
 
   // ============================================================
-  // MOCK STATS
+  // REAL STATS FROM API
   // ============================================================
+  const { issues, loading: issuesLoading } = useIssues({ user_id: currentUser?.id });
+  
   const stats = {
-    totalReports: 12,
-    pending: 3,
-    resolved: 7,
-    inProgress: 2,
+    totalReports: issues.length || 0,
+    pending: issues.filter(i => i.status === 'pending').length || 0,
+    resolved: issues.filter(i => i.status === 'resolved').length || 0,
+    inProgress: issues.filter(i => i.status === 'in_progress').length || 0,
   };
 
   // ============================================================
@@ -132,7 +136,6 @@ function UserDashboard() {
     { id: "campaign", icon: Megaphone, label: t.requestCampaign },
     { id: "profile", icon: User, label: t.profile },
     { id: "history", icon: History, label: t.history },
-    { id: "notifications", icon: Bell, label: t.notifications, badge: 3 },
     { id: "newsfeed", icon: Newspaper, label: t.newsFeed },
   ];
 
@@ -190,9 +193,6 @@ function UserDashboard() {
     }
     if (activeTab === "history") {
       return <IssueHistory />;
-    }
-    if (activeTab === "notifications") {
-      return <Notifications />;
     }
     if (activeTab === "newsfeed") {
       return <NewsFeed />;
@@ -370,46 +370,6 @@ function UserDashboard() {
                   : "तपाईंको क्षेत्रबाट रिपोर्टहरू हेर्नुहोस्"}
               </p>
             </button>
-          </div>
-        </div>
-
-        {/* Recent Notifications Preview */}
-        <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold text-gray-800">
-              {language === "en" ? "Recent Notifications" : "हालका सूचनाहरू"}
-            </h3>
-            <button
-              onClick={function() { handleTabChange("notifications"); }}
-              className="text-emerald-600 text-sm font-medium hover:underline flex items-center gap-1"
-            >
-              {language === "en" ? "View All" : "सबै हेर्नुहोस्"}
-              <ChevronRight size={16} />
-            </button>
-          </div>
-          <div className="space-y-3">
-            <div className="flex items-start gap-3 p-3 bg-emerald-50 rounded-lg">
-              <Bell className="text-emerald-600 mt-1" size={18} />
-              <div>
-                <p className="text-sm text-gray-800">
-                  {language === "en"
-                    ? "Your road repair report has been assigned to a team"
-                    : "तपाईंको सडक मर्मत रिपोर्ट एक टोलीलाई तोकिएको छ"}
-                </p>
-                <p className="text-xs text-gray-500 mt-1">2 hours ago</p>
-              </div>
-            </div>
-            <div className="flex items-start gap-3 p-3 bg-blue-50 rounded-lg">
-              <Bell className="text-blue-600 mt-1" size={18} />
-              <div>
-                <p className="text-sm text-gray-800">
-                  {language === "en"
-                    ? "Ward office announces water supply schedule"
-                    : "वडा कार्यालयले पानी आपूर्ति तालिका घोषणा गर्दछ"}
-                </p>
-                <p className="text-xs text-gray-500 mt-1">1 day ago</p>
-              </div>
-            </div>
           </div>
         </div>
       </div>
