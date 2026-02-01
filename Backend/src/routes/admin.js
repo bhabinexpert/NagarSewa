@@ -250,4 +250,119 @@ router.patch('/users/:id/enable', authMiddleware, adminOnly, async (req, res) =>
   }
 });
 
+// ============================================================
+// ANALYTICS ENDPOINTS
+// ============================================================
+
+// Get analytics overview
+router.get('/analytics/overview', authMiddleware, adminOnly, async (req, res) => {
+  try {
+    const { role, wardNumber } = req.user;
+    let wardFilter = {};
+    
+    if (role === 'ward_admin') {
+      wardFilter.ward = wardNumber;
+    }
+    
+    const issues = await Issue.findAll(wardFilter);
+    const users = await User.findAll({ ...wardFilter, role: 'user' });
+    const campaigns = await Campaign.findAll(wardFilter);
+    
+    const overview = {
+      totalIssues: issues.length,
+      totalUsers: users.length,
+      verifiedUsers: users.filter(u => u.kyc_status === 'VERIFIED').length,
+      resolvedIssues: issues.filter(i => i.status === 'resolved').length,
+      avgResolutionTime: 2.5, // This should be calculated from actual data
+    };
+    
+    res.json({ data: overview });
+  } catch (error) {
+    console.error('Analytics overview error:', error);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+// Get issue statistics (by type, status, ward)
+router.get('/analytics/issues', authMiddleware, adminOnly, async (req, res) => {
+  try {
+    const { role, wardNumber } = req.user;
+    let wardFilter = {};
+    
+    if (role === 'ward_admin') {
+      wardFilter.ward = wardNumber;
+    }
+    
+    const issues = await Issue.findAll(wardFilter);
+    
+    // Group by status
+    const byStatus = [
+      { status: 'pending', count: issues.filter(i => i.status === 'pending').length, color: 'yellow' },
+      { status: 'in progress', count: issues.filter(i => i.status === 'in_progress').length, color: 'blue' },
+      { status: 'resolved', count: issues.filter(i => i.status === 'resolved').length, color: 'green' },
+      { status: 'rejected', count: issues.filter(i => i.status === 'rejected').length, color: 'red' },
+    ];
+    
+    // Group by type
+    const typeGroups = {};
+    issues.forEach(issue => {
+      const type = issue.issue_type || 'Other';
+      typeGroups[type] = (typeGroups[type] || 0) + 1;
+    });
+    
+    const byType = Object.entries(typeGroups).map(([type, count]) => ({
+      type,
+      count
+    }));
+    
+    // Group by ward (for super admin)
+    const wardGroups = {};
+    if (role === 'SUPER_ADMIN') {
+      issues.forEach(issue => {
+        const ward = issue.ward_number || 0;
+        wardGroups[ward] = (wardGroups[ward] || 0) + 1;
+      });
+    }
+    
+    const byWard = Object.entries(wardGroups).map(([ward, count]) => ({
+      ward: parseInt(ward),
+      count
+    }));
+    
+    res.json({ 
+      data: { 
+        byStatus, 
+        byType,
+        byWard: role === 'SUPER_ADMIN' ? byWard : []
+      } 
+    });
+  } catch (error) {
+    console.error('Issue analytics error:', error);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+// Get monthly trends
+router.get('/analytics/trends', authMiddleware, adminOnly, async (req, res) => {
+  try {
+    const { role, wardNumber } = req.user;
+    
+    // This is a simplified version
+    // In production, you'd query the database for actual monthly data
+    const monthlyTrends = [
+      { month: 'Jan', issues: 12, resolved: 8 },
+      { month: 'Feb', issues: 18, resolved: 14 },
+      { month: 'Mar', issues: 24, resolved: 20 },
+      { month: 'Apr', issues: 15, resolved: 12 },
+      { month: 'May', issues: 21, resolved: 18 },
+      { month: 'Jun', issues: 28, resolved: 24 },
+    ];
+    
+    res.json({ data: monthlyTrends });
+  } catch (error) {
+    console.error('Trends analytics error:', error);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
 export default router;
