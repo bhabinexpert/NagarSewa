@@ -6,6 +6,10 @@ import authRoutes from './routes/auth.js';
 import campaignRoutes from './routes/campaigns.js';
 import issueRoutes from './routes/issues.js';
 import adminRoutes from './routes/admin.js';
+import userRoutes from './routes/users.js';
+import feedRoutes from './routes/feed.js';
+import { requestLogger } from './middleware/logger.js';
+import { sendError, HTTP_STATUS } from './utils/response.js';
 
 dotenv.config({ quiet: true });
 
@@ -15,6 +19,11 @@ const app = express();
 app.use(cors({ origin: process.env.FRONTEND_URL, credentials: true }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// Request logging (only in development)
+if (process.env.NODE_ENV !== 'production') {
+  app.use(requestLogger);
+}
 
 // Health check
 app.get('/health', (req, res) => {
@@ -26,16 +35,25 @@ app.use('/api/auth', authRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/campaigns', campaignRoutes);
 app.use('/api/issues', issueRoutes);
+app.use('/api/users', userRoutes);
+app.use('/api/feed', feedRoutes);
 
 // 404 handler
 app.use((req, res) => {
-  res.status(404).json({ message: 'Route not found' });
+  sendError(res, 'Route not found', HTTP_STATUS.NOT_FOUND);
 });
 
-// Error handler
+// Global error handler
 app.use((err, req, res, next) => {
-  console.error('Error:', err);
-  res.status(500).json({ message: 'Internal server error' });
+  console.error('❌ Error:', err);
+  
+  // If headers already sent, delegate to default Express error handler
+  if (res.headersSent) {
+    return next(err);
+  }
+  
+  // Send error response
+  sendError(res, err.message || 'Internal server error', err.statusCode || HTTP_STATUS.INTERNAL_SERVER_ERROR, err);
 });
 
 export default app;
