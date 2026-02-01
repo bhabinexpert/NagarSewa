@@ -30,7 +30,7 @@
  */
 
 import { useState, useEffect, useCallback } from 'react';
-import { issuesAPI, usersAPI, notificationsAPI, feedAPI, analyticsAPI, campaignsAPI } from '../services/api';
+import { issuesAPI, campaignsAPI, usersAPI, feedAPI } from '../services/api';
 
 
 // =============================================================================
@@ -159,8 +159,8 @@ export const useUsers = (params = {}) => {
   const { data, loading, error, refetch } = useApiData(usersAPI.getAll, params);
   
   return {
-    users: data?.users || [],   // List of users
-    total: data?.total || 0,    // Total count for pagination
+    users: data?.users || [],
+    total: data?.total || 0,
     loading,
     error,
     refetch,
@@ -177,53 +177,9 @@ export const useUsers = (params = {}) => {
  */
 export const useUser = (id) => {
   const fetchUser = useCallback(() => usersAPI.getById(id), [id]);
-  
   const { data, loading, error, refetch } = useApiData(fetchUser, {});
   
   return { user: data, loading, error, refetch };
-};
-
-// =============================================================================
-// NOTIFICATIONS HOOKS - For loading user notifications
-// =============================================================================
-
-/**
- * Load notifications for the current user
- * 
- * FILTERS YOU CAN USE:
- *   - type: 'announcement' or 'update'
- *   - unread: true (only get unread notifications)
- * 
- * EXAMPLE:
- *   const { notifications, unreadCount } = useNotifications();
- * 
- * BACKEND API: GET /api/notifications
- */
-export const useNotifications = (params = {}) => {
-  const { data, loading, error, refetch } = useApiData(notificationsAPI.getAll, params);
-  
-  // Get notifications (or empty array if none)
-  const notifications = data || [];
-  
-  // Count how many are unread
-  const unreadCount = notifications.filter(n => !n.isRead).length;
-  
-  return { notifications, unreadCount, loading, error, refetch };
-};
-
-/**
- * Load broadcast history (for admins only)
- * Shows all notifications that have been sent to users
- * 
- * EXAMPLE:
- *   const { broadcasts, loading } = useBroadcasts();
- * 
- * BACKEND API: GET /api/notifications/broadcasts
- */
-export const useBroadcasts = (params = {}) => {
-  const { data, loading, error, refetch } = useApiData(notificationsAPI.getBroadcastHistory, params);
-  
-  return { broadcasts: data || [], loading, error, refetch };
 };
 
 // =============================================================================
@@ -373,6 +329,35 @@ export const useAnalytics = (params = {}) => {
   }, [fetchAnalytics]);
 
   return { analytics, loading, error, refetch: fetchAnalytics };
+};
+
+// =============================================================================
+// ADMIN HOOKS - For admin dashboard functionality
+// =============================================================================
+
+/**
+ * Load dashboard statistics for admin panel
+ * Fetches issue stats, user stats, and campaign stats
+ * Automatically filtered by ward for ward admins
+ * 
+ * EXAMPLE:
+ *   const { stats, loading } = useDashboardStats();
+ * 
+ * BACKEND API: GET /api/admin/dashboard/stats
+ */
+export const useDashboardStats = () => {
+  const { data, loading, error, refetch } = useApiData(adminAPI.getDashboardStats, {});
+  
+  return {
+    stats: data || {
+      issues: { total: 0, pending: 0, inProgress: 0, resolved: 0 },
+      users: { total: 0, verified: 0, pendingKyc: 0 },
+      campaigns: { total: 0, pending: 0, approved: 0 }
+    },
+    loading,
+    error,
+    refetch,
+  };
 };
 
 
