@@ -178,7 +178,7 @@ function formatDateTime(dateString) {
 // CAMPAIGN CARD SUB-COMPONENT
 
 
-function CampaignCard({ campaign, t, onStatusUpdate, onDelete, isUpdating }) {
+function CampaignCard({ campaign, t, onStatusUpdate, isUpdating }) {
   const [expanded, setExpanded] = useState(false);
   const [showResponseModal, setShowResponseModal] = useState(false);
   const [actionType, setActionType] = useState(null); // 'approve', 'reject', 'complete'
@@ -201,24 +201,23 @@ function CampaignCard({ campaign, t, onStatusUpdate, onDelete, isUpdating }) {
   }
 
   async function handleSubmitAction() {
-    const data = {
-      adminResponse: adminResponse || null,
-    };
+    let status;
+    let admin_response = adminResponse || null;
 
     if (actionType === "approve") {
-      data.status = "APPROVED";
+      status = "APPROVED";
     } else if (actionType === "reject") {
       if (!rejectionReason.trim()) {
         toast.error("Please provide a rejection reason");
         return;
       }
-      data.status = "REJECTED";
-      data.rejectionReason = rejectionReason;
+      status = "REJECTED";
+      admin_response = rejectionReason; // Use rejection reason as response
     } else if (actionType === "complete") {
-      data.status = "COMPLETED";
+      status = "COMPLETED";
     }
 
-    await onStatusUpdate(campaign.id, data);
+    await onStatusUpdate(campaign.id, status, admin_response);
     setShowResponseModal(false);
   }
 
@@ -383,22 +382,6 @@ function CampaignCard({ campaign, t, onStatusUpdate, onDelete, isUpdating }) {
               <p className="text-sm text-red-800">{campaign.rejection_reason}</p>
             </div>
           )}
-
-          {/* Delete Button */}
-          <div className="pt-2 border-t border-gray-200">
-            <button
-              onClick={() => {
-                if (window.confirm(t.confirmDelete)) {
-                  onDelete(campaign.id);
-                }
-              }}
-              disabled={isUpdating}
-              className="px-4 py-2 text-red-600 hover:bg-red-50 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 flex items-center gap-1"
-            >
-              <Trash2 size={16} />
-              {t.delete}
-            </button>
-          </div>
         </div>
       )}
 
@@ -508,27 +491,14 @@ export default function AdminCampaignManagement({ wardFilter, isSuperAdmin }) {
   const { campaigns, total, loading, error, refetch } = useCampaigns(queryParams);
 
   // Handlers
-  async function handleStatusUpdate(id, data) {
+  async function handleStatusUpdate(id, status, admin_response) {
     setIsUpdating(true);
     try {
-      await campaignsAPI.updateStatus(id, data);
+      await campaignsAPI.updateStatus(id, status, admin_response);
       toast.success(t.statusUpdated);
       refetch();
     } catch (error) {
       toast.error(error.message || "Failed to update campaign status");
-    } finally {
-      setIsUpdating(false);
-    }
-  }
-
-  async function handleDelete(id) {
-    setIsUpdating(true);
-    try {
-      await campaignsAPI.delete(id);
-      toast.success(t.campaignDeleted);
-      refetch();
-    } catch (error) {
-      toast.error(error.message || "Failed to delete campaign");
     } finally {
       setIsUpdating(false);
     }
@@ -676,7 +646,6 @@ export default function AdminCampaignManagement({ wardFilter, isSuperAdmin }) {
               campaign={campaign}
               t={t}
               onStatusUpdate={handleStatusUpdate}
-              onDelete={handleDelete}
               isUpdating={isUpdating}
             />
           ))}
