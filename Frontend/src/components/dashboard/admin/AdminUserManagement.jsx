@@ -22,7 +22,7 @@ import { useLanguage } from "../../../contexts/language/useLanguage";
 import { useAuth } from "../../../contexts/auth/useAuth";
 import { DAMAK_TOTAL_WARDS, ROLES } from "../../../contexts/auth/authConstants";
 import { useUsers } from "../../../hooks/useData";
-import { usersAPI } from "../../../services/api";
+import { adminAPI } from "../../../services/api";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import {
@@ -736,8 +736,8 @@ function AdminUserManagement() {
     setIsSubmitting(true);
 
     try {
-      // Backend: PATCH /api/users/:id/kyc
-      await usersAPI.updateKyc(userId, { status: "verified" });
+      // Backend: PATCH /api/admin/users/:id/kyc
+      await adminAPI.verifyKYC(userId, 'VERIFIED');
       toast.success(t.kycVerified, { position: "top-right", autoClose: 3000 });
       refetch();
     } catch (err) {
@@ -796,12 +796,12 @@ function AdminUserManagement() {
 
     try {
       if (type === "kyc") {
-        // Backend: PATCH /api/users/:id/kyc
-        await usersAPI.updateKyc(userId, { status: "rejected", note: reason });
+        // Backend: PATCH /api/admin/users/:id/kyc
+        await adminAPI.verifyKYC(userId, 'REJECTED');
         toast.success(t.kycRejected, { position: "top-right", autoClose: 3000 });
       } else if (type === "disable") {
-        // Backend: PATCH /api/users/:id/status
-        await usersAPI.updateStatus(userId, { enabled: false, reason: reason });
+        // Backend: PATCH /api/admin/users/:id/disable
+        await adminAPI.disableUser(userId);
         toast.success(t.accountDisabled, { position: "top-right", autoClose: 3000 });
       }
       refetch();
@@ -827,8 +827,12 @@ function AdminUserManagement() {
     setIsSubmitting(true);
 
     try {
-      // Backend: PATCH /api/users/:id/status
-      await usersAPI.updateStatus(userId, { enabled: enabled, reason: reason });
+      // Backend: PATCH /api/admin/users/:id/disable or /enable
+      if (enabled) {
+        await adminAPI.enableUser(userId);
+      } else {
+        await adminAPI.disableUser(userId);
+      }
 
       let successMessage;
       if (enabled) {
