@@ -10,6 +10,8 @@
 import React, { useState } from "react";
 import { useLanguage } from "../../../contexts/language/useLanguage";
 import { useAuth } from "../../../contexts/auth/useAuth";
+import { useIssues } from "../../../hooks/useData";
+import { issuesAPI } from "../../../services/api";
 import {
   Search,
   Clock,
@@ -75,29 +77,8 @@ const text = {
 };
 
 // ============================================================================
-// MOCK DATA
+// HELPER FUNCTIONS
 // ============================================================================
-
-const mockIssues = [
-  {
-    id: "ISS-001",
-    type: "Road Damage",
-    typeNp: "सडक क्षति",
-    description: "Large pothole near market area causing accidents",
-    descriptionNp: "बजार क्षेत्रमा ठूलो खाल्डो",
-    location: "Main Road, Ward 5",
-    status: "pending",
-    reportedBy: "Ram Sharma",
-    reportedOn: "2024-01-15",
-    priority: "high",
-    superAdminPriority: "urgent",
-    priorityNote: "Immediate attention required - safety hazard",
-  },
-  {
-    id: "ISS-002",
-    type: "Water Supply",
-    typeNp: "पानी आपूर्ति",
-    description: "No water supply for 3 days in Sector 4",
     descriptionNp: "३ दिनदेखि पानी छैन",
     location: "Sector 4, Ward 5",
     status: "inProgress",
@@ -330,26 +311,30 @@ function WardAdminIssues() {
   const t = text[language];
   const wardNumber = getUserWard() || 5;
 
-  // ============================================================================
-  // STATE
-  // ============================================================================
+  // ============================================================
+  // FETCH REAL DATA
+  // ============================================================
+  const { issues: apiIssues, loading, error, refetch } = useIssues({ ward: wardNumber });
 
-  const [issues, setIssues] = useState(mockIssues);
+  // ============================================================
+  // STATE
+  // ============================================================
+
   const [filter, setFilter] = useState("all");
   const [search, setSearch] = useState("");
   const [sortOrder, setSortOrder] = useState("newest");
   const [expandedId, setExpandedId] = useState(null);
 
-  // ============================================================================
+  // ============================================================
   // DATA PROCESSING
-  // ============================================================================
+  // ============================================================
 
-  // Filter and sort issues
-  const filteredList = filterIssues(issues, filter, search);
+  // Filter and sort issues from API
+  const filteredList = filterIssues(apiIssues, filter, search);
   const filteredIssues = sortIssues(filteredList, sortOrder);
 
   // Count issues for filter tabs
-  const issueCounts = countIssues(issues);
+  const issueCounts = countIssues(apiIssues);
 
   // ============================================================================
   // EVENT HANDLERS
@@ -360,15 +345,14 @@ function WardAdminIssues() {
    * @param {string} id - Issue ID
    * @param {string} newStatus - New status to set
    */
-  function handleStatusUpdate(id, newStatus) {
-    setIssues(function (previousIssues) {
-      return previousIssues.map(function(issue) {
-        if (issue.id === id) {
-          return { ...issue, status: newStatus };
-        }
-        return issue;
-      });
-    });
+  async function handleStatusUpdate(id, newStatus) {
+    try {
+      await issuesAPI.updateStatus(id, newStatus);
+      refetch(); // Reload issues after update
+    } catch (error) {
+      console.error('Failed to update issue status:', error);
+      alert('Failed to update issue status. Please try again.');
+    }
   }
 
   /**
