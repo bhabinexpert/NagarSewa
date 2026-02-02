@@ -64,20 +64,45 @@ export function AuthProvider({ children }) {
   useEffect(function() {
     async function checkAuth() {
       const token = localStorage.getItem("authToken");
+      const savedUser = localStorage.getItem("nagarsewa_user");
       
-      if (token) {
+      if (token && savedUser) {
         try {
-          // Validate token with backend
+          // Parse saved user and normalize field names (handle old format)
+          const parsedUser = JSON.parse(savedUser);
+          const normalizedUser = {
+            ...parsedUser,
+            fullName: parsedUser.fullName || parsedUser.full_name,
+            wardNumber: parsedUser.wardNumber || parsedUser.ward_number,
+            dateOfBirth: parsedUser.dateOfBirth || parsedUser.date_of_birth,
+            kycVerified: parsedUser.kycVerified || parsedUser.kyc_status === 'VERIFIED',
+            kycStatus: parsedUser.kycStatus || parsedUser.kyc_status
+          };
+          
+          // Set the normalized user immediately to prevent redirect
+          setCurrentUser(normalizedUser);
+          
+          // Then validate token with backend (but don't block UI)
           const response = await api.auth.getMe();
-          setCurrentUser(response.user);
+          
+          // Update with fresh data from backend if successful
+          if (response && response.user) {
+            setCurrentUser(response.user);
+          }
         } catch (error) {
+          console.error('Auth validation error:', error);
           // Token is invalid, clear it
           localStorage.removeItem("authToken");
           localStorage.removeItem("nagarsewa_user");
+          setCurrentUser(null);
+        } finally {
+          // Always set loading to false, whether success or error
+          setIsLoading(false);
         }
+      } else {
+        // No token or saved user, not logged in
+        setIsLoading(false);
       }
-      
-      setIsLoading(false);
     }
     
     checkAuth();
@@ -95,32 +120,30 @@ export function AuthProvider({ children }) {
   }, [currentUser]);
   
   /**
-   * Load ward admins when user is super admin.
+   * Load ward admins manually (called by SuperAdminPanel when needed).
    */
-  useEffect(function() {
-    async function loadWardAdmins() {
-      if (currentUser && currentUser.role === ROLES.SUPER_ADMIN) {
-        try {
-          const response = await api.admin.getWardAdmins();
-          const formattedAdmins = response.admins.map(admin => ({
-            id: admin.id,
-            email: admin.email,
-            fullName: admin.full_name,
-            role: ROLES.WARD_ADMIN,
-            wardNumber: admin.ward_number,
-            phone: admin.phone,
-            isActive: !admin.is_disabled, // Convert is_disabled to isActive
-            createdAt: admin.created_at
-          }));
-          setWardAdmins(formattedAdmins);
-        } catch (error) {
-          console.error('Error loading ward admins:', error);
-        }
+  async function loadWardAdmins() {
+    if (currentUser && currentUser.role === ROLES.SUPER_ADMIN) {
+      try {
+        const response = await api.admin.getWardAdmins();
+        const formattedAdmins = response.admins.map(admin => ({
+          id: admin.id,
+          email: admin.email,
+          fullName: admin.full_name,
+          role: ROLES.WARD_ADMIN,
+          wardNumber: admin.ward_number,
+          phone: admin.phone,
+          isActive: !admin.is_disabled, // Convert is_disabled to isActive
+          createdAt: admin.created_at
+        }));
+        setWardAdmins(formattedAdmins);
+        return formattedAdmins;
+      } catch (error) {
+        console.error('Error loading ward admins:', error);
+        throw error;
       }
     }
-    
-    loadWardAdmins();
-  }, [currentUser]);
+  }
   
   
   // =========================================================================
@@ -141,18 +164,21 @@ export function AuthProvider({ children }) {
       // Call backend API
       const response = await api.auth.login({ email, password });
       
+      // Backend wraps data in response.data
+      const { token, user, redirectTo } = response.data || response;
+      
       // Store token
-      localStorage.setItem("authToken", response.token);
+      localStorage.setItem("authToken", token);
       
       // Set user in state
-      setCurrentUser(response.user);
+      setCurrentUser(user);
       
       setIsLoading(false);
       
       return { 
         success: true, 
-        user: response.user, 
-        redirectTo: response.redirectTo || (response.user.role === 'user' ? '/user' : '/admin')
+        user: user, 
+        redirectTo: redirectTo || (user.role === 'user' ? '/user' : '/admin')
       };
       
     } catch (error) {
@@ -184,6 +210,38 @@ export function AuthProvider({ children }) {
     localStorage.removeItem("nagarsewa_user");
   }
   
+  /**
+   * Update current user's profile information.
+   * Updates both state and localStorage.
+   * @param {Object} updates - Profile fields to update (fullName, phone, etc.)
+   */
+  function updateProfile(updates) {
+    const updatedUser = {
+      ...currentUser,
+      ...updates,
+      // Map full_name to fullName if provided
+      fullName: updates.full_name || updates.fullName || currentUser.fullName
+    };
+    setCurrentUser(updatedUser);
+    localStorage.setItem("nagarsewa_user", JSON.stringify(updatedUser));
+  }  
+  /**
+   * Refresh current user data from backend.
+   * Fetches the latest user data and updates the context.
+   */
+  async function refreshUser() {
+    try {
+      const response = await api.auth.getMe();
+      if (response && response.user) {
+        setCurrentUser(response.user);
+        localStorage.setItem("nagarsewa_user", JSON.stringify(response.user));
+        return response.user;
+      }
+    } catch (error) {
+      console.error('Error refreshing user data:', error);
+      throw error;
+    }
+  }  
   
   // =========================================================================
   // ROLE CHECKING FUNCTIONS
@@ -194,7 +252,7 @@ export function AuthProvider({ children }) {
    * @returns {boolean} true if super admin, false otherwise
    */
   function isSuperAdmin() {
-    return currentUser?.role === ROLES.SUPER_ADMIN;
+    return currentUser?.role?.toUpperCase() === 'SUPER_ADMIN';
   }
   
   /**
@@ -202,7 +260,7 @@ export function AuthProvider({ children }) {
    * @returns {boolean} true if ward admin, false otherwise
    */
   function isWardAdmin() {
-    return currentUser?.role === ROLES.WARD_ADMIN;
+    return currentUser?.role?.toUpperCase() === 'WARD_ADMIN';
   }
   
   /**
@@ -279,16 +337,19 @@ export function AuthProvider({ children }) {
         password: adminData.password
       });
       
+      // Backend returns { message, admin } directly (not wrapped in data)
+      const adminData = response.admin || response;
+      
       // Add to local state with functional update for immediate UI refresh
       const newAdmin = {
-        id: response.admin.id,
-        email: response.admin.email,
-        fullName: response.admin.full_name,
+        id: adminData.id,
+        email: adminData.email,
+        fullName: adminData.full_name,
         role: ROLES.WARD_ADMIN,
-        wardNumber: response.admin.ward_number,
-        phone: response.admin.phone,
-        isActive: !response.admin.is_disabled, // Convert is_disabled to isActive
-        createdAt: response.admin.created_at
+        wardNumber: adminData.ward_number,
+        phone: adminData.phone,
+        isActive: !adminData.is_disabled, // Convert is_disabled to isActive
+        createdAt: adminData.created_at || adminData.createdAt
       };
       
       setWardAdmins(prevAdmins => [...prevAdmins, newAdmin]);
@@ -402,7 +463,7 @@ export function AuthProvider({ children }) {
     }
     
     // Get list of wards that have active admins
-    const assignedWards = wardAdmins
+    const assignedWards = (wardAdmins || [])
       .filter(function(admin) {
         return admin.isActive;
       })
@@ -566,6 +627,8 @@ export function AuthProvider({ children }) {
     // Auth functions
     login: login,
     logout: logout,
+    updateProfile: updateProfile,
+    refreshUser: refreshUser,
     
     // Role checking functions
     isSuperAdmin: isSuperAdmin,
@@ -590,6 +653,7 @@ export function AuthProvider({ children }) {
     reactivateWardAdmin: reactivateWardAdmin,
     getWardAdmins: getWardAdmins,
     getWardsWithoutAdmin: getWardsWithoutAdmin,
+    loadWardAdmins: loadWardAdmins,
     
     // Data filtering
     filterDataByJurisdiction: filterDataByJurisdiction,
