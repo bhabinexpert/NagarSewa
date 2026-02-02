@@ -182,17 +182,51 @@ router.get('/dashboard/stats', authMiddleware, adminOnly, async (req, res) => {
 router.get('/users', authMiddleware, adminOnly, async (req, res) => {
   try {
     const { role, wardNumber } = req.user;
+    const { kycStatus, search, sort } = req.query;
     
     let filters = { role: 'user' };
     if (role === 'ward_admin') {
       filters.ward = wardNumber;
     }
+    if (kycStatus && kycStatus !== 'all') {
+      filters.kycStatus = kycStatus;
+    }
+    if (search) {
+      filters.search = search;
+    }
 
-    const users = await User.findAll(filters);
-    res.json({ users });
+    const allUsers = await User.findAll(filters);
+    
+    // Format users for frontend
+    const formattedUsers = allUsers.map(user => ({
+      id: user.id,
+      name: user.full_name,
+      email: user.email,
+      phone: user.phone,
+      ward: user.ward_number,
+      kycStatus: user.kyc_status?.toLowerCase() || 'pending',
+      enabled: !user.is_disabled,
+      registeredOn: user.created_at,
+      documents: user.kyc_documents || null
+    }));
+
+    // Calculate stats
+    const stats = {
+      total: formattedUsers.length,
+      pendingKyc: formattedUsers.filter(u => u.kycStatus === 'pending').length,
+      active: formattedUsers.filter(u => u.enabled && u.kycStatus === 'verified').length
+    };
+
+    res.json({ 
+      success: true,
+      data: {
+        users: formattedUsers,
+        stats: stats
+      }
+    });
   } catch (error) {
     console.error('Get users error:', error);
-    res.status(500).json({ message: "Server error" });
+    res.status(500).json({ success: false, message: "Server error" });
   }
 });
 
@@ -239,14 +273,14 @@ router.patch('/users/:id/disable', authMiddleware, adminOnly, async (req, res) =
 router.patch('/users/:id/enable', authMiddleware, adminOnly, async (req, res) => {
   try {
     await query(
-      'UPDATE users SET is_disabled = false, disabled_reason = NULL, updated_at = NOW() WHERE id = $2',
+      'UPDATE users SET is_disabled = false, disabled_reason = NULL, updated_at = NOW() WHERE id = $1',
       [req.params.id]
     );
 
-    res.json({ message: "User account enabled" });
+    res.json({ success: true, message: "User account enabled" });
   } catch (error) {
     console.error('Enable user error:', error);
-    res.status(500).json({ message: "Server error" });
+    res.status(500).json({ success: false, message: "Server error" });
   }
 });
 
@@ -361,6 +395,91 @@ router.get('/analytics/trends', authMiddleware, adminOnly, async (req, res) => {
     res.json({ data: monthlyTrends });
   } catch (error) {
     console.error('Trends analytics error:', error);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+// Update admin profile
+router.patch('/profile', authMiddleware, adminOnly, async (req, res) => {
+  try {
+    const { full_name, phone } = req.body;
+    const userId = req.user.id;
+
+    // Validate input
+    if (!full_name) {
+      return res.status(400).json({ message: "Full name is required" });
+    }
+
+    // Update user profile in database
+    const result = await query(
+      `UPDATE users 
+       SET full_name = $1, phone = $2, updated_at = NOW()
+       WHERE id = $3
+       RETURNING id, full_name, email, phone, role, ward_number, kyc_status, is_disabled`,
+      [full_name, phone, userId]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    const updatedUser = result.rows[0];
+
+    res.json({
+      success: true,
+      message: "Profile updated successfully",
+      data: updatedUser
+    });
+  } catch (error) {
+    console.error('Update profile error:', error);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+// Change admin password
+router.patch('/password', authMiddleware, adminOnly, async (req, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+    const userId = req.user.id;
+
+    // Validate input
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({ message: "Current password and new password are required" });
+    }
+
+    if (newPassword.length < 8) {
+      return res.status(400).json({ message: "New password must be at least 8 characters long" });
+    }
+
+    // Get current user from database
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    // Verify current password
+    const isValidPassword = await bcrypt.compare(currentPassword, user.password);
+    if (!isValidPassword) {
+      return res.status(401).json({ message: "Current password is incorrect" });
+    }
+
+    // Hash new password
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+    // Update password in database
+    await query(
+      `UPDATE users 
+       SET password = $1, updated_at = NOW()
+       WHERE id = $2`,
+      [hashedPassword, userId]
+    );
+
+    res.json({
+      success: true,
+      message: "Password changed successfully"
+    });
+  } catch (error) {
+    console.error('Change password error:', error);
     res.status(500).json({ message: "Server error" });
   }
 });

@@ -8,7 +8,7 @@
  * @component
  */
 
-import React, { useState } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { useLanguage } from "../../../contexts/language/useLanguage";
 import { DAMAK_TOTAL_WARDS } from "../../../contexts/auth/authConstants";
 import { useIssues } from "../../../hooks/useData";
@@ -87,49 +87,6 @@ const text = {
     reportedBy: "रिपोर्ट गर्ने",
   },
 };
-
-// ============================================================================
-// HELPER FUNCTIONS
-// ============================================================================
-    id: "ISS-003",
-    type: "Street Light",
-    typeNp: "सडक बत्ती",
-    description: "Lights not working",
-    wardNumber: 5,
-    location: "Block B",
-    status: "inProgress",
-    reportedBy: "Hari Prasad",
-    reportedOn: "2024-01-17",
-    superAdminPriority: "high",
-    priorityNote: "Complete before festival",
-  },
-  {
-    id: "ISS-004",
-    type: "Drainage",
-    typeNp: "ढल निकास",
-    description: "Blocked drainage causing flooding",
-    wardNumber: 2,
-    location: "Market Area",
-    status: "pending",
-    reportedBy: "Krishna Rai",
-    reportedOn: "2024-01-18",
-    superAdminPriority: null,
-    priorityNote: null,
-  },
-  {
-    id: "ISS-005",
-    type: "Garbage",
-    typeNp: "फोहोर",
-    description: "Garbage not collected",
-    wardNumber: 7,
-    location: "Residential Area",
-    status: "resolved",
-    reportedBy: "Maya Thapa",
-    reportedOn: "2024-01-10",
-    superAdminPriority: null,
-    priorityNote: null,
-  },
-];
 
 // ============================================================================
 // HELPER FUNCTIONS
@@ -279,6 +236,11 @@ function SuperAdminIssues() {
   // FETCH REAL DATA
   // ============================================================
   const { issues: apiIssues, loading, error, refetch } = useIssues({});
+
+  // Fetch issues when component mounts
+  useEffect(() => {
+    refetch();
+  }, [refetch]);
 
   // ============================================================================
   // STATE

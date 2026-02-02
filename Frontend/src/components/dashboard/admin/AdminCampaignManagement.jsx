@@ -6,7 +6,7 @@
  * Super admins can manage all campaigns.
  */
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { useLanguage } from "../../../contexts/language/useLanguage";
 import { useAuth } from "../../../contexts/auth/useAuth";
 import { DAMAK_TOTAL_WARDS, ROLES } from "../../../contexts/auth/authConstants";
@@ -489,6 +489,11 @@ export default function AdminCampaignManagement({ wardFilter, isSuperAdmin }) {
 
   // Fetch campaigns
   const { campaigns, total, loading, error, refetch } = useCampaigns(queryParams);
+
+  // Fetch campaigns when component mounts or filters change
+  useEffect(() => {
+    refetch();
+  }, [refetch]);
 
   // Handlers
   async function handleStatusUpdate(id, status, admin_response) {

@@ -15,8 +15,16 @@ dotenv.config({ quiet: true });
 
 const app = express();
 
+// CORS configuration
+const corsOptions = {
+  origin: process.env.NODE_ENV === 'production' 
+    ? process.env.FRONTEND_URL  // Production: only allow specific frontend
+    : true,  // Development: allow all origins
+  credentials: true
+};
+
 // Middleware
-app.use(cors({ origin: process.env.FRONTEND_URL, credentials: true }));
+app.use(cors(corsOptions));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 

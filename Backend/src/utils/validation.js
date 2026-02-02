@@ -8,14 +8,18 @@
 /**
  * Validate required fields
  * @param {Object} data - Data object to validate
- * @param {Array} requiredFields - Array of required field names
- * @returns {Object} { isValid: boolean, missing: Array }
+ * @param {Array} requiredFields - Array of required field names (optional, defaults to all keys in data)
+ * @returns {Object} { isValid: boolean, missing: Array, message: string }
  */
 export const validateRequiredFields = (data, requiredFields) => {
-  const missing = requiredFields.filter(field => !data[field]);
+  // If no requiredFields array provided, use all keys from data object
+  const fieldsToCheck = requiredFields || Object.keys(data);
+  
+  const missing = fieldsToCheck.filter(field => !data[field]);
   return {
     isValid: missing.length === 0,
-    missing
+    missing,
+    message: missing.length > 0 ? `Missing required fields: ${missing.join(', ')}` : ''
   };
 };
 

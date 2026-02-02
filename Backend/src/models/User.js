@@ -6,9 +6,9 @@ export const User = {
   // Create new user
   async create(userData) {
     const sql = `
-      INSERT INTO users (full_name, email, password, phone, role, ward_number)
-      VALUES ($1, $2, $3, $4, $5, $6)
-      RETURNING id, full_name, email, phone, role, ward_number, kyc_status, created_at
+      INSERT INTO users (full_name, email, password, phone, role, ward_number, gender, date_of_birth, address, is_disabled)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, false)
+      RETURNING id, full_name, email, phone, role, ward_number, gender, date_of_birth, address, kyc_status, is_disabled, created_at
     `;
     const values = [
       userData.full_name,
@@ -16,7 +16,10 @@ export const User = {
       userData.password,
       userData.phone || null,
       userData.role || 'user',
-      userData.ward_number || null
+      userData.ward_number || null,
+      userData.gender || null,
+      userData.date_of_birth || null,
+      userData.address || null
     ];
     const result = await query(sql, values);
     return result.rows[0];
@@ -79,7 +82,7 @@ export const User = {
 
   // Get all users (with filters)
   async findAll(filters = {}) {
-    let sql = 'SELECT id, full_name, email, phone, role, ward_number, kyc_status FROM users WHERE is_disabled = false';
+    let sql = 'SELECT id, full_name, email, phone, role, ward_number, kyc_status, is_disabled, created_at, kyc_documents FROM users WHERE 1=1';
     const values = [];
     let paramCount = 1;
 
@@ -95,6 +98,18 @@ export const User = {
       paramCount++;
     }
 
+    if (filters.kycStatus) {
+      sql += ` AND kyc_status = $${paramCount}`;
+      values.push(filters.kycStatus.toUpperCase());
+      paramCount++;
+    }
+
+    if (filters.search) {
+      sql += ` AND (LOWER(full_name) LIKE $${paramCount} OR LOWER(email) LIKE $${paramCount} OR phone LIKE $${paramCount})`;
+      values.push(`%${filters.search.toLowerCase()}%`);
+      paramCount++;
+    }
+
     sql += ' ORDER BY created_at DESC';
 
     const result = await query(sql, values);
@@ -105,7 +120,7 @@ export const User = {
   async createWardAdmin(adminData) {
     const sql = `
       INSERT INTO users (full_name, email, password, phone, role, ward_number, kyc_status)
-      VALUES ($1, $2, $3, $4, 'ward_admin', $5, 'VERIFIED')
+      VALUES ($1, $2, $3, $4, 'WARD_ADMIN', $5, 'VERIFIED')
       RETURNING id, full_name, email, phone, role, ward_number, created_at
     `;
     const values = [
@@ -124,7 +139,7 @@ export const User = {
     const sql = `
       SELECT id, full_name, email, phone, ward_number, is_disabled, created_at 
       FROM users 
-      WHERE role = 'ward_admin'
+      WHERE role = 'WARD_ADMIN' OR role = 'ward_admin'
       ORDER BY ward_number ASC
     `;
     const result = await query(sql);

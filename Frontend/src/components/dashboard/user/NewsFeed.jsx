@@ -31,7 +31,7 @@
  * }
  */
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { useLanguage } from "../../../contexts/language/useLanguage";
 import { useAuth } from "../../../contexts/auth/useAuth";
 import { DAMAK_TOTAL_WARDS, ROLES } from "../../../contexts/auth/authConstants";
@@ -443,15 +443,36 @@ function ErrorState(props) {
  * 
  * @param {Object} props - Component properties
  * @param {Object} props.t - Translation object
+ * @param {string} props.wardFilter - Current ward filter
+ * @param {Object} props.currentUser - Current user object
+ * @param {string} props.language - Current language
  */
 function EmptyState(props) {
   const t = props.t;
+  const wardFilter = props.wardFilter;
+  const currentUser = props.currentUser;
+  const language = props.language;
+  
+  // Create contextual message based on ward filter
+  let message = t.noResultsDesc;
+  if (wardFilter !== "all" && currentUser?.wardNumber) {
+    message = language === "np" 
+      ? `वडा ${wardFilter} मा अहिलेसम्म कुनै पोस्टहरू छैनन्। तपाईंको समुदायको रिपोर्टहरू र अपडेटहरू यहाँ देखिनेछन्।`
+      : `No posts yet in Ward ${wardFilter}. Reports and updates from your community will appear here.`;
+  }
   
   return (
     <div className="bg-white rounded-2xl shadow-sm p-12 text-center">
       <FileText className="mx-auto text-gray-300 mb-4" size={48} />
-      <p className="text-gray-700 font-medium mb-1">{t.noResults}</p>
-      <p className="text-gray-500 text-sm">{t.noResultsDesc}</p>
+      <p className="text-gray-700 font-medium mb-2">{t.noResults}</p>
+      <p className="text-gray-500 text-sm">{message}</p>
+      <div className="mt-6 text-sm text-gray-400">
+        {language === "np" ? (
+          <p>यो क्षेत्रमा समस्या रिपोर्ट गर्नुहोस् र तपाईं पहिलो हुनुहोस्!</p>
+        ) : (
+          <p>Be the first to report an issue in this area!</p>
+        )}
+      </div>
     </div>
   );
 }
@@ -482,7 +503,7 @@ function NewsFeed() {
   const { language } = useLanguage();
   
   // Get current user
-  const { user } = useAuth();
+  const { currentUser } = useAuth();
   
   // Get translations
   const t = newsFeedText[language];
@@ -491,15 +512,15 @@ function NewsFeed() {
   // USER INFO
   // -------------------------------------------------------------------------
   
-  // Get user's ward number (default to 5 if not set)
+  // Get user's ward number from currentUser
   let userWard = 5;
-  if (user && user.ward) {
-    userWard = user.ward;
+  if (currentUser && currentUser.wardNumber) {
+    userWard = currentUser.wardNumber;
   }
   
   // Check if user is an admin (can see all wards)
   let isAdmin = false;
-  if (user && (user.role === ROLES.SUPER_ADMIN || user.role === ROLES.WARD_ADMIN)) {
+  if (currentUser && (currentUser.role === ROLES.SUPER_ADMIN || currentUser.role === ROLES.WARD_ADMIN)) {
     isAdmin = true;
   }
 
@@ -517,6 +538,20 @@ function NewsFeed() {
   const [wardFilter, setWardFilter] = useState(
     isAdmin ? "all" : userWard.toString()
   );
+
+  // -------------------------------------------------------------------------
+  // EFFECTS
+  // -------------------------------------------------------------------------
+  
+  // Update ward filter when currentUser loads or changes
+  useEffect(() => {
+    if (currentUser) {
+      const isUserAdmin = currentUser.role === ROLES.SUPER_ADMIN || currentUser.role === ROLES.WARD_ADMIN;
+      if (!isUserAdmin && currentUser.wardNumber) {
+        setWardFilter(currentUser.wardNumber.toString());
+      }
+    }
+  }, [currentUser]);
 
   // -------------------------------------------------------------------------
   // API PARAMETERS
@@ -550,6 +585,21 @@ function NewsFeed() {
   
   // Fetch feed from API
   const { feed, loading, error, refetch } = useFeed(apiParams);
+
+  // Log for debugging
+  useEffect(() => {
+    if (error) {
+      console.error('Feed error:', error);
+    }
+    if (feed) {
+      console.log('Feed data received:', feed);
+    }
+  }, [error, feed]);
+
+  // Fetch feed when component mounts or filters change
+  useEffect(() => {
+    refetch();
+  }, [refetch]);
 
   // -------------------------------------------------------------------------
   // EVENT HANDLERS
@@ -672,7 +722,7 @@ function NewsFeed() {
     
     // Show empty state if no posts
     if (feed.length === 0) {
-      return <EmptyState t={t} />;
+      return <EmptyState t={t} wardFilter={wardFilter} currentUser={currentUser} language={language} />;
     }
     
     // Render the list of feed cards using map

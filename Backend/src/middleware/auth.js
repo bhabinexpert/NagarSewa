@@ -51,7 +51,8 @@ export const authMiddleware = async (req, res, next) => {
 
 // Admin only
 export const adminOnly = (req, res, next) => {
-  if (req.user.role !== 'super_admin' && req.user.role !== 'ward_admin') {
+  const role = req.user.role.toLowerCase();
+  if (role !== 'super_admin' && role !== 'ward_admin') {
     return res.status(403).json({ message: 'Admin access required' });
   }
   next();
@@ -59,7 +60,8 @@ export const adminOnly = (req, res, next) => {
 
 // Super admin only
 export const superAdminOnly = (req, res, next) => {
-  if (req.user.role !== 'super_admin') {
+  const role = req.user.role.toLowerCase();
+  if (role !== 'super_admin') {
     return res.status(403).json({ message: 'Super admin access required' });
   }
   next();

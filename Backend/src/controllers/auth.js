@@ -7,7 +7,7 @@ import { validateRequiredFields, isValidEmail, validatePassword } from '../utils
 
 // Register new user
 export const register = asyncHandler(async (req, res) => {
-  const { full_name, email, password, phone, ward_number } = req.body;
+  const { full_name, email, password, phone, ward_number, gender, date_of_birth, address } = req.body;
 
   // Validate required fields
   const requiredFields = validateRequiredFields({ full_name, email, password });
@@ -41,7 +41,10 @@ export const register = asyncHandler(async (req, res) => {
     email,
     password: hashedPassword,
     phone,
-    ward_number
+    ward_number,
+    gender,
+    date_of_birth,
+    address
   });
 
   // Generate token
@@ -91,11 +94,15 @@ export const login = asyncHandler(async (req, res) => {
   const userResponse = {
     id: user.id,
     email: user.email,
-    full_name: user.full_name,
+    fullName: user.full_name,
     phone: user.phone,
     role: user.role,
     wardNumber: user.ward_number,
+    gender: user.gender,
+    dateOfBirth: user.date_of_birth,
+    address: user.address,
     kycVerified: user.kyc_status === 'VERIFIED',
+    kycStatus: user.kyc_status,
     jurisdiction: {
       district: 'Jhapa',
       municipality: 'Damak',
@@ -116,8 +123,30 @@ export const getMe = asyncHandler(async (req, res) => {
     return sendError(res, 'User not found', HTTP_STATUS.NOT_FOUND);
   }
 
-  const { password, ...userWithoutPassword } = user;
-  sendSuccess(res, { user: userWithoutPassword });
+  // Format user response to match frontend expectations (camelCase)
+  const userResponse = {
+    id: user.id,
+    email: user.email,
+    fullName: user.full_name,
+    phone: user.phone,
+    role: user.role,
+    wardNumber: user.ward_number,
+    gender: user.gender,
+    dateOfBirth: user.date_of_birth,
+    address: user.address,
+    kycVerified: user.kyc_status === 'VERIFIED',
+    kycStatus: user.kyc_status,
+    isDisabled: user.is_disabled,
+    createdAt: user.created_at,
+    updatedAt: user.updated_at,
+    jurisdiction: {
+      district: 'Jhapa',
+      municipality: 'Damak',
+      wardNumber: user.ward_number
+    }
+  };
+
+  sendSuccess(res, { user: userResponse });
 });
 
 // Logout (client-side)

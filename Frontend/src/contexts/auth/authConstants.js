@@ -67,7 +67,7 @@ export const DAMAK_TOTAL_WARDS = 10;
  *   - Can update their profile
  */
 export const ROLES = {
-  SUPER_ADMIN: "super_admin",
-  WARD_ADMIN: "ward_admin",
+  SUPER_ADMIN: "SUPER_ADMIN",
+  WARD_ADMIN: "WARD_ADMIN",
   USER: "user"
 };

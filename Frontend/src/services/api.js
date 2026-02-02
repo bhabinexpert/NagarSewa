@@ -144,6 +144,11 @@ export const adminAPI = {
   deactivateWardAdmin: (id) => apiClient.patch(`/admin/ward-admins/${id}/deactivate`),
   
   reactivateWardAdmin: (id) => apiClient.patch(`/admin/ward-admins/${id}/reactivate`),
+  
+  // Admin profile management
+  updateProfile: (profileData) => apiClient.patch('/admin/profile', profileData),
+  
+  changePassword: (passwordData) => apiClient.patch('/admin/password', passwordData),
 };
 
 // =============================================================================

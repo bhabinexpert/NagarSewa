@@ -8,7 +8,7 @@
  * @component
  */
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useLanguage } from "../../../contexts/language/useLanguage";
 import { useAuth } from "../../../contexts/auth/useAuth";
 import {
@@ -218,6 +218,7 @@ function SuperAdminPanel() {
   const createWardAdmin = authContext.createWardAdmin;
   const deactivateWardAdmin = authContext.deactivateWardAdmin;
   const reactivateWardAdmin = authContext.reactivateWardAdmin;
+  const loadWardAdmins = authContext.loadWardAdmins;
 
   // ============================================================================
   // STATE
@@ -234,6 +235,23 @@ function SuperAdminPanel() {
     wardNumber: "",
     password: "",
   });
+
+  // ============================================================================
+  // EFFECTS
+  // ============================================================================
+
+  // Load ward admins when component mounts
+  useEffect(() => {
+    async function fetchWardAdmins() {
+      try {
+        await loadWardAdmins();
+      } catch (err) {
+        console.error('Failed to load ward admins:', err);
+      }
+    }
+    
+    fetchWardAdmins();
+  }, [loadWardAdmins]);
 
   // ============================================================================
   // DATA
@@ -268,6 +286,7 @@ function SuperAdminPanel() {
         email: previousData.email,
         phone: previousData.phone,
         wardNumber: previousData.wardNumber,
+        password: previousData.password,
       };
       newData[fieldName] = fieldValue;
       return newData;
@@ -314,7 +333,7 @@ function SuperAdminPanel() {
         toast.error(result.error, { position: "top-right" });
       }
     } catch (error) {
-      toast.error("An error occurred. Please try again.", { position: "top-right" });
+      toast.error("An error occurred. Please try again.", { position: "top-right" },error);
     } finally {
       setIsSubmitting(false);
     }
@@ -337,7 +356,7 @@ function SuperAdminPanel() {
           toast.error(result.error, { position: "top-right" });
         }
       } catch (error) {
-        toast.error("An error occurred. Please try again.", { position: "top-right" });
+        toast.error("An error occurred. Please try again.", { position: "top-right" }, error);
       }
     }
   }
@@ -357,6 +376,7 @@ function SuperAdminPanel() {
       }
     } catch (error) {
       toast.error("An error occurred. Please try again.", { position: "top-right" });
+      console.log(error)
     }
   }
 
@@ -423,6 +443,18 @@ function SuperAdminPanel() {
         </span>
       );
     });
+  }
+
+  /**
+   * Format date to a readable format.
+   * @param {string} dateString - ISO date string
+   * @returns {string} Formatted date
+   */
+  function formatDate(dateString) {
+    if (!dateString) return 'N/A';
+    const date = new Date(dateString);
+    const options = { year: 'numeric', month: 'short', day: 'numeric' };
+    return date.toLocaleDateString('en-US', options);
   }
 
   /**
@@ -497,7 +529,7 @@ function SuperAdminPanel() {
             </span>
           </td>
           <td className="px-4 py-4">{statusElement}</td>
-          <td className="px-4 py-4 text-gray-600">{admin.createdAt}</td>
+          <td className="px-4 py-4 text-gray-600">{formatDate(admin.createdAt)}</td>
           <td className="px-4 py-4">
             <div className="flex items-center justify-end gap-2">
               {actionButton}

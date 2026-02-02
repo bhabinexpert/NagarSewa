@@ -164,8 +164,12 @@ function Login() {
    * Validates input and attempts to log in the user.
    */
   async function handleSubmit() {
+    // Trim whitespace from email and password
+    const email = formData.email.trim();
+    const password = formData.password.trim();
+    
     // Check if email and password are filled
-    if (!formData.email || !formData.password) {
+    if (!email || !password) {
       const errorMsg = t.errorRequired;
       setError(errorMsg);
       toast.error(errorMsg, { position: "top-right", autoClose: 3000 });
@@ -173,7 +177,7 @@ function Login() {
     }
 
     // Validate email format
-    if (!isValidEmail(formData.email)) {
+    if (!isValidEmail(email)) {
       const errorMsg = t.errorEmailInvalid;
       setError(errorMsg);
       toast.error(errorMsg, { position: "top-right", autoClose: 3000 });
@@ -181,7 +185,7 @@ function Login() {
     }
 
     // Validate password length
-    if (formData.password.length < 8) {
+    if (password.length < 8) {
       const errorMsg = t.errorPasswordShort;
       setError(errorMsg);
       toast.error(errorMsg, { position: "top-right", autoClose: 3000 });
@@ -193,7 +197,7 @@ function Login() {
     
     try {
       // Use auth context for login (now async)
-      const result = await login(formData.email, formData.password);
+      const result = await login(email, password);
       
       if (result.success) {
         console.log('Login successful:', formData.email, 'Role:', result.user.role);

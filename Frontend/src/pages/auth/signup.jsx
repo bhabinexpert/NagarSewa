@@ -15,9 +15,11 @@ import {
   Crosshair,
   Loader2,
 } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useLanguage } from "../../contexts/language/useLanguage";
+import { useAuth } from "../../contexts/auth/useAuth";
 import { toast, ToastContainer } from "react-toastify";
+import { authAPI } from "../../services/api";
 import "react-toastify/dist/ReactToastify.css";
 import {
   getProvinces,
@@ -54,6 +56,15 @@ const signupText = {
     municipalityPlaceholder: "Select your municipality",
     wardNumber: "Ward Number",
     wardNumberPlaceholder: "Select ward",
+    gender: "Gender",
+    genderPlaceholder: "Select your gender",
+    male: "Male",
+    female: "Female",
+    other: "Other",
+    dateOfBirth: "Date of Birth",
+    dateOfBirthPlaceholder: "Select your date of birth",
+    address: "Address",
+    addressPlaceholder: "Enter your full address",
     locationDetails: "Location Details",
     strength: "Strength:",
     strengthLabels: ["", "Weak", "Medium", "Good", "Strong"],
@@ -97,6 +108,10 @@ const signupText = {
       municipality: "Please select your municipality",
       ward: "Please enter your ward number",
       wardInvalid: "Ward number must be between 1 and 35",
+      gender: "Please select your gender",
+      dob: "Please select your date of birth",
+      dobAge: "You must be at least 18 years old to register",
+      address: "Please enter a valid address (at least 5 characters)",
       success: "Account created successfully!",
       provinceRestricted:
         "This feature is currently available only for Koshi Province. More provinces coming soon!",
@@ -138,6 +153,15 @@ const signupText = {
     municipalityPlaceholder: "आफ्नो नगरपालिका छान्नुहोस्",
     wardNumber: "वडा नम्बर",
     wardNumberPlaceholder: "वडा छान्नुहोस्",
+    gender: "लिंग",
+    genderPlaceholder: "आफ्नो लिंग छान्नुहोस्",
+    male: "पुरुष",
+    female: "महिला",
+    other: "अन्य",
+    dateOfBirth: "जन्म मिति",
+    dateOfBirthPlaceholder: "आफ्नो जन्म मिति छान्नुहोस्",
+    address: "ठेगाना",
+    addressPlaceholder: "आफ्नो पूर्ण ठेगाना प्रविष्ट गर्नुहोस्",
     locationDetails: "स्थान विवरण",
     strength: "मजबूती:",
     strengthLabels: ["", "कमजोर", "मध्यम", "राम्रो", "बलियो"],
@@ -181,6 +205,10 @@ const signupText = {
       municipality: "कृपया आफ्नो नगरपालिका छान्नुहोस्",
       ward: "कृपया आफ्नो वडा नम्बर प्रविष्ट गर्नुहोस्",
       wardInvalid: "वडा नम्बर १ र ३५ बीच हुनुपर्छ",
+      gender: "कृपया आफ्नो लिंग छान्नुहोस्",
+      dob: "कृपया आफ्नो जन्म मिति छान्नुहोस्",
+      dobAge: "दर्ता गर्न तपाईं कम्तिमा १८ वर्षको हुनुपर्छ",
+      address: "कृपया मान्य ठेगाना प्रविष्ट गर्नुहोस् (कम्तिमा ५ अक्षर)",
       success: "खाता सफलतापूर्वक सिर्जना भयो!",
       provinceRestricted:
         "यो सुविधा हाल कोशी प्रदेशको लागि मात्र उपलब्ध छ। थप प्रदेशहरू चाँडै आउँदैछन्!",
@@ -246,6 +274,8 @@ export default function Signup() {
   // ============================================================
   // HOOKS AND CONTEXT
   // ============================================================
+  const navigate = useNavigate();
+  const { login: authLogin } = useAuth();
   const languageContext = useLanguage();
   const language = languageContext.language;
   const toggleLanguage = languageContext.toggleLanguage;
@@ -265,6 +295,9 @@ export default function Signup() {
     district: "",
     municipality: "",
     wardNumber: "",
+    gender: "",
+    dateOfBirth: "",
+    address: "",
     password: "",
     confirmPassword: "",
     acceptTerms: false,
@@ -276,6 +309,9 @@ export default function Signup() {
 
   // Location detection loading state
   const [isDetectingLocation, setIsDetectingLocation] = useState(false);
+  
+  // Form submission state
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // ============================================================
   // DERIVED DATA (using useMemo for expensive computations)
@@ -789,6 +825,46 @@ export default function Signup() {
       return;
     }
 
+    // Validate gender
+    if (!formData.gender) {
+      toast.error(t.alerts.gender, {
+        position: "top-right",
+        autoClose: 3000,
+      });
+      return;
+    }
+
+    // Validate date of birth
+    if (!formData.dateOfBirth) {
+      toast.error(t.alerts.dob, {
+        position: "top-right",
+        autoClose: 3000,
+      });
+      return;
+    }
+
+    // Check if user is at least 18 years old
+    const today = new Date();
+    const birthDate = new Date(formData.dateOfBirth);
+    const age = today.getFullYear() - birthDate.getFullYear();
+    const monthDiff = today.getMonth() - birthDate.getMonth();
+    if (age < 18 || (age === 18 && monthDiff < 0) || (age === 18 && monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+      toast.error(t.alerts.dobAge, {
+        position: "top-right",
+        autoClose: 5000,
+      });
+      return;
+    }
+
+    // Validate address
+    if (!formData.address || formData.address.trim().length < 5) {
+      toast.error(t.alerts.address, {
+        position: "top-right",
+        autoClose: 3000,
+      });
+      return;
+    }
+
     // Validate password
     if (!formData.password) {
       toast.error(t.alerts.password, {
@@ -798,8 +874,8 @@ export default function Signup() {
       return;
     }
 
-    // Check password strength (require at least score 2 - Medium)
-    if (passwordStrength.score < 2) {
+    // Check password length (backend requires 8+ characters)
+    if (formData.password.length < 8) {
       toast.error(t.alerts.passwordWeak, {
         position: "top-right",
         autoClose: 5000,
@@ -820,9 +896,91 @@ export default function Signup() {
       return;
     }
 
-    // Submit the form
-    console.log("Form submitted:", formData);
-    toast.success(t.alerts.success, { position: "top-right", autoClose: 3000 });
+    // Submit the form to backend
+    handleRegistration();
+  }
+
+  /**
+   * Handle user registration with backend API.
+   */
+  async function handleRegistration() {
+    setIsSubmitting(true);
+    
+    try {
+      // Clean phone number (remove non-numeric characters)
+      const cleanPhone = formData.phone.split('').filter(function(char) {
+        return char >= "0" && char <= "9";
+      }).join('');
+      
+      // Prepare registration data
+      const registrationData = {
+        full_name: formData.fullName.trim(),
+        email: formData.email.trim(),
+        password: formData.password,
+        phone: cleanPhone,
+        ward_number: parseInt(formData.wardNumber, 10),
+        gender: formData.gender,
+        date_of_birth: formData.dateOfBirth,
+        address: formData.address.trim()
+      };
+      
+      // Call registration API
+      const response = await authAPI.register(registrationData);
+      
+      console.log('Registration response:', response);
+      
+      // Extract token and user data from response
+      const { token, user } = response.data || response;
+      
+      console.log('Token:', token);
+      console.log('User:', user);
+      
+      if (token && user) {
+        // Format user data to match AuthContext structure
+        const formattedUser = {
+          id: user.id,
+          email: user.email,
+          fullName: user.full_name,
+          phone: user.phone,
+          role: user.role || 'user',
+          wardNumber: user.ward_number,
+          gender: user.gender,
+          dateOfBirth: user.date_of_birth,
+          address: user.address,
+          kycVerified: user.kyc_status === 'VERIFIED',
+          jurisdiction: {
+            district: 'Jhapa',
+            municipality: 'Damak',
+            wardNumber: user.ward_number
+          }
+        };
+        
+        // Store token
+        localStorage.setItem('authToken', token);
+        localStorage.setItem('nagarsewa_user', JSON.stringify(formattedUser));
+        
+        // Show success message
+        toast.success(t.alerts.success, { position: "top-right", autoClose: 2000 });
+        
+        // Redirect to user dashboard after a short delay  
+        setTimeout(() => {
+          // Use window.location for full page reload to initialize auth context
+          window.location.href = '/user';
+        }, 2000);
+      } else {
+        throw new Error('Registration response is missing required data');
+      }
+    } catch (error) {
+      console.error('Registration error:', error);
+      // Show error message
+      const errorMessage = error.message || 'Registration failed. Please try again.';
+      toast.error(errorMessage, {
+        position: "top-right",
+        autoClose: 5000,
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   }
 
   // ============================================================
@@ -1122,7 +1280,59 @@ export default function Signup() {
                   </div>
                 </div>
 
-                {/* Row 3: Password and Confirm Password */}
+                {/* Row 3: Gender and Date of Birth */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {/* Gender Dropdown */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-0.5">
+                      {t.gender} <span className="text-red-500">*</span>
+                    </label>
+                    <select
+                      name="gender"
+                      value={formData.gender}
+                      onChange={handleInputChange}
+                      className="w-full px-2 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all bg-white"
+                    >
+                      <option value="">{t.genderPlaceholder}</option>
+                      <option value="male">{t.male}</option>
+                      <option value="female">{t.female}</option>
+                      <option value="other">{t.other}</option>
+                    </select>
+                  </div>
+
+                  {/* Date of Birth */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-0.5">
+                      {t.dateOfBirth} <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="date"
+                      name="dateOfBirth"
+                      value={formData.dateOfBirth}
+                      onChange={handleInputChange}
+                      max={new Date().toISOString().split('T')[0]}
+                      className="w-full px-2 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all"
+                      placeholder={t.dateOfBirthPlaceholder}
+                    />
+                  </div>
+                </div>
+
+                {/* Row 4: Address */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-0.5">
+                    {t.address} <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    name="address"
+                    value={formData.address}
+                    onChange={handleInputChange}
+                    className="w-full px-2 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all"
+                    placeholder={t.addressPlaceholder}
+                  />
+                </div>
+
+                {/* Row 5: Password and Confirm Password */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   {/* Password */}
                   <div>
@@ -1265,9 +1475,11 @@ export default function Signup() {
                   {/* Submit Button */}
                   <button
                     onClick={handleSubmit}
-                    className="w-full sm:w-auto px-6 py-2 bg-linear-to-r from-emerald-600 to-teal-600 text-white font-semibold rounded-lg shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all duration-200 text-sm"
+                    disabled={isSubmitting}
+                    className="w-full sm:w-auto px-6 py-2 bg-linear-to-r from-emerald-600 to-teal-600 text-white font-semibold rounded-lg shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all duration-200 text-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                   >
-                    {t.createAccount}
+                    {isSubmitting && <Loader2 className="animate-spin" size={18} />}
+                    {isSubmitting ? (language === 'en' ? 'Creating Account...' : 'खाता सिर्जना गर्दै...') : t.createAccount}
                   </button>
                 </div>
 
