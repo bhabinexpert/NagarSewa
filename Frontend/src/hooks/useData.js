@@ -30,7 +30,7 @@
  */
 
 import { useState, useEffect, useCallback } from 'react';
-import { issuesAPI, campaignsAPI, usersAPI, feedAPI } from '../services/api';
+import { issuesAPI, campaignsAPI, usersAPI, feedAPI, adminAPI } from '../services/api';
 
 
 // =============================================================================
@@ -82,10 +82,8 @@ function useApiData(fetchFn, params = {}) {
     }
   }, [fetchFn, paramsString]);
 
-  // Call fetchData when the component loads or when params change
-  useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+  // Don't auto-fetch - components must call refetch() manually
+  // This prevents unnecessary API calls on mount
 
   return { data, loading, error, refetch: fetchData };
 }
@@ -153,13 +151,14 @@ export const useIssue = (id) => {
  * EXAMPLE:
  *   const { users, loading } = useUsers({ kycStatus: 'pending' });
  * 
- * BACKEND API: GET /api/users
+ * BACKEND API: GET /api/admin/users
  */
 export const useUsers = (params = {}) => {
-  const { data, loading, error, refetch } = useApiData(usersAPI.getAll, params);
+  const { data, loading, error, refetch } = useApiData(adminAPI.getUsers, params);
   
   return {
     users: data?.users || [],
+    stats: data?.stats || { total: 0, pendingKyc: 0, active: 0 },
     total: data?.total || 0,
     loading,
     error,
@@ -323,10 +322,7 @@ export const useAnalytics = (params = {}) => {
     }
   }, [paramsString]);
 
-  // Fetch when component loads or params change
-  useEffect(() => {
-    fetchAnalytics();
-  }, [fetchAnalytics]);
+  // Don't auto-fetch - component must call refetch() when tab is opened
 
   return { analytics, loading, error, refetch: fetchAnalytics };
 };
@@ -346,7 +342,28 @@ export const useAnalytics = (params = {}) => {
  * BACKEND API: GET /api/admin/dashboard/stats
  */
 export const useDashboardStats = () => {
-  const { data, loading, error, refetch } = useApiData(adminAPI.getDashboardStats, {});
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+
+  const fetchStats = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const response = await adminAPI.getDashboardStats();
+      setData(response.data);
+    } catch (err) {
+      // Silently fail for non-admin users - return dummy data instead of showing error
+      console.warn('Dashboard stats not available (admin access required)');
+      setData({
+        issues: { total: 0, pending: 0, inProgress: 0, resolved: 0 },
+        users: { total: 0, verified: 0, pendingKyc: 0 },
+        campaigns: { total: 0, pending: 0, approved: 0 }
+      });
+    } finally {
+      setLoading(false);
+    }
+  }, []);
   
   return {
     stats: data || {
@@ -356,7 +373,7 @@ export const useDashboardStats = () => {
     },
     loading,
     error,
-    refetch,
+    refetch: fetchStats,
   };
 };
 
@@ -370,8 +387,6 @@ export default {
   useIssue,
   useUsers,
   useUser,
-  useNotifications,
-  useBroadcasts,
   useCampaigns,
   useCampaign,
   useFeed,
