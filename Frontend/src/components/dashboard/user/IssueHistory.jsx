@@ -1,14 +1,14 @@
 /**
  * IssueHistory Component
  * 
- * Displays a list of reported issues with filtering, searching, and sorting capabilities.
- * Users see their ward's issues, while admins can view all wards.
+ * Displays a list of issues reported by the current user with filtering, searching, and sorting capabilities.
+ * Users see only their own reported issues, not all issues in their ward.
  * 
  * @component
  * 
  * BACKEND INTEGRATION:
  * - GET /api/issues - Fetches issues list with filters
- * - Query params: status, ward, search, sort, page, limit
+ * - Query params: status, user_id, search, sort, page, limit
  * 
  * REQUIRED RESPONSE FORMAT:
  * {
@@ -36,7 +36,7 @@
  * }
  */
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { useLanguage } from "../../../contexts/language/useLanguage";
 import { useAuth } from "../../../contexts/auth/useAuth";
 import { DAMAK_TOTAL_WARDS, ROLES } from "../../../contexts/auth/authConstants";
@@ -64,7 +64,7 @@ import {
 const historyText = {
   en: {
     title: "Issue History",
-    subtitle: "Track all reported issues and their status",
+    subtitle: "Track your reported issues and their status",
     allIssues: "All Issues",
     pending: "Pending",
     inProgress: "In Progress",
@@ -74,7 +74,7 @@ const historyText = {
     newest: "Newest First",
     oldest: "Oldest First",
     noIssues: "No issues found",
-    noIssuesDesc: "Issues reported in your area will appear here.",
+    noIssuesDesc: "Issues you have reported will appear here.",
     status: "Status",
     reportedOn: "Reported On",
     lastUpdated: "Last Updated",
@@ -96,7 +96,7 @@ const historyText = {
   },
   np: {
     title: "समस्या इतिहास",
-    subtitle: "सबै रिपोर्ट गरिएका समस्याहरू र तिनीहरूको स्थिति ट्र्याक गर्नुहोस्",
+    subtitle: "तपाईंले रिपोर्ट गरेका समस्याहरू र तिनीहरूको स्थिति ट्र्याक गर्नुहोस्",
     allIssues: "सबै समस्याहरू",
     pending: "पेन्डिङ",
     inProgress: "प्रगतिमा",
@@ -106,7 +106,7 @@ const historyText = {
     newest: "नयाँ पहिले",
     oldest: "पुरानो पहिले",
     noIssues: "कुनै समस्या भेटिएन",
-    noIssuesDesc: "तपाईंको क्षेत्रमा रिपोर्ट गरिएका समस्याहरू यहाँ देखिनेछ।",
+    noIssuesDesc: "तपाईंले रिपोर्ट गर्नुभएका समस्याहरू यहाँ देखिनेछ।",
     status: "स्थिति",
     reportedOn: "रिपोर्ट गरिएको मिति",
     lastUpdated: "अन्तिम अद्यावधिक",
@@ -463,7 +463,7 @@ function IssueHistory() {
   const { language } = useLanguage();
   
   // Get current user from auth context
-  const { user } = useAuth();
+  const { currentUser } = useAuth();
   
   // Get translations for current language
   const t = historyText[language];
@@ -474,13 +474,13 @@ function IssueHistory() {
   
   // Get user's ward number (default to 5 if not set)
   let userWard = 5;
-  if (user && user.ward) {
-    userWard = user.ward;
+  if (currentUser && currentUser.wardNumber) {
+    userWard = currentUser.wardNumber;
   }
   
   // Check if user is a super admin (can see all wards)
   let isSuperAdmin = false;
-  if (user && user.role === ROLES.SUPER_ADMIN) {
+  if (currentUser && currentUser.role === ROLES.SUPER_ADMIN) {
     isSuperAdmin = true;
   }
 
@@ -506,6 +506,20 @@ function IssueHistory() {
   );
 
   // -------------------------------------------------------------------------
+  // EFFECTS
+  // -------------------------------------------------------------------------
+  
+  // Update ward filter when currentUser loads or changes
+  useEffect(() => {
+    if (currentUser) {
+      const isSuper = currentUser.role === ROLES.SUPER_ADMIN;
+      if (!isSuper && currentUser.wardNumber) {
+        setWardFilter(currentUser.wardNumber.toString());
+      }
+    }
+  }, [currentUser]);
+
+  // -------------------------------------------------------------------------
   // API PARAMETERS
   // -------------------------------------------------------------------------
   
@@ -514,14 +528,14 @@ function IssueHistory() {
   const apiParams = useMemo(function() {
     const params = {};
     
+    // Add user_id to show only current user's issues
+    if (currentUser && currentUser.id) {
+      params.user_id = currentUser.id;
+    }
+    
     // Add status filter if not 'all'
     if (filter !== "all") {
       params.status = filter;
-    }
-    
-    // Add ward filter if not 'all'
-    if (wardFilter !== "all") {
-      params.ward = wardFilter;
     }
     
     // Add search query if not empty
@@ -533,7 +547,7 @@ function IssueHistory() {
     params.sort = sortOrder;
     
     return params;
-  }, [filter, wardFilter, searchQuery, sortOrder]);
+  }, [currentUser, filter, searchQuery, sortOrder]);
 
   // -------------------------------------------------------------------------
   // DATA FETCHING
@@ -541,6 +555,11 @@ function IssueHistory() {
   
   // Fetch issues from API using our custom hook
   const { issues, loading, error, refetch } = useIssues(apiParams);
+
+  // Fetch issues when component mounts or filters change
+  useEffect(() => {
+    refetch();
+  }, [refetch]);
 
   // -------------------------------------------------------------------------
   // FILTER TABS
