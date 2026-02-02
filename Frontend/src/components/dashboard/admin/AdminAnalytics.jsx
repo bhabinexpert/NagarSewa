@@ -1,6 +1,6 @@
 // AdminAnalytics Component
 
-import React from "react";
+import React, { useEffect } from "react";
 import { useLanguage } from "../../../contexts/language/useLanguage";
 import { useAnalytics } from "../../../hooks/useData";
 import {
@@ -381,6 +381,13 @@ function AdminAnalytics() {
   const error = analyticsData.error;
   const refetch = analyticsData.refetch;
 
+  // Fetch analytics when component mounts
+  useEffect(() => {
+    if (refetch) {
+      refetch();
+    }
+  }, [refetch]);
+
   
   // CONDITIONAL RENDERS
  
@@ -408,7 +415,13 @@ function AdminAnalytics() {
     return (
       <div className="bg-white rounded-2xl shadow-sm p-12 text-center">
         <BarChart3 className="mx-auto text-gray-300 mb-4" size={48} />
-        <p className="text-gray-500">{t.noData}</p>
+        <p className="text-gray-500 mb-4">{t.noData}</p>
+        <button 
+          onClick={refetch} 
+          className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition"
+        >
+          {t.retry}
+        </button>
       </div>
     );
   }
@@ -417,11 +430,11 @@ function AdminAnalytics() {
   // DATA EXTRACTION
  
 
-  const overview = analytics.overview;
-  const issuesByType = analytics.issuesByType;
-  const issuesByStatus = analytics.issuesByStatus;
-  const issuesByWard = analytics.issuesByWard;
-  const monthlyTrends = analytics.monthlyTrends;
+  const overview = analytics?.overview || null;
+  const issuesByType = analytics?.issuesByType || [];
+  const issuesByStatus = analytics?.issuesByStatus || [];
+  const issuesByWard = analytics?.issuesByWard || [];
+  const monthlyTrends = analytics?.monthlyTrends || [];
 
  
   // RENDER

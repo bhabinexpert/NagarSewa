@@ -7,7 +7,7 @@
  * @component
  */
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useLanguage } from "../../../contexts/language/useLanguage";
 import { useAuth } from "../../../contexts/auth/useAuth";
 import { useIssues } from "../../../hooks/useData";
@@ -75,48 +75,6 @@ const text = {
     oldest: "पुरानो",
   },
 };
-
-// ============================================================================
-// HELPER FUNCTIONS
-// ============================================================================
-    descriptionNp: "३ दिनदेखि पानी छैन",
-    location: "Sector 4, Ward 5",
-    status: "inProgress",
-    reportedBy: "Sita Devi",
-    reportedOn: "2024-01-16",
-    priority: "medium",
-    superAdminPriority: null,
-    priorityNote: null,
-  },
-  {
-    id: "ISS-003",
-    type: "Street Light",
-    typeNp: "सडक बत्ती",
-    description: "Street lights not working",
-    descriptionNp: "सडक बत्ती काम गर्दैन",
-    location: "Block B, Ward 5",
-    status: "pending",
-    reportedBy: "Hari Prasad",
-    reportedOn: "2024-01-17",
-    priority: "low",
-    superAdminPriority: "high",
-    priorityNote: "Complete before festival season",
-  },
-  {
-    id: "ISS-004",
-    type: "Garbage",
-    typeNp: "फोहोर",
-    description: "Garbage not collected",
-    descriptionNp: "फोहोर उठाइएको छैन",
-    location: "Market Area, Ward 5",
-    status: "resolved",
-    reportedBy: "Krishna Rai",
-    reportedOn: "2024-01-10",
-    priority: "medium",
-    superAdminPriority: null,
-    priorityNote: null,
-  },
-];
 
 // ============================================================================
 // HELPER FUNCTIONS
@@ -315,6 +273,11 @@ function WardAdminIssues() {
   // FETCH REAL DATA
   // ============================================================
   const { issues: apiIssues, loading, error, refetch } = useIssues({ ward: wardNumber });
+
+  // Fetch issues when component mounts
+  useEffect(() => {
+    refetch();
+  }, [refetch]);
 
   // ============================================================
   // STATE

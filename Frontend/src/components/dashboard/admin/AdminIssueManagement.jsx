@@ -622,7 +622,7 @@ function AdminIssueManagement() {
 
   // Fetch issues from API
   const issuesData = useIssues(queryParams);
-  const issues = issuesData.issues;
+  const issues = issuesData.issues || [];
   const loading = issuesData.loading;
   const error = issuesData.error;
   const refetch = issuesData.refetch;
