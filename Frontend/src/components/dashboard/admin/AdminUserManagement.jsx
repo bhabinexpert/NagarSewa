@@ -17,7 +17,7 @@
  *   Body: { enabled: boolean, reason?: string }
  */
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { useLanguage } from "../../../contexts/language/useLanguage";
 import { useAuth } from "../../../contexts/auth/useAuth";
 import { DAMAK_TOTAL_WARDS, ROLES } from "../../../contexts/auth/authConstants";
@@ -658,8 +658,9 @@ function AdminUserManagement() {
   const currentUser = authContext.currentUser;
 
   // Determine user role
+  const userRole = currentUser?.role?.toUpperCase();
   let isSuperAdmin = false;
-  if (currentUser && currentUser.role === ROLES.SUPER_ADMIN) {
+  if (currentUser && userRole === 'SUPER_ADMIN') {
     isSuperAdmin = true;
   }
 
@@ -718,11 +719,31 @@ function AdminUserManagement() {
 
   // Fetch users from API
   const usersData = useUsers(queryParams);
-  const users = usersData.users;
+  const usersRaw = usersData.users || [];
+  
+  // Filter out super admin and ward admins from the users list
+  const users = useMemo(
+    function() {
+      if (!usersRaw || !Array.isArray(usersRaw)) return [];
+      return usersRaw.filter(function(user) {
+        const role = user.role?.toUpperCase();
+        return role !== 'SUPER_ADMIN' && role !== 'WARD_ADMIN';
+      });
+    },
+    [usersRaw]
+  );
+  
   const loading = usersData.loading;
   const error = usersData.error;
   const refetch = usersData.refetch;
-  const stats = usersData.stats;
+  const stats = usersData.stats || { total: 0, pendingKyc: 0, active: 0 };
+
+  // Fetch users when component mounts or filters change
+  useEffect(() => {
+    if (refetch) {
+      refetch();
+    }
+  }, [refetch, kycFilter, wardFilter, searchQuery, sortOrder]);
 
   // ============================================================================
   // EVENT HANDLERS
