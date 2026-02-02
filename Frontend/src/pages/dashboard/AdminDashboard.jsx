@@ -35,6 +35,7 @@ import {
 import AdminUserManagement from "../../components/dashboard/admin/AdminUserManagement";
 import AdminAnalytics from "../../components/dashboard/admin/AdminAnalytics";
 import AdminCampaignManagement from "../../components/dashboard/admin/AdminCampaignManagement";
+import AdminProfile from "../../components/dashboard/admin/AdminProfile";
 import SuperAdminPanel from "../../components/dashboard/admin/SuperAdminPanel";
 import WardAdminIssues from "../../components/dashboard/admin/WardAdminIssues";
 import SuperAdminIssues from "../../components/dashboard/admin/SuperAdminIssues";
@@ -58,6 +59,7 @@ const adminDashboardText = {
     users: "User Management",
     analytics: "Analytics",
     settings: "Settings",
+    profile: "My Profile",
     logout: "Logout",
     overview: "Overview",
     totalIssues: "Total Issues",
@@ -90,6 +92,7 @@ const adminDashboardText = {
     users: "प्रयोगकर्ता व्यवस्थापन",
     analytics: "विश्लेषण",
     settings: "सेटिङहरू",
+    profile: "मेरो प्रोफाइल",
     logout: "लग आउट",
     overview: "अवलोकन",
     totalIssues: "कुल समस्याहरू",
@@ -144,24 +147,43 @@ function AdminDashboard() {
   // ============================================================
   // STATE VARIABLES
   // ============================================================
-  const [activeTab, setActiveTab] = useState("dashboard");
+  // Set default tab based on admin role
+  const getDefaultTab = () => {
+    if (isSuperAdmin()) {
+      return "wardManagement"; // Super admin sees ward management first
+    }
+    return "dashboard"; // Ward admin sees dashboard first
+  };
+  
+  const [activeTab, setActiveTab] = useState(getDefaultTab());
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [wardFilter, setWardFilter] = useState("all"); // For super admin filtering
 
   // ============================================================
-  // REAL DASHBOARD DATA FROM API
+  // REAL DASHBOARD DATA FROM API (loaded on demand)
   // ============================================================
-  const { stats: dashboardStats, loading: statsLoading } = useDashboardStats();
+  const { stats: dashboardStats, loading: statsLoading, refetch: refetchStats } = useDashboardStats();
   
-  // Get recent issues for dashboard preview
+  // Get recent issues for dashboard preview (loaded on demand)
   const wardFilterParams = isSuperAdmin() && wardFilter !== "all" ? { ward: wardFilter } : {};
-  const { issues: recentIssuesList, loading: issuesLoading } = useIssues({ 
+  const { issues: recentIssuesList, loading: issuesLoading, refetch: refetchIssues } = useIssues({ 
     ...wardFilterParams, 
     sort: 'newest',
     limit: 3 
   });
   
+  // Fetch data only when on dashboard tab and user is admin
+  React.useEffect(() => {
+    if (activeTab === 'dashboard') {
+      // Only fetch stats if user is actually an admin
+      if (isSuperAdmin() || isWardAdmin()) {
+        refetchStats();
+      }
+      refetchIssues();
+    }
+  }, [activeTab, wardFilter]);
+
   // Calculate stats from real data
   const stats = {
     totalIssues: dashboardStats.issues?.total || 0,
@@ -235,6 +257,9 @@ function AdminDashboard() {
     
     // Analytics - available to all
     items.push({ id: "analytics", icon: BarChart3, label: t.analytics });
+    
+    // Profile - available to all
+    items.push({ id: "profile", icon: Settings, label: t.profile });
     
     return items;
   }
@@ -347,6 +372,10 @@ function AdminDashboard() {
     
     if (activeTab === "analytics") {
       return <AdminAnalytics wardFilter={wardFilter} isSuperAdmin={isSuperAdmin()} />;
+    }
+    
+    if (activeTab === "profile") {
+      return <AdminProfile />;
     }
     
     // Default to dashboard home
