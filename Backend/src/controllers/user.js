@@ -82,7 +82,7 @@ export const getUserById = asyncHandler(async (req, res) => {
  */
 export const updateProfile = asyncHandler(async (req, res) => {
   const { id } = req.params;
-  const { full_name, phone, address, ward_number } = req.body;
+  const { full_name, phone, address, gender, date_of_birth } = req.body;
 
   // Check if user exists
   const user = await User.findById(id);
@@ -118,9 +118,15 @@ export const updateProfile = asyncHandler(async (req, res) => {
     paramCount++;
   }
 
-  if (ward_number !== undefined) {
-    updates.push(`ward_number = $${paramCount}`);
-    params.push(ward_number);
+  if (gender !== undefined) {
+    updates.push(`gender = $${paramCount}`);
+    params.push(gender);
+    paramCount++;
+  }
+
+  if (date_of_birth !== undefined) {
+    updates.push(`date_of_birth = $${paramCount}`);
+    params.push(date_of_birth);
     paramCount++;
   }
 
@@ -135,12 +141,36 @@ export const updateProfile = asyncHandler(async (req, res) => {
     UPDATE users 
     SET ${updates.join(', ')}
     WHERE id = $${paramCount}
-    RETURNING id, full_name, email, phone, address, ward_number, kyc_status, updated_at
+    RETURNING id, full_name, email, phone, address, ward_number, role, gender, date_of_birth, kyc_status, is_disabled, created_at, updated_at
   `;
 
   const result = await query(sql, params);
+  const updatedUser = result.rows[0];
 
-  sendSuccess(res, result.rows[0], 'Profile updated successfully');
+  // Format response in camelCase - match the format from getMe
+  const formattedUser = {
+    id: updatedUser.id,
+    fullName: updatedUser.full_name,
+    email: updatedUser.email,
+    phone: updatedUser.phone,
+    address: updatedUser.address,
+    wardNumber: updatedUser.ward_number,
+    role: updatedUser.role,
+    gender: updatedUser.gender,
+    dateOfBirth: updatedUser.date_of_birth,
+    kycStatus: updatedUser.kyc_status,
+    kycVerified: updatedUser.kyc_status === 'VERIFIED',
+    isDisabled: updatedUser.is_disabled,
+    createdAt: updatedUser.created_at,
+    updatedAt: updatedUser.updated_at,
+    jurisdiction: {
+      district: 'Jhapa',
+      municipality: 'Damak',
+      wardNumber: updatedUser.ward_number
+    }
+  };
+
+  sendSuccess(res, formattedUser, 'Profile updated successfully');
 });
 
 /**
