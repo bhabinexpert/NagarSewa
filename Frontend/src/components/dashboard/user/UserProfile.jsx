@@ -38,7 +38,7 @@ import React, { useState, useRef } from "react";
 import { useLanguage } from "../../../contexts/language/useLanguage";
 import { useAuth } from "../../../contexts/auth/useAuth";
 import { useUser } from "../../../hooks/useData";
-import { usersAPI } from "../../../services/api";
+import api, { usersAPI } from "../../../services/api";
 import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import {
@@ -198,6 +198,33 @@ function getStatusStyle(status, t) {
       label: t.notSubmitted,
       message: ""
     };
+  }
+}
+
+// ============================================================================
+// HELPER FUNCTIONS FOR DATE FORMATTING
+// ============================================================================
+
+/**
+ * Format date for display - extract just the date part from ISO string
+ * @param {string} dateString - ISO date string or YYYY-MM-DD
+ * @returns {string} Formatted date (YYYY-MM-DD)
+ */
+function formatDateForDisplay(dateString) {
+  if (!dateString) return '';
+  // If it's already in YYYY-MM-DD format, return as is
+  if (/^\d{4}-\d{2}-\d{2}$/.test(dateString)) {
+    return dateString;
+  }
+  // If it's an ISO string, extract the date part
+  try {
+    const date = new Date(dateString);
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  } catch (e) {
+    return dateString;
   }
 }
 
@@ -400,17 +427,39 @@ function UserProfile() {
   const isKycVerified = authContext.isKycVerified;
   const t = profileText[language];
 
-  // Fetch user data from backend
-  // Backend: GET /api/users/:id
-  let userId = null;
-  if (currentUser) {
-    userId = currentUser.id;
-  }
-  const userData = useUser(userId);
-  const user = userData.user;
-  const loading = userData.loading;
-  const error = userData.error;
-  const refetch = userData.refetch;
+  // Use current user from AuthContext
+  const user = currentUser;
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+
+  // Fetch fresh user data on mount to ensure we have all fields
+  React.useEffect(function fetchFreshUserData() {
+    async function refreshUserData() {
+      if (currentUser && currentUser.id) {
+        // Check if we're missing critical fields
+        const missingFields = !currentUser.fullName || !currentUser.gender || !currentUser.address;
+        
+        if (missingFields) {
+          setLoading(true);
+          try {
+            const response = await api.auth.getMe();
+            if (response && response.user) {
+              // Update AuthContext with fresh data
+              localStorage.setItem('nagarsewa_user', JSON.stringify(response.user));
+              // Force a page reload to update AuthContext
+              window.location.reload();
+            }
+          } catch (err) {
+            console.error('Failed to fetch user data:', err);
+            setError('Failed to load profile data');
+          } finally {
+            setLoading(false);
+          }
+        }
+      }
+    }
+    refreshUserData();
+  }, [currentUser]);
 
   // ----------------------------------------
   // STATE MANAGEMENT
@@ -451,7 +500,22 @@ function UserProfile() {
    */
   React.useEffect(function syncEditData() {
     if (user) {
-      setEditData(user);
+      // Map dateOfBirth to dob for compatibility with form fields
+      // Format date to YYYY-MM-DD for date input
+      const dobValue = user.dateOfBirth || user.dob;
+      const formattedDob = formatDateForDisplay(dobValue);
+      
+      setEditData({
+        fullName: user.fullName,
+        email: user.email,
+        phone: user.phone,
+        address: user.address,
+        dob: formattedDob,
+        gender: user.gender,
+        dateOfBirth: formattedDob,
+        wardNumber: user.wardNumber,
+        profilePhoto: user.profilePhoto
+      });
     }
   }, [user]);
 
@@ -467,11 +531,17 @@ function UserProfile() {
     // Create a copy of user data for editing
     const userCopy = {};
     if (user) {
+      const dobValue = user.dateOfBirth || user.dob;
+      const formattedDob = formatDateForDisplay(dobValue);
+      
       userCopy.fullName = user.fullName;
       userCopy.email = user.email;
       userCopy.phone = user.phone;
       userCopy.address = user.address;
-      userCopy.dob = user.dob;
+      userCopy.dob = formattedDob;
+      userCopy.gender = user.gender;
+      userCopy.wardNumber = user.wardNumber;
+      userCopy.dateOfBirth = formattedDob;
       userCopy.profilePhoto = user.profilePhoto;
     }
     setEditData(userCopy);
@@ -486,11 +556,16 @@ function UserProfile() {
     // Restore original user data
     const userCopy = {};
     if (user) {
+      const dobValue = user.dateOfBirth || user.dob;
+      const formattedDob = formatDateForDisplay(dobValue);
+      
       userCopy.fullName = user.fullName;
       userCopy.email = user.email;
       userCopy.phone = user.phone;
       userCopy.address = user.address;
-      userCopy.dob = user.dob;
+      userCopy.dob = formattedDob;
+      userCopy.gender = user.gender;
+      userCopy.dateOfBirth = formattedDob;
       userCopy.profilePhoto = user.profilePhoto;
     }
     setEditData(userCopy);
@@ -505,25 +580,63 @@ function UserProfile() {
     setIsSubmitting(true);
     
     try {
+      // Prepare update data with snake_case for backend
+      const updateData = {
+        full_name: editData.fullName,
+        phone: editData.phone,
+        address: editData.address,
+        gender: editData.gender,
+        date_of_birth: editData.dob || editData.dateOfBirth
+      };
+      
+      console.log('Sending update data:', updateData);
+      
       // Send update request to backend
-      await usersAPI.updateProfile(userId, editData);
+      const response = await usersAPI.updateProfile(currentUser.id, updateData);
+      
+      console.log('Update response received:', response);
+      console.log('Response data:', response.data);
+      
+      // Update auth context immediately with the fresh data from backend
+      if (response && response.data) {
+        console.log('Updating auth context with:', response.data);
+        authContext.updateProfile(response.data);
+        
+        // Format the DOB from response
+        const formattedDob = formatDateForDisplay(response.data.dateOfBirth);
+        
+        // Force a re-render by updating local user reference
+        setEditData({
+          fullName: response.data.fullName,
+          email: response.data.email,
+          phone: response.data.phone,
+          address: response.data.address,
+          dob: formattedDob,
+          gender: response.data.gender,
+          dateOfBirth: formattedDob,
+          wardNumber: response.data.wardNumber,
+          profilePhoto: response.data.profilePhoto
+        });
+      }
       
       // Show success message
       toast.success(t.saveSuccess, { position: "top-right", autoClose: 3000 });
       
-      // Exit editing mode and refresh data
+      // Exit editing mode - the UI will update from updated currentUser
       setIsEditing(false);
-      refetch();
       
     } catch (error) {
-      // Show error message
-      toast.error(t.saveError, { position: "top-right", autoClose: 3000 });
+      // Show error message with details
+      console.error('Profile update error:', error);
+      const errorMsg = error.message || t.saveError;
+      toast.error(errorMsg, { position: "top-right", autoClose: 3000 });
     } finally {
       setIsSubmitting(false);
     }
   }
 
   /**
+   * Handle profile photo file selection.  /**
    * Handle profile photo file selection.
    * Reads the file and updates editData with base64 preview.
    * 
@@ -544,6 +657,8 @@ function UserProfile() {
         newEditData.phone = editData.phone;
         newEditData.address = editData.address;
         newEditData.dob = editData.dob;
+        newEditData.gender = editData.gender;
+        newEditData.dateOfBirth = editData.dateOfBirth;
         newEditData.profilePhoto = reader.result;
         setEditData(newEditData);
       };
@@ -637,6 +752,8 @@ function UserProfile() {
       phone: editData.phone,
       address: editData.address,
       dob: editData.dob,
+      gender: editData.gender,
+      dateOfBirth: editData.dateOfBirth,
       profilePhoto: editData.profilePhoto
     };
     newEditData[fieldName] = value;
@@ -830,19 +947,60 @@ function UserProfile() {
                 {isEditing ? (
                   <input 
                     type="date" 
-                    value={editData.dob || ""} 
+                    value={formatDateForDisplay(editData.dob || editData.dateOfBirth) || ""} 
                     onChange={function(e) { updateEditField("dob", e.target.value); }} 
                     className="w-full p-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-emerald-500" 
                   />
                 ) : (
                   <p className="text-gray-800 flex items-center gap-2">
                     <Calendar size={16} className="text-gray-400" />
-                    {displayData.dob || "-"}
+                    {formatDateForDisplay(displayData.dob || displayData.dateOfBirth) || "-"}
                   </p>
                 )}
               </div>
 
-              {/* Address (Full Width) */}
+              {/* Gender */}
+              <div>
+                <label className="block text-sm font-medium text-gray-600 mb-1">{t.gender}</label>
+                {isEditing ? (
+                  <select 
+                    value={editData.gender || ""} 
+                    onChange={function(e) { updateEditField("gender", e.target.value); }} 
+                    className="w-full p-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-emerald-500"
+                  >
+                    <option value="">{t.gender}</option>
+                    <option value="male">{t.male}</option>
+                    <option value="female">{t.female}</option>
+                    <option value="other">{t.other}</option>
+                  </select>
+                ) : (
+                  <p className="text-gray-800 capitalize">
+                    {displayData.gender ? (
+                      displayData.gender === 'male' ? t.male :
+                      displayData.gender === 'female' ? t.female : t.other
+                    ) : "-"}
+                  </p>
+                )}
+              </div>
+
+              {/* Ward Number (Read-only) */}
+              <div>
+                <label className="block text-sm font-medium text-gray-600 mb-1">{t.ward}</label>
+                <p className="text-gray-800 flex items-center gap-2">
+                  <MapPin size={16} className="text-gray-400" />
+                  {displayData.wardNumber || "-"}
+                </p>
+              </div>
+
+              {/* Municipality (Read-only) */}
+              <div>
+                <label className="block text-sm font-medium text-gray-600 mb-1">{t.municipality}</label>
+                <p className="text-gray-800">
+                  {displayData.jurisdiction?.municipality || "Damak"}
+                </p>
+              </div>
+
+              {/* Address (Full Width - Editable) */}
               <div className="md:col-span-2">
                 <label className="block text-sm font-medium text-gray-600 mb-1">{t.address}</label>
                 {isEditing ? (
@@ -851,6 +1009,7 @@ function UserProfile() {
                     value={editData.address || ""} 
                     onChange={function(e) { updateEditField("address", e.target.value); }} 
                     className="w-full p-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-emerald-500" 
+                    placeholder="Enter your full address"
                   />
                 ) : (
                   <p className="text-gray-800 flex items-center gap-2">
