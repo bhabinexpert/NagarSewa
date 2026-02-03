@@ -601,63 +601,6 @@ export default function RequestCampaign() {
           </button>
         </form>
       </div>
-
-      {/* My Campaign Requests */}
-      <div className="bg-white rounded-2xl shadow-sm p-6">
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-xl font-bold text-gray-900">{t.myCampaigns}</h2>
-          <button
-            onClick={refetch}
-            className="p-2 text-gray-500 hover:text-indigo-600 hover:bg-gray-100 rounded-lg transition-colors"
-            title={t.refresh}
-          >
-            <RefreshCw size={18} />
-          </button>
-        </div>
-
-        {/* Loading State */}
-        {campaignsLoading && (
-          <div className="flex items-center justify-center py-12">
-            <Loader className="animate-spin text-indigo-600" size={32} />
-            <span className="ml-2 text-gray-600">{t.loading}</span>
-          </div>
-        )}
-
-        {/* Error State */}
-        {campaignsError && (
-          <div className="text-center py-12">
-            <p className="text-red-600 mb-4">{t.error}</p>
-            <button
-              onClick={refetch}
-              className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
-            >
-              {t.retry}
-            </button>
-          </div>
-        )}
-
-        {/* Empty State */}
-        {!campaignsLoading && !campaignsError && campaigns.length === 0 && (
-          <div className="text-center py-12">
-            <Megaphone className="mx-auto text-gray-300 mb-4" size={48} />
-            <p className="text-gray-500 font-medium">{t.noCampaigns}</p>
-            <p className="text-gray-400 text-sm mt-1">{t.noCampaignsDesc}</p>
-          </div>
-        )}
-
-        {/* Campaigns List */}
-        {!campaignsLoading && !campaignsError && campaigns.length > 0 && (
-          <div className="space-y-4">
-            {campaigns.map(campaign => (
-              <CampaignCard
-                key={campaign.id}
-                campaign={campaign}
-                t={t}
-              />
-            ))}
-          </div>
-        )}
-      </div>
     </div>
   );
 }
