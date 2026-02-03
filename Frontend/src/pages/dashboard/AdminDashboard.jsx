@@ -439,8 +439,8 @@ function AdminDashboard() {
    * @returns {JSX.Element} The dashboard home layout
    */
   function renderDashboardHome() {
-    // Format recent issues from API data
-    const recentIssues = recentIssuesList.slice(0, 3).map(issue => ({
+    // Format recent issues from API data (use empty array if data not loaded yet)
+    const recentIssues = (recentIssuesList || []).slice(0, 3).map(issue => ({
       id: issue.id || 'N/A',
       type: issue.issue_type || issue.type || 'Unknown',
       status: issue.status || 'pending',
@@ -482,52 +482,96 @@ function AdminDashboard() {
                 <div className="p-2 bg-blue-100 rounded-lg">
                   <FileText className="text-blue-600" size={20} />
                 </div>
-                <span className="flex items-center text-green-500 text-sm">
-                  <ArrowUp size={14} />
-                  12%
-                </span>
+                {!statsLoading && (
+                  <span className="flex items-center text-green-500 text-sm">
+                    <ArrowUp size={14} />
+                    12%
+                  </span>
+                )}
               </div>
-              <p className="text-2xl font-bold text-gray-800">{stats.totalIssues}</p>
-              <p className="text-gray-500 text-sm">{t.totalIssues}</p>
+              {statsLoading ? (
+                <div className="animate-pulse">
+                  <div className="h-8 bg-gray-200 rounded mb-2"></div>
+                  <div className="h-4 bg-gray-200 rounded w-24"></div>
+                </div>
+              ) : (
+                <>
+                  <p className="text-2xl font-bold text-gray-800">{stats.totalIssues}</p>
+                  <p className="text-gray-500 text-sm">{t.totalIssues}</p>
+                </>
+              )}
             </div>
             <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
               <div className="flex items-center justify-between mb-3">
                 <div className="p-2 bg-yellow-100 rounded-lg">
                   <Clock className="text-yellow-600" size={20} />
                 </div>
-                <span className="flex items-center text-red-500 text-sm">
-                  <ArrowUp size={14} />
-                  5%
-                </span>
+                {!statsLoading && (
+                  <span className="flex items-center text-red-500 text-sm">
+                    <ArrowUp size={14} />
+                    5%
+                  </span>
+                )}
               </div>
-              <p className="text-2xl font-bold text-gray-800">{stats.pending}</p>
-              <p className="text-gray-500 text-sm">{t.pendingIssues}</p>
+              {statsLoading ? (
+                <div className="animate-pulse">
+                  <div className="h-8 bg-gray-200 rounded mb-2"></div>
+                  <div className="h-4 bg-gray-200 rounded w-24"></div>
+                </div>
+              ) : (
+                <>
+                  <p className="text-2xl font-bold text-gray-800">{stats.pending}</p>
+                  <p className="text-gray-500 text-sm">{t.pendingIssues}</p>
+                </>
+              )}
             </div>
             <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
               <div className="flex items-center justify-between mb-3">
                 <div className="p-2 bg-green-100 rounded-lg">
                   <CheckCircle className="text-green-600" size={20} />
                 </div>
-                <span className="flex items-center text-green-500 text-sm">
-                  <ArrowUp size={14} />
-                  18%
-                </span>
+                {!statsLoading && (
+                  <span className="flex items-center text-green-500 text-sm">
+                    <ArrowUp size={14} />
+                    18%
+                  </span>
+                )}
               </div>
-              <p className="text-2xl font-bold text-gray-800">{stats.resolved}</p>
-              <p className="text-gray-500 text-sm">{t.resolvedIssues}</p>
+              {statsLoading ? (
+                <div className="animate-pulse">
+                  <div className="h-8 bg-gray-200 rounded mb-2"></div>
+                  <div className="h-4 bg-gray-200 rounded w-24"></div>
+                </div>
+              ) : (
+                <>
+                  <p className="text-2xl font-bold text-gray-800">{stats.resolved}</p>
+                  <p className="text-gray-500 text-sm">{t.resolvedIssues}</p>
+                </>
+              )}
             </div>
             <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
               <div className="flex items-center justify-between mb-3">
                 <div className="p-2 bg-purple-100 rounded-lg">
                   <Users className="text-purple-600" size={20} />
                 </div>
-                <span className="flex items-center text-green-500 text-sm">
-                  <ArrowUp size={14} />
-                  8%
-                </span>
+                {!statsLoading && (
+                  <span className="flex items-center text-green-500 text-sm">
+                    <ArrowUp size={14} />
+                    8%
+                  </span>
+                )}
               </div>
-              <p className="text-2xl font-bold text-gray-800">{stats.totalUsers}</p>
-              <p className="text-gray-500 text-sm">{t.totalUsers}</p>
+              {statsLoading ? (
+                <div className="animate-pulse">
+                  <div className="h-8 bg-gray-200 rounded mb-2"></div>
+                  <div className="h-4 bg-gray-200 rounded w-24"></div>
+                </div>
+              ) : (
+                <>
+                  <p className="text-2xl font-bold text-gray-800">{stats.totalUsers}</p>
+                  <p className="text-gray-500 text-sm">{t.totalUsers}</p>
+                </>
+              )}
             </div>
           </div>
         </div>
@@ -651,9 +695,29 @@ function AdminDashboard() {
   /**
    * Render recent issues list.
    * @param {Array} issues - Array of issue objects
-   * @returns {JSX.Element[]} Array of issue row elements
+   * @returns {JSX.Element|JSX.Element[]} Array of issue row elements or loading/empty state
    */
   function renderRecentIssues(issues) {
+    // Show loading state
+    if (issuesLoading) {
+      return (
+        <div className="p-8 text-center text-gray-500">
+          <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600 mb-2"></div>
+          <p className="text-sm">{language === "en" ? "Loading issues..." : "समस्याहरू लोड हुँदैछ..."}</p>
+        </div>
+      );
+    }
+    
+    // Show empty state if no issues
+    if (!issues || issues.length === 0) {
+      return (
+        <div className="p-8 text-center text-gray-500">
+          <AlertCircle className="mx-auto mb-2 text-gray-400" size={32} />
+          <p className="text-sm">{language === "en" ? "No recent issues" : "कुनै हालको समस्या छैन"}</p>
+        </div>
+      );
+    }
+    
     return issues.map(function(issue) {
       const indicatorClass = getStatusIndicatorClass(issue.status);
       const badgeClass = getStatusBadgeClass(issue.status);
@@ -664,7 +728,7 @@ function AdminDashboard() {
             <div className={"w-2 h-2 rounded-full " + indicatorClass} />
             <div>
               <p className="font-medium text-gray-800">{issue.type}</p>
-              <p className="text-sm text-gray-500">{issue.id}</p>
+              <p className="text-sm text-gray-500">#{issue.id.substring(0, 8)}</p>
             </div>
           </div>
           <div className="text-right">
