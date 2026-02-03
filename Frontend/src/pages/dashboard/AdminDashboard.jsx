@@ -37,8 +37,7 @@ import AdminAnalytics from "../../components/dashboard/admin/AdminAnalytics";
 import AdminCampaignManagement from "../../components/dashboard/admin/AdminCampaignManagement";
 import AdminProfile from "../../components/dashboard/admin/AdminProfile";
 import SuperAdminPanel from "../../components/dashboard/admin/SuperAdminPanel";
-import WardAdminIssues from "../../components/dashboard/admin/WardAdminIssues";
-import SuperAdminIssues from "../../components/dashboard/admin/SuperAdminIssues";
+import AdminIssueManagement from "../../components/dashboard/admin/AdminIssueManagement";
 import { Link, useNavigate } from "react-router-dom";
 
 // ============================================================
@@ -355,11 +354,7 @@ function AdminDashboard() {
     }
     
     if (activeTab === "issues") {
-      if (isSuperAdmin()) {
-        return <SuperAdminIssues />;
-      } else {
-        return <WardAdminIssues />;
-      }
+      return <AdminIssueManagement />;
     }
     
     if (activeTab === "campaigns") {
