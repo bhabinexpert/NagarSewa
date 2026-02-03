@@ -312,6 +312,7 @@ function PrioritySelector(props) {
  */
 function ReportIssue(props) {
   const onNavigate = props.onNavigate;
+  const onIssueSubmitted = props.onIssueSubmitted;
   
   // Get language and user context
   const languageContext = useLanguage();
@@ -605,18 +606,28 @@ function ReportIssue(props) {
       return;
     }
 
-    // Step 2: Set submitting state
+    // Step 2: Get user's ward number
+    const userWardNumber = currentUser?.wardNumber || currentUser?.ward_number;
+    if (!userWardNumber) {
+      toast.error("Ward number not found. Please update your profile.", { position: "top-right", autoClose: 3000 });
+      return;
+    }
+
+    // Step 3: Set submitting state
     setIsSubmitting(true);
     
     try {
-      // Step 3: Build FormData object for multipart upload
+      // Step 4: Build FormData object for multipart upload
       const submitData = new FormData();
       
-      // Add text fields
-      submitData.append("issueType", formData.issueType);
+      // Add text fields with backend model-expected field names
+      submitData.append("type", formData.issueType); // For controller validation
+      submitData.append("ward", userWardNumber); // For controller validation
+      submitData.append("category", formData.issueType); // For database insert
+      submitData.append("ward_number", userWardNumber); // For database insert
       submitData.append("description", formData.description);
       submitData.append("location", formData.location);
-      submitData.append("priority", formData.priority);
+      submitData.append("priority", formData.priority.toUpperCase());
       
       // Add coordinates if available
       if (formData.coordinates) {
@@ -629,13 +640,19 @@ function ReportIssue(props) {
         submitData.append("media", item.file);
       });
 
-      // Step 4: Send to backend API
+      // Step 5: Send to backend API
       await issuesAPI.create(submitData);
       
-      // Step 5: Show success screen
+      // Step 6: Call callback to refresh dashboard stats
+      if (onIssueSubmitted) {
+        onIssueSubmitted();
+      }
+      
+      // Step 7: Show success screen
       setSubmitted(true);
+      toast.success(t.success, { position: "top-right", autoClose: 3000 });
 
-      // Step 6: Reset form after delay
+      // Step 8: Reset form after delay
       setTimeout(function() {
         setSubmitted(false);
         setFormData({
@@ -649,8 +666,10 @@ function ReportIssue(props) {
       }, 3000);
       
     } catch (error) {
-      // Show error message
-      toast.error(t.uploadError, { position: "top-right", autoClose: 3000 });
+      console.error("Issue submission error:", error);
+      // Show error message with details
+      const errorMessage = error.message || t.uploadError;
+      toast.error(errorMessage, { position: "top-right", autoClose: 4000 });
     } finally {
       // Always reset submitting state
       setIsSubmitting(false);
