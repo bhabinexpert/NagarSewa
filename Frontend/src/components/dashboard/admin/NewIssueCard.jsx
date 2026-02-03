@@ -26,7 +26,23 @@ export function IssueCard({ issue, t, isSuperAdmin, onStatusUpdate, onPrioritySe
   const [expanded, setExpanded] = useState(false);
   const [response, setResponse] = useState("");
   const [priorityNote, setPriorityNote] = useState("");
-  const [selectedPriority, setSelectedPriority] = useState(issue.priority?.toLowerCase() || "medium");
+  const normalizePriority = (value) => {
+    if (!value) return "medium";
+    const normalized = String(value).toLowerCase();
+    if (normalized === "critical") return "urgent";
+    return normalized;
+  };
+
+  const toApiPriority = (value) => {
+    const normalized = normalizePriority(value);
+    if (normalized === "low") return "LOW";
+    if (normalized === "medium") return "MEDIUM";
+    if (normalized === "high") return "HIGH";
+    if (normalized === "urgent") return "CRITICAL";
+    return String(value || "").toUpperCase();
+  };
+
+  const [selectedPriority, setSelectedPriority] = useState(normalizePriority(issue.priority));
   const [showStatusModal, setShowStatusModal] = useState(false);
   const [selectedStatus, setSelectedStatus] = useState("");
   const [imagePreview, setImagePreview] = useState(null);
@@ -80,7 +96,24 @@ export function IssueCard({ issue, t, isSuperAdmin, onStatusUpdate, onPrioritySe
     },
   };
 
-  const status = (issue.status || 'pending').toLowerCase();
+  const normalizeStatus = (value) => {
+    if (!value) return "pending";
+    const normalized = String(value).toLowerCase();
+    if (normalized === "inprogress") return "in_progress";
+    if (normalized === "in-progress") return "in_progress";
+    return normalized;
+  };
+
+  const toApiStatus = (value) => {
+    const normalized = normalizeStatus(value);
+    if (normalized === "pending") return "PENDING";
+    if (normalized === "in_progress") return "IN_PROGRESS";
+    if (normalized === "resolved") return "RESOLVED";
+    if (normalized === "rejected") return "REJECTED";
+    return String(value || "").toUpperCase();
+  };
+
+  const status = normalizeStatus(issue.status || 'pending');
   const config = statusConfig[status] || statusConfig.pending;
   const StatusIcon = config.icon;
 
@@ -92,7 +125,7 @@ export function IssueCard({ issue, t, isSuperAdmin, onStatusUpdate, onPrioritySe
     urgent: { color: "text-red-700", bg: "bg-red-600", text: "text-white" },
   };
 
-  const priorityKey = (issue.priority || 'medium').toLowerCase();
+  const priorityKey = normalizePriority(issue.priority || 'medium');
   const priorityStyle = priorityConfig[priorityKey] || priorityConfig.medium;
 
   const statusLabels = {
@@ -128,14 +161,14 @@ export function IssueCard({ issue, t, isSuperAdmin, onStatusUpdate, onPrioritySe
   };
 
   const submitStatusUpdate = async () => {
-    await onStatusUpdate(issue.id, selectedStatus, response);
+    await onStatusUpdate(issue.id, toApiStatus(selectedStatus), response);
     setShowStatusModal(false);
     setResponse("");
   };
 
   // Handle priority update
   const handlePriorityUpdate = async () => {
-    await onPrioritySet(issue.id, selectedPriority, priorityNote);
+    await onPrioritySet(issue.id, toApiPriority(selectedPriority), priorityNote);
     setPriorityNote("");
   };
 
