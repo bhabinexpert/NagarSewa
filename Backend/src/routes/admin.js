@@ -136,9 +136,10 @@ router.get('/dashboard/stats', authMiddleware, adminOnly, async (req, res) => {
     const issues = await Issue.findAll(issueFilters);
     const issueStats = {
       total: issues.length,
-      pending: issues.filter(i => i.status === 'pending').length,
-      inProgress: issues.filter(i => i.status === 'in_progress').length,
-      resolved: issues.filter(i => i.status === 'resolved').length
+      pending: issues.filter(i => (i.status || '').toLowerCase() === 'pending').length,
+      inProgress: issues.filter(i => (i.status || '').toLowerCase() === 'in_progress').length,
+      resolved: issues.filter(i => (i.status || '').toLowerCase() === 'resolved').length,
+      rejected: issues.filter(i => (i.status || '').toLowerCase() === 'rejected').length
     };
 
     // User stats
@@ -150,8 +151,8 @@ router.get('/dashboard/stats', authMiddleware, adminOnly, async (req, res) => {
     const users = await User.findAll(userFilters);
     const userStats = {
       total: users.length,
-      verified: users.filter(u => u.kyc_status === 'VERIFIED').length,
-      pendingKyc: users.filter(u => u.kyc_status === 'PENDING').length
+      verified: users.filter(u => (u.kyc_status || '').toUpperCase() === 'VERIFIED').length,
+      pendingKyc: users.filter(u => (u.kyc_status || '').toUpperCase() === 'PENDING').length
     };
 
     // Campaign stats
@@ -163,8 +164,10 @@ router.get('/dashboard/stats', authMiddleware, adminOnly, async (req, res) => {
     const campaigns = await Campaign.findAll(campaignFilters);
     const campaignStats = {
       total: campaigns.length,
-      pending: campaigns.filter(c => c.status === 'pending').length,
-      approved: campaigns.filter(c => c.status === 'approved').length
+      pending: campaigns.filter(c => (c.status || '').toUpperCase() === 'PENDING').length,
+      approved: campaigns.filter(c => (c.status || '').toUpperCase() === 'APPROVED').length,
+      rejected: campaigns.filter(c => (c.status || '').toUpperCase() === 'REJECTED').length,
+      completed: campaigns.filter(c => (c.status || '').toUpperCase() === 'COMPLETED').length
     };
 
     res.json({
@@ -204,6 +207,8 @@ router.get('/users', authMiddleware, adminOnly, async (req, res) => {
       email: user.email,
       phone: user.phone,
       ward: user.ward_number,
+      wardNumber: user.ward_number,
+      role: user.role,
       kycStatus: user.kyc_status?.toLowerCase() || 'pending',
       enabled: !user.is_disabled,
       registeredOn: user.created_at,

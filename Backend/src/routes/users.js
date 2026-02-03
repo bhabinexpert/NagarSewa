@@ -1,6 +1,7 @@
 // User routes
 import express from 'express';
 import { authMiddleware, adminOnly } from '../middleware/auth.js';
+import { uploadKYCDocuments, handleUploadError } from '../middleware/upload.js';
 import { 
   getAllUsers, 
   getUserById, 
@@ -23,7 +24,7 @@ router.get('/:id', authMiddleware, adminOnly, getUserById);
 // Update user profile
 router.patch('/:id/profile', authMiddleware, updateProfile);
 
-// Submit KYC documents
-router.post('/:id/kyc', authMiddleware, submitKYC);
+// Submit KYC documents (with file upload middleware)
+router.post('/:id/kyc', authMiddleware, uploadKYCDocuments, handleUploadError, submitKYC);
 
 export default router;
