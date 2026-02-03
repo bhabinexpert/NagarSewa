@@ -6,16 +6,15 @@ export const Issue = {
   async create(issueData) {
     const sql = `
       INSERT INTO issues (
-        user_id, category, title, description, ward_number,
+        user_id, category, description, ward_number,
         location, latitude, longitude, photo_url, priority
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
       RETURNING *
     `;
     const values = [
       issueData.user_id,
       issueData.category,
-      issueData.title || '',
       issueData.description,
       issueData.ward_number,
       issueData.location || null,

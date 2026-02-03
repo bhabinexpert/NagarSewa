@@ -5,22 +5,30 @@ import { validateRequiredFields, isValidWardNumber } from '../utils/validation.j
 
 // Create campaign
 export const createCampaign = asyncHandler(async (req, res) => {
-  const { title, description, ward } = req.body;
+  const { title, description, targetWard } = req.body;
   
   // Validate required fields
-  const requiredFields = validateRequiredFields({ title, description, ward });
+  const requiredFields = validateRequiredFields({ title, description, targetWard });
   if (!requiredFields.isValid) {
     return sendError(res, requiredFields.message, HTTP_STATUS.BAD_REQUEST);
   }
 
   // Validate ward number
-  if (!isValidWardNumber(ward)) {
+  if (!isValidWardNumber(targetWard)) {
     return sendError(res, 'Invalid ward number (must be 1-9)', HTTP_STATUS.BAD_REQUEST);
   }
 
   const campaign = await Campaign.create({
-    ...req.body,
-    user_id: req.user.id
+    user_id: req.user.id,
+    title: title,
+    description: description,
+    category: req.body.category,
+    target_ward: targetWard,
+    proposed_date: req.body.proposedDate || null,
+    proposed_location: req.body.proposedLocation || null,
+    estimated_participants: req.body.estimatedParticipants || null,
+    requirements: req.body.requirements || null,
+    contact_phone: req.body.contactPhone || null
   });
   
   sendSuccess(res, { campaign }, 'Campaign created successfully', HTTP_STATUS.CREATED);
@@ -57,7 +65,7 @@ export const updateCampaignStatus = asyncHandler(async (req, res) => {
     return sendError(res, 'Status is required', HTTP_STATUS.BAD_REQUEST);
   }
 
-  const validStatuses = ['PENDING', 'APPROVED', 'REJECTED'];
+  const validStatuses = ['PENDING', 'APPROVED', 'REJECTED', 'COMPLETED'];
   if (!validStatuses.includes(status)) {
     return sendError(res, `Invalid status. Must be one of: ${validStatuses.join(', ')}`, HTTP_STATUS.BAD_REQUEST);
   }
