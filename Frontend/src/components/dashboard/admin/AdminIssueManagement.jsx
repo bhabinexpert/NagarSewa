@@ -25,23 +25,12 @@ import { useIssues } from "../../../hooks/useData";
 import { issuesAPI } from "../../../services/api";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
+import { IssueCard } from "./NewIssueCard";
 import {
   Search,
   Filter,
-  Eye,
-  Clock,
-  CheckCircle,
-  AlertCircle,
-  XCircle,
-  MapPin,
-  Calendar,
-  User,
-  Image,
-  ChevronDown,
-  ChevronUp,
-  X,
-  Flag,
   Loader,
+  AlertCircle,
 } from "lucide-react";
 
 // ============================================================================
@@ -154,67 +143,6 @@ const issueManagementText = {
 };
 
 // ============================================================================
-// HELPER FUNCTIONS
-// ============================================================================
-
-/**
- * Get status icon component based on status.
- * @param {string} status - The issue status
- * @returns {JSX.Element} Icon component
- */
-function getStatusIcon(status) {
-  if (status === "pending") {
-    return <Clock className="text-yellow-500" size={16} />;
-  } else if (status === "inProgress") {
-    return <AlertCircle className="text-blue-500" size={16} />;
-  } else if (status === "resolved") {
-    return <CheckCircle className="text-green-500" size={16} />;
-  } else if (status === "rejected") {
-    return <XCircle className="text-red-500" size={16} />;
-  } else {
-    return <Clock className="text-yellow-500" size={16} />;
-  }
-}
-
-/**
- * Get priority color classes.
- * @param {string} priority - The priority level
- * @returns {string} CSS classes for the priority
- */
-function getPriorityColor(priority) {
-  if (priority === "low") {
-    return "text-gray-600 bg-gray-100";
-  } else if (priority === "medium") {
-    return "text-blue-600 bg-blue-100";
-  } else if (priority === "high") {
-    return "text-orange-600 bg-orange-100";
-  } else if (priority === "urgent") {
-    return "text-red-600 bg-red-100";
-  } else {
-    return "text-gray-600 bg-gray-100";
-  }
-}
-
-/**
- * Get status color classes.
- * @param {string} status - The issue status
- * @returns {string} CSS classes for the status
- */
-function getStatusColor(status) {
-  if (status === "pending") {
-    return "text-yellow-700 bg-yellow-100";
-  } else if (status === "inProgress") {
-    return "text-blue-700 bg-blue-100";
-  } else if (status === "resolved") {
-    return "text-green-700 bg-green-100";
-  } else if (status === "rejected") {
-    return "text-red-700 bg-red-100";
-  } else {
-    return "text-yellow-700 bg-yellow-100";
-  }
-}
-
-// ============================================================================
 // SUB-COMPONENTS
 // ============================================================================
 
@@ -246,301 +174,6 @@ function EmptyState(props) {
     <div className="bg-white rounded-2xl shadow-sm p-12 text-center">
       <AlertCircle className="mx-auto text-gray-300 mb-4" size={48} />
       <p className="text-gray-500">{t.noIssues}</p>
-    </div>
-  );
-}
-
-/**
- * Issue card component.
- * @param {Object} props - Component props
- * @returns {JSX.Element} Issue card element
- */
-function IssueCard(props) {
-  const issue = props.issue;
-  const isExpanded = props.isExpanded;
-  const onToggle = props.onToggle;
-  const onStatusUpdate = props.onStatusUpdate;
-  const onPrioritySet = props.onPrioritySet;
-  const isSuperAdmin = props.isSuperAdmin;
-  const isSubmitting = props.isSubmitting;
-  const t = props.t;
-  const language = props.language;
-
-  // Local state for form inputs
-  const [response, setResponse] = useState("");
-  const [priorityNote, setPriorityNote] = useState("");
-
-  // Determine initial priority from issue
-  let initialPriority = "medium";
-  if (issue.superAdminPriority) {
-    initialPriority = issue.superAdminPriority;
-  }
-  const [selectedPriority, setSelectedPriority] = useState(initialPriority);
-
-  // Determine display priority
-  let displayPriority = issue.priority;
-  if (issue.superAdminPriority) {
-    displayPriority = issue.superAdminPriority;
-  }
-
-  // Determine issue type text based on language
-  let issueTypeText;
-  if (language === "np") {
-    issueTypeText = issue.typeNp;
-  } else {
-    issueTypeText = issue.type;
-  }
-
-  // Determine description text based on language
-  let descriptionText;
-  if (language === "np") {
-    descriptionText = issue.descriptionNp;
-  } else {
-    descriptionText = issue.description;
-  }
-
-  // Get status and priority text/colors
-  let statusLabel = t[issue.status];
-  if (!statusLabel) {
-    statusLabel = issue.status;
-  }
-
-  let priorityLabel = t[displayPriority];
-  if (!priorityLabel) {
-    priorityLabel = displayPriority;
-  }
-
-  /**
-   * Handle response text change.
-   * @param {Event} e - Input change event
-   */
-  function handleResponseChange(e) {
-    setResponse(e.target.value);
-  }
-
-  /**
-   * Handle priority note change.
-   * @param {Event} e - Input change event
-   */
-  function handlePriorityNoteChange(e) {
-    setPriorityNote(e.target.value);
-  }
-
-  /**
-   * Handle priority selection.
-   * @param {string} priority - Selected priority value
-   */
-  function handlePrioritySelect(priority) {
-    setSelectedPriority(priority);
-  }
-
-  /**
-   * Handle priority set button click.
-   */
-  function handleSetPriority() {
-    onPrioritySet(issue.id, selectedPriority, priorityNote);
-  }
-
-  /**
-   * Handle status update button clicks.
-   * @param {string} newStatus - New status to set
-   */
-  function handleStatusClick(newStatus) {
-    onStatusUpdate(issue.id, newStatus, response);
-  }
-
-  // Render priority options for super admin
-  function renderPriorityButtons() {
-    const priorities = ["low", "medium", "high", "urgent"];
-
-    return priorities.map(function(p) {
-      let buttonClass = "px-3 py-1 rounded-full text-xs font-medium transition ";
-      if (selectedPriority === p) {
-        buttonClass = buttonClass + getPriorityColor(p);
-      } else {
-        buttonClass = buttonClass + "bg-gray-100 text-gray-600 hover:bg-gray-200";
-      }
-
-      let buttonLabel = t[p + "Priority"];
-      if (!buttonLabel) {
-        buttonLabel = t[p];
-      }
-
-      return (
-        <button
-          key={p}
-          onClick={function () {
-            handlePrioritySelect(p);
-          }}
-          className={buttonClass}
-        >
-          {buttonLabel}
-        </button>
-      );
-    });
-  }
-
-  // Render attachments count if exists
-  let attachmentsElement = null;
-  if (issue.images && issue.images.length > 0) {
-    attachmentsElement = (
-      <div className="flex items-center gap-2 text-sm text-gray-600">
-        <Image size={14} />
-        {t.attachments}: {issue.images.length}
-      </div>
-    );
-  }
-
-  // Render priority note from super admin
-  let priorityNoteElement = null;
-  if (issue.priorityNote) {
-    priorityNoteElement = (
-      <div className="bg-orange-50 p-3 rounded-lg mb-4">
-        <p className="text-sm text-orange-700">
-          <Flag size={14} className="inline mr-1" />
-          <strong>Super Admin:</strong> {issue.priorityNote}
-        </p>
-      </div>
-    );
-  }
-
-  // Render super admin priority section
-  let superAdminSection = null;
-  if (isSuperAdmin && issue.status === "pending") {
-    superAdminSection = (
-      <div className="border-t border-gray-100 pt-4">
-        <p className="text-sm font-medium text-gray-700 mb-2">{t.setPriority}</p>
-        <div className="flex gap-2 mb-3">{renderPriorityButtons()}</div>
-        <textarea
-          placeholder={t.priorityNotePlaceholder}
-          value={priorityNote}
-          onChange={handlePriorityNoteChange}
-          className="w-full p-3 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 mb-3"
-          rows={2}
-        />
-        <button
-          onClick={handleSetPriority}
-          disabled={isSubmitting}
-          className="px-4 py-2 bg-orange-600 text-white rounded-lg text-sm hover:bg-orange-700 disabled:opacity-50"
-        >
-          {isSubmitting ? <Loader className="animate-spin" size={16} /> : t.setPriority}
-        </button>
-      </div>
-    );
-  }
-
-  // Render ward admin status update section
-  let wardAdminSection = null;
-  if (!isSuperAdmin && issue.status !== "resolved" && issue.status !== "rejected") {
-    let statusButtons = [];
-
-    if (issue.status === "pending") {
-      statusButtons.push(
-        <button
-          key="inProgress"
-          onClick={function () {
-            handleStatusClick("inProgress");
-          }}
-          disabled={isSubmitting}
-          className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700 disabled:opacity-50"
-        >
-          {t.markInProgress}
-        </button>
-      );
-    }
-
-    if (issue.status === "inProgress") {
-      statusButtons.push(
-        <button
-          key="resolved"
-          onClick={function () {
-            handleStatusClick("resolved");
-          }}
-          disabled={isSubmitting}
-          className="px-4 py-2 bg-green-600 text-white rounded-lg text-sm hover:bg-green-700 disabled:opacity-50"
-        >
-          {t.markResolved}
-        </button>
-      );
-    }
-
-    statusButtons.push(
-      <button
-        key="rejected"
-        onClick={function () {
-          handleStatusClick("rejected");
-        }}
-        disabled={isSubmitting}
-        className="px-4 py-2 bg-red-600 text-white rounded-lg text-sm hover:bg-red-700 disabled:opacity-50"
-      >
-        {t.markRejected}
-      </button>
-    );
-
-    wardAdminSection = (
-      <div className="border-t border-gray-100 pt-4">
-        <p className="text-sm font-medium text-gray-700 mb-2">{t.updateStatus}</p>
-        <textarea
-          placeholder={t.responsePlaceholder}
-          value={response}
-          onChange={handleResponseChange}
-          className="w-full p-3 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 mb-3"
-          rows={2}
-        />
-        <div className="flex gap-2">{statusButtons}</div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="bg-white rounded-xl border border-gray-100 overflow-hidden hover:shadow-md transition">
-      {/* Issue Header */}
-      <div className="p-4 flex items-center justify-between cursor-pointer" onClick={onToggle}>
-        <div className="flex items-center gap-4">
-          {getStatusIcon(issue.status)}
-          <div>
-            <p className="font-medium text-gray-800">{issue.id}</p>
-            <p className="text-sm text-gray-500">{issueTypeText}</p>
-          </div>
-        </div>
-        <div className="flex items-center gap-4">
-          <span className={"px-3 py-1 rounded-full text-xs font-medium " + getPriorityColor(displayPriority)}>
-            {issue.superAdminPriority && <Flag size={12} className="inline mr-1" />}
-            {priorityLabel}
-          </span>
-          <span className={"px-3 py-1 rounded-full text-xs font-medium " + getStatusColor(issue.status)}>
-            {statusLabel}
-          </span>
-          {isExpanded ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
-        </div>
-      </div>
-
-      {/* Expanded Details */}
-      {isExpanded && (
-        <div className="px-4 pb-4 border-t border-gray-100 pt-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-            <div className="flex items-center gap-2 text-sm text-gray-600">
-              <MapPin size={14} />
-              {issue.location}
-            </div>
-            <div className="flex items-center gap-2 text-sm text-gray-600">
-              <User size={14} />
-              {t.reportedBy}: {issue.reportedBy}
-            </div>
-            <div className="flex items-center gap-2 text-sm text-gray-600">
-              <Calendar size={14} />
-              {t.reportedOn}: {issue.reportedOn}
-            </div>
-            {attachmentsElement}
-          </div>
-
-          <p className="text-gray-700 text-sm mb-4">{descriptionText}</p>
-
-          {priorityNoteElement}
-          {superAdminSection}
-          {wardAdminSection}
-        </div>
-      )}
     </div>
   );
 }
@@ -612,6 +245,21 @@ function AdminIssueManagement() {
         params.ward = wardFilter;
       }
       if (searchQuery) {
+        params.search = searchQuery;
+      }
+
+      return params;
+    },
+    [statusFilter, wardFilter, searchQuery, sortOrder]
+  );
+
+  // Fetch issues from API
+  const { issues, loading, error, refetch } = useIssues(queryParams);
+
+  // Fetch data on mount
+  React.useEffect(() => {
+    refetch();
+  }, [queryParams, refetch]);
         params.search = searchQuery;
       }
 
@@ -808,16 +456,11 @@ function AdminIssueManagement() {
         <IssueCard
           key={issue.id}
           issue={issue}
-          isExpanded={expandedIssue === issue.id}
-          onToggle={function () {
-            handleToggleIssue(issue.id);
-          }}
           onStatusUpdate={handleStatusUpdate}
           onPrioritySet={handlePrioritySet}
           isSuperAdmin={isSuperAdmin}
           isSubmitting={isSubmitting}
           t={t}
-          language={language}
         />
       );
     });
