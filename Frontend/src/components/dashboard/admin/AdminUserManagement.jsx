@@ -280,15 +280,33 @@ function DocumentsModal(props) {
     return null;
   }
 
-  // Get document URLs
+  // Get document URLs from backend
+  const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:2026/api';
+  const BASE_URL = API_BASE_URL.replace('/api', '');
+  
   let citizenshipFrontUrl = null;
   let citizenshipBackUrl = null;
-  let photoUrl = null;
 
+  // Parse documents if they exist (backend stores as JSON string)
   if (user.documents) {
-    citizenshipFrontUrl = user.documents.citizenshipFront;
-    citizenshipBackUrl = user.documents.citizenshipBack;
-    photoUrl = user.documents.photo;
+    let docs = user.documents;
+    
+    // If documents is a string, parse it
+    if (typeof docs === 'string') {
+      try {
+        docs = JSON.parse(docs);
+      } catch (e) {
+        console.error('Failed to parse documents:', e);
+      }
+    }
+    
+    // Build full URLs for documents
+    if (docs && docs.citizenshipFront) {
+      citizenshipFrontUrl = BASE_URL + docs.citizenshipFront;
+    }
+    if (docs && docs.citizenshipBack) {
+      citizenshipBackUrl = BASE_URL + docs.citizenshipBack;
+    }
   }
 
   /**
@@ -306,6 +324,11 @@ function DocumentsModal(props) {
             src={url}
             alt={label}
             className="w-full h-48 object-cover rounded-lg border border-gray-200"
+            onError={(e) => {
+              e.target.src = '';
+              e.target.style.display = 'none';
+              e.target.parentElement.innerHTML = '<div class="w-full h-48 bg-red-50 rounded-lg flex items-center justify-center text-red-600 text-sm">Failed to load image</div>';
+            }}
           />
         </div>
       );
@@ -314,7 +337,10 @@ function DocumentsModal(props) {
         <div className="space-y-2">
           <p className="text-sm font-medium text-gray-700">{label}</p>
           <div className="w-full h-48 bg-gray-100 rounded-lg flex items-center justify-center">
-            <FileText className="text-gray-400" size={48} />
+            <div className="text-center text-gray-500">
+              <FileText className="mx-auto mb-2" size={48} />
+              <p className="text-sm">No document uploaded</p>
+            </div>
           </div>
         </div>
       );
@@ -323,30 +349,39 @@ function DocumentsModal(props) {
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+      <div className="bg-white rounded-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto">
         <div className="p-6 border-b border-gray-100 flex items-center justify-between">
           <h3 className="text-lg font-semibold text-gray-800">{t.documents}</h3>
-          <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-lg">
+          <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-lg transition">
             <X size={20} />
           </button>
         </div>
         <div className="p-6 space-y-6">
-          <div className="flex items-center gap-4 mb-4">
+          {/* User Info */}
+          <div className="flex items-center gap-4 pb-4 border-b border-gray-100">
             <div className="w-16 h-16 rounded-full bg-emerald-100 flex items-center justify-center">
               <User className="text-emerald-600" size={32} />
             </div>
-            <div>
+            <div className="flex-1">
               <h4 className="font-semibold text-gray-800">{user.name}</h4>
               <p className="text-sm text-gray-500">{user.email}</p>
+              <p className="text-sm text-gray-500 mt-1">Ward {user.wardNumber || user.ward}</p>
+            </div>
+            <div>
+              <span className={"px-3 py-1 rounded-full text-xs font-medium " + (user.kycStatus === 'verified' ? 'bg-green-100 text-green-700' : user.kycStatus === 'pending' ? 'bg-yellow-100 text-yellow-700' : 'bg-gray-100 text-gray-700')}>
+                {user.kycStatus?.toUpperCase() || 'NOT SUBMITTED'}
+              </span>
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {renderDocument(citizenshipFrontUrl, t.citizenshipFront)}
-            {renderDocument(citizenshipBackUrl, t.citizenshipBack)}
+          {/* KYC Documents */}
+          <div>
+            <h5 className="font-medium text-gray-800 mb-4">KYC Documents</h5>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {renderDocument(citizenshipFrontUrl, t.citizenshipFront)}
+              {renderDocument(citizenshipBackUrl, t.citizenshipBack)}
+            </div>
           </div>
-
-          <div className="max-w-xs mx-auto">{renderDocument(photoUrl, t.photo)}</div>
         </div>
         <div className="p-6 border-t border-gray-100">
           <button
@@ -695,6 +730,18 @@ function AdminUserManagement() {
   // DATA FETCHING
   // ============================================================================
 
+  // Debounced search query for API calls (must be declared before queryParams)
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState(searchQuery);
+
+  // Debounce search query to avoid excessive API calls
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchQuery(searchQuery);
+    }, 500); // Wait 500ms after user stops typing
+
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
   // Build query params for API
   const queryParams = useMemo(
     function () {
@@ -708,13 +755,13 @@ function AdminUserManagement() {
       if (wardFilter !== "all") {
         params.ward = wardFilter;
       }
-      if (searchQuery) {
-        params.search = searchQuery;
+      if (debouncedSearchQuery) {
+        params.search = debouncedSearchQuery;
       }
 
       return params;
     },
-    [kycFilter, wardFilter, searchQuery, sortOrder]
+    [kycFilter, wardFilter, debouncedSearchQuery, sortOrder]
   );
 
   // Fetch users from API
@@ -743,7 +790,7 @@ function AdminUserManagement() {
     if (refetch) {
       refetch();
     }
-  }, [refetch, kycFilter, wardFilter, searchQuery, sortOrder]);
+  }, [refetch, kycFilter, wardFilter, debouncedSearchQuery, sortOrder]);
 
   // ============================================================================
   // EVENT HANDLERS
