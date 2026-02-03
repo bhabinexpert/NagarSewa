@@ -2,6 +2,8 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import authRoutes from './routes/auth.js';
 import campaignRoutes from './routes/campaigns.js';
 import issueRoutes from './routes/issues.js';
@@ -12,6 +14,9 @@ import { requestLogger } from './middleware/logger.js';
 import { sendError, HTTP_STATUS } from './utils/response.js';
 
 dotenv.config({ quiet: true });
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const app = express();
 
@@ -27,6 +32,9 @@ const corsOptions = {
 app.use(cors(corsOptions));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// Serve uploaded files statically
+app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
 // Request logging (only in development)
 if (process.env.NODE_ENV !== 'production') {

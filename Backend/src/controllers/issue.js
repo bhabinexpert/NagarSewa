@@ -5,10 +5,10 @@ import { validateRequiredFields, isValidWardNumber } from '../utils/validation.j
 
 // Create issue
 export const createIssue = asyncHandler(async (req, res) => {
-  const { title, description, type, location, ward } = req.body;
+  const { description, type, location, ward } = req.body;
   
   // Validate required fields
-  const requiredFields = validateRequiredFields({ title, description, type, location, ward });
+  const requiredFields = validateRequiredFields({ description, type, location, ward });
   if (!requiredFields.isValid) {
     return sendError(res, requiredFields.message, HTTP_STATUS.BAD_REQUEST);
   }
@@ -18,9 +18,22 @@ export const createIssue = asyncHandler(async (req, res) => {
     return sendError(res, 'Invalid ward number (must be 1-9)', HTTP_STATUS.BAD_REQUEST);
   }
 
+  // Handle uploaded files (if any)
+  let photoUrls = [];
+  if (req.files && req.files.length > 0) {
+    photoUrls = req.files.map(file => `/uploads/issues/${file.filename}`);
+  }
+
   const issue = await Issue.create({
-    ...req.body,
-    user_id: req.user.id
+    user_id: req.user.id,
+    category: req.body.category || type,
+    description: description,
+    ward_number: req.body.ward_number || ward,
+    location: location,
+    latitude: req.body.latitude || null,
+    longitude: req.body.longitude || null,
+    photo_url: photoUrls.length > 0 ? JSON.stringify(photoUrls) : null,
+    priority: req.body.priority || 'MEDIUM'
   });
   
   sendSuccess(res, { issue }, 'Issue created successfully', HTTP_STATUS.CREATED);

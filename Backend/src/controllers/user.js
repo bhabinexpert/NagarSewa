@@ -179,21 +179,10 @@ export const updateProfile = asyncHandler(async (req, res) => {
  */
 export const submitKYC = asyncHandler(async (req, res) => {
   const { id } = req.params;
-  const { 
-    citizenship_number, 
-    citizenship_issued_district, 
-    citizenship_issued_date 
-  } = req.body;
 
-  // Validate required fields
-  const requiredFields = validateRequiredFields({
-    citizenship_number,
-    citizenship_issued_district,
-    citizenship_issued_date
-  });
-  
-  if (!requiredFields.isValid) {
-    return sendError(res, requiredFields.message, HTTP_STATUS.BAD_REQUEST);
+  // Check if files were uploaded
+  if (!req.files || !req.files.citizenshipFront || !req.files.citizenshipBack) {
+    return sendError(res, 'Both citizenship documents (front and back) are required', HTTP_STATUS.BAD_REQUEST);
   }
 
   // Check if user exists
@@ -207,27 +196,42 @@ export const submitKYC = asyncHandler(async (req, res) => {
     return sendError(res, 'Unauthorized', HTTP_STATUS.FORBIDDEN);
   }
 
-  // Update KYC information
+  // Build document paths object
+  const kycDocuments = {
+    citizenshipFront: `/uploads/kyc/${req.files.citizenshipFront[0].filename}`,
+    citizenshipBack: `/uploads/kyc/${req.files.citizenshipBack[0].filename}`,
+    uploadedAt: new Date().toISOString()
+  };
+
+  // Update KYC information with document paths
   const sql = `
     UPDATE users 
     SET 
-      citizenship_number = $1,
-      citizenship_issued_district = $2,
-      citizenship_issued_date = $3,
+      kyc_documents = $1,
       kyc_status = 'PENDING',
       updated_at = NOW()
-    WHERE id = $4
-    RETURNING id, full_name, email, kyc_status, updated_at
+    WHERE id = $2
+    RETURNING id, full_name, email, kyc_status, kyc_documents, updated_at
   `;
 
   const result = await query(sql, [
-    citizenship_number,
-    citizenship_issued_district,
-    citizenship_issued_date,
+    JSON.stringify(kycDocuments),
     id
   ]);
 
-  sendSuccess(res, result.rows[0], 'KYC documents submitted successfully');
+  const updatedUser = result.rows[0];
+
+  // Format response
+  const formattedResponse = {
+    id: updatedUser.id,
+    fullName: updatedUser.full_name,
+    email: updatedUser.email,
+    kycStatus: updatedUser.kyc_status,
+    kycDocuments: updatedUser.kyc_documents,
+    updatedAt: updatedUser.updated_at
+  };
+
+  sendSuccess(res, formattedResponse, 'KYC documents submitted successfully');
 });
 
 /**

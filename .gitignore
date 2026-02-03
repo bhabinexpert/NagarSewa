@@ -59,3 +59,7 @@ Thumbs.db
 # Sensitive data
 secrets.json
 credentials.json
+
+# Uploaded files (user content)
+Backend/uploads/
+!Backend/uploads/.gitkeep
