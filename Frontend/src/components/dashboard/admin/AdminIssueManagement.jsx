@@ -3,21 +3,9 @@
  *
  * Admin interface for managing reported issues. Ward admins can update
  * status, Super admins can set priorities for ward admins.
- *
- * @component
- *
- * BACKEND INTEGRATION:
- * - GET /api/issues - List issues with filters
- *   Query params: status, ward, priority, search, sort, page, limit
- *
- * - PATCH /api/issues/:id/status - Update issue status (Ward Admin)
- *   Body: { status: string, response?: string, assignedTeam?: string }
- *
- * - PATCH /api/issues/:id/priority - Set priority (Super Admin)
- *   Body: { priority: string, note?: string }
  */
 
-import React, { useState, useMemo } from "react";
+import React, { useMemo, useState, useEffect } from "react";
 import { useLanguage } from "../../../contexts/language/useLanguage";
 import { useAuth } from "../../../contexts/auth/useAuth";
 import { DAMAK_TOTAL_WARDS, ROLES } from "../../../contexts/auth/authConstants";
@@ -26,12 +14,7 @@ import { issuesAPI } from "../../../services/api";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { IssueCard } from "./NewIssueCard";
-import {
-  Search,
-  Filter,
-  Loader,
-  AlertCircle,
-} from "lucide-react";
+import { Search, Loader, AlertCircle, Flag } from "lucide-react";
 
 // ============================================================================
 // TRANSLATIONS
@@ -48,22 +31,8 @@ const issueManagementText = {
     resolved: "Resolved",
     rejected: "Rejected",
     searchPlaceholder: "Search by ID, type, or location...",
-    filterBy: "Filter by",
-    sortBy: "Sort by",
     newest: "Newest First",
     oldest: "Oldest First",
-    priority: "Priority",
-    updateStatus: "Update Status",
-    addResponse: "Add Response",
-    responsePlaceholder: "Enter your response to the citizen...",
-    submit: "Submit",
-    cancel: "Cancel",
-    reportedBy: "Reported by",
-    reportedOn: "Reported on",
-    location: "Location",
-    description: "Description",
-    attachments: "Attachments",
-    teams: ["Road Maintenance", "Water Supply", "Electricity", "Sanitation", "General"],
     statusUpdated: "Status updated successfully",
     low: "Low",
     medium: "Medium",
@@ -71,19 +40,9 @@ const issueManagementText = {
     urgent: "Urgent",
     ward: "Ward",
     allWards: "All Wards",
-    yourWard: "Your Ward",
-    viewOnlyDesc: "As Super Admin, you can set priority levels for issues. Ward admins will handle status updates.",
-    setPriority: "Set Priority",
-    setPriorityDesc: "Set priority level for this issue to notify ward admin",
-    priorityNote: "Instructions for Ward Admin",
-    priorityNotePlaceholder: "Add priority instructions for the ward admin...",
+    viewOnlyDesc:
+      "As Super Admin, you can set priority levels for issues. Ward admins will handle status updates.",
     priorityUpdated: "Priority updated successfully",
-    markInProgress: "Mark In Progress",
-    markResolved: "Mark Resolved",
-    markRejected: "Mark Rejected",
-    lowPriority: "Low",
-    mediumPriority: "Medium",
-    highPriority: "High",
     loading: "Loading issues...",
     error: "Failed to load issues",
     retry: "Retry",
@@ -99,22 +58,8 @@ const issueManagementText = {
     resolved: "समाधान भएको",
     rejected: "अस्वीकृत",
     searchPlaceholder: "ID, प्रकार, वा स्थान द्वारा खोज्नुहोस्...",
-    filterBy: "फिल्टर गर्नुहोस्",
-    sortBy: "क्रमबद्ध गर्नुहोस्",
     newest: "नयाँ पहिले",
     oldest: "पुरानो पहिले",
-    priority: "प्राथमिकता",
-    updateStatus: "स्थिति अद्यावधिक गर्नुहोस्",
-    addResponse: "प्रतिक्रिया थप्नुहोस्",
-    responsePlaceholder: "नागरिकलाई तपाईंको प्रतिक्रिया प्रविष्ट गर्नुहोस्...",
-    submit: "पेश गर्नुहोस्",
-    cancel: "रद्द गर्नुहोस्",
-    reportedBy: "रिपोर्ट गर्ने",
-    reportedOn: "रिपोर्ट मिति",
-    location: "स्थान",
-    description: "विवरण",
-    attachments: "संलग्नकहरू",
-    teams: ["सडक मर्मत", "पानी आपूर्ति", "बिजुली", "सरसफाई", "सामान्य"],
     statusUpdated: "स्थिति सफलतापूर्वक अद्यावधिक गरियो",
     low: "कम",
     medium: "मध्यम",
@@ -122,19 +67,8 @@ const issueManagementText = {
     urgent: "अत्यावश्यक",
     ward: "वडा",
     allWards: "सबै वडाहरू",
-    yourWard: "तपाईंको वडा",
     viewOnlyDesc: "सुपर एडमिनको रूपमा, तपाईं समस्याहरूको प्राथमिकता स्तर सेट गर्न सक्नुहुन्छ।",
-    setPriority: "प्राथमिकता सेट गर्नुहोस्",
-    setPriorityDesc: "वडा प्रशासकलाई सूचित गर्न यो समस्याको प्राथमिकता स्तर सेट गर्नुहोस्",
-    priorityNote: "वडा प्रशासकको लागि निर्देशन",
-    priorityNotePlaceholder: "वडा प्रशासकको लागि प्राथमिकता निर्देशनहरू थप्नुहोस्...",
     priorityUpdated: "प्राथमिकता सफलतापूर्वक अद्यावधिक गरियो",
-    markInProgress: "प्रगतिमा चिन्हित गर्नुहोस्",
-    markResolved: "समाधान चिन्हित गर्नुहोस्",
-    markRejected: "अस्वीकृत चिन्हित गर्नुहोस्",
-    lowPriority: "कम",
-    mediumPriority: "मध्यम",
-    highPriority: "उच्च",
     loading: "समस्याहरू लोड हुँदैछ...",
     error: "समस्याहरू लोड गर्न असफल",
     retry: "पुन: प्रयास",
@@ -146,14 +80,7 @@ const issueManagementText = {
 // SUB-COMPONENTS
 // ============================================================================
 
-/**
- * Loading state component.
- * @param {Object} props - Component props
- * @returns {JSX.Element} Loading state element
- */
-function LoadingState(props) {
-  const t = props.t;
-
+function LoadingState({ t }) {
   return (
     <div className="bg-white rounded-2xl shadow-sm p-12 text-center">
       <Loader className="mx-auto text-emerald-500 animate-spin mb-4" size={48} />
@@ -162,14 +89,7 @@ function LoadingState(props) {
   );
 }
 
-/**
- * Empty state component.
- * @param {Object} props - Component props
- * @returns {JSX.Element} Empty state element
- */
-function EmptyState(props) {
-  const t = props.t;
-
+function EmptyState({ t }) {
   return (
     <div className="bg-white rounded-2xl shadow-sm p-12 text-center">
       <AlertCircle className="mx-auto text-gray-300 mb-4" size={48} />
@@ -182,61 +102,25 @@ function EmptyState(props) {
 // MAIN COMPONENT
 // ============================================================================
 
-/**
- * AdminIssueManagement - Main component for issue management.
- * @returns {JSX.Element} The rendered component
- */
-function AdminIssueManagement() {
-  // ============================================================================
-  // HOOKS AND CONTEXT
-  // ============================================================================
-
-  const languageContext = useLanguage();
-  const language = languageContext.language;
+export default function AdminIssueManagement() {
+  const { language } = useLanguage();
   const t = issueManagementText[language];
+  const { currentUser } = useAuth();
 
-  const authContext = useAuth();
-  const currentUser = authContext.currentUser;
-
-  // Determine user role
-  let isSuperAdmin = false;
-  if (currentUser && currentUser.role === ROLES.SUPER_ADMIN) {
-    isSuperAdmin = true;
-  }
-
-  let userWard = null;
-  if (currentUser) {
-    userWard = currentUser.wardNumber;
-  }
-
-  // ============================================================================
-  // STATE
-  // ============================================================================
+  const isSuperAdmin = currentUser?.role === ROLES.SUPER_ADMIN;
+  const userWard = currentUser?.wardNumber || null;
 
   const [statusFilter, setStatusFilter] = useState("all");
-
-  // Set initial ward filter based on role
-  let initialWardFilter = "all";
-  if (!isSuperAdmin && userWard) {
-    initialWardFilter = userWard;
-  }
-  const [wardFilter, setWardFilter] = useState(initialWardFilter);
-
+  const [wardFilter, setWardFilter] = useState(
+    !isSuperAdmin && userWard ? userWard : "all"
+  );
   const [searchQuery, setSearchQuery] = useState("");
   const [sortOrder, setSortOrder] = useState("newest");
-  const [expandedIssue, setExpandedIssue] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // ============================================================================
-  // DATA FETCHING
-  // ============================================================================
-
-  // Build query params for API
   const queryParams = useMemo(
     function () {
-      const params = {
-        sort: sortOrder,
-      };
+      const params = { sort: sortOrder };
 
       if (statusFilter !== "all") {
         params.status = statusFilter;
@@ -253,129 +137,135 @@ function AdminIssueManagement() {
     [statusFilter, wardFilter, searchQuery, sortOrder]
   );
 
-  // Fetch issues from API
-  const { issues, loading, error, refetch } = useIssues(queryParams);
+  const { issues = [], loading, error, refetch } = useIssues(queryParams);
 
-  // Fetch data on mount
-  React.useEffect(() => {
+  useEffect(() => {
     refetch();
   }, [queryParams, refetch]);
-        params.search = searchQuery;
-      }
 
-      return params;
+  function normalizeStatus(value) {
+    if (!value) return "pending";
+    const statusValue = String(value).toLowerCase();
+    if (statusValue === "inprogress") return "in_progress";
+    return statusValue;
+  }
+
+  const statusCounts = useMemo(
+    function () {
+      const counts = {
+        all: issues.length,
+        pending: 0,
+        in_progress: 0,
+        resolved: 0,
+        rejected: 0,
+      };
+
+      issues.forEach(function (issue) {
+        const normalized = normalizeStatus(issue.status);
+        if (counts[normalized] !== undefined) {
+          counts[normalized] = counts[normalized] + 1;
+        }
+      });
+
+      return counts;
     },
-    [statusFilter, wardFilter, searchQuery, sortOrder]
+    [issues]
   );
 
-  // Fetch issues from API
-  const issuesData = useIssues(queryParams);
-  const issues = issuesData.issues || [];
-  const loading = issuesData.loading;
-  const error = issuesData.error;
-  const refetch = issuesData.refetch;
+  const statusOptions = [
+    { key: "all", label: t.all, count: statusCounts.all },
+    { key: "pending", label: t.pending, count: statusCounts.pending },
+    { key: "in_progress", label: t.inProgress, count: statusCounts.in_progress },
+    { key: "resolved", label: t.resolved, count: statusCounts.resolved },
+    { key: "rejected", label: t.rejected, count: statusCounts.rejected },
+  ];
 
-  // ============================================================================
-  // EVENT HANDLERS
-  // ============================================================================
-
-  /**
-   * Handle status update for an issue.
-   * @param {string} issueId - Issue ID
-   * @param {string} status - New status
-   * @param {string} response - Admin response text
-   */
   async function handleStatusUpdate(issueId, status, response) {
     setIsSubmitting(true);
 
     try {
-      // Backend: PATCH /api/issues/:id/status
       await issuesAPI.updateStatus(issueId, status, response);
       toast.success(t.statusUpdated, { position: "top-right", autoClose: 3000 });
       refetch();
     } catch (err) {
-      let errorMessage = "Failed to update status";
-      if (err.message) {
-        errorMessage = err.message;
-      }
+      const errorMessage = err.message || "Failed to update status";
       toast.error(errorMessage, { position: "top-right", autoClose: 3000 });
     } finally {
       setIsSubmitting(false);
     }
   }
 
-  /**
-   * Handle priority set for an issue.
-   * @param {string} issueId - Issue ID
-   * @param {string} priority - Priority level
-   * @param {string} note - Priority note
-   */
   async function handlePrioritySet(issueId, priority, note) {
     setIsSubmitting(true);
 
     try {
-      // Backend: PATCH /api/issues/:id/priority
       await issuesAPI.setPriority(issueId, priority, note);
       toast.success(t.priorityUpdated, { position: "top-right", autoClose: 3000 });
       refetch();
     } catch (err) {
-      let errorMessage = "Failed to set priority";
-      if (err.message) {
-        errorMessage = err.message;
-      }
+      const errorMessage = err.message || "Failed to set priority";
       toast.error(errorMessage, { position: "top-right", autoClose: 3000 });
     } finally {
       setIsSubmitting(false);
     }
   }
 
-  /**
-   * Handle search input change.
-   * @param {Event} e - Input change event
-   */
-  function handleSearchChange(e) {
-    setSearchQuery(e.target.value);
+  function renderStatusFilters() {
+    return statusOptions.map(function (option) {
+      let buttonClass =
+        "px-3 py-1.5 rounded-full text-sm font-semibold transition flex items-center gap-2 ";
+      if (statusFilter === option.key) {
+        buttonClass = buttonClass + "bg-emerald-600 text-white shadow";
+      } else {
+        buttonClass = buttonClass + "bg-gray-100 text-gray-700 hover:bg-gray-200";
+      }
+
+      return (
+        <button
+          key={option.key}
+          onClick={function () {
+            setStatusFilter(option.key);
+          }}
+          className={buttonClass}
+        >
+          {option.label}
+          <span
+            className={
+              (statusFilter === option.key
+                ? "bg-white/20 text-white"
+                : "bg-white text-gray-700") +
+              " px-2 py-0.5 rounded-full text-xs font-bold"
+            }
+          >
+            {option.count}
+          </span>
+        </button>
+      );
+    });
   }
 
-  /**
-   * Handle status filter click.
-   * @param {string} status - Status filter value
-   */
-  function handleStatusFilterClick(status) {
-    setStatusFilter(status);
+  function renderWardOptions() {
+    return Array.from({ length: DAMAK_TOTAL_WARDS }, function (_, index) {
+      const ward = index + 1;
+      return <option key={ward} value={ward} />;
+    });
   }
 
-  /**
-   * Handle ward filter change.
-   * @param {Event} e - Select change event
-   */
-  function handleWardFilterChange(e) {
-    setWardFilter(e.target.value);
+  function renderIssueCards() {
+    return issues.map(function (issue) {
+      return (
+        <IssueCard
+          key={issue.id}
+          issue={issue}
+          onStatusUpdate={handleStatusUpdate}
+          onPrioritySet={handlePrioritySet}
+          isSuperAdmin={isSuperAdmin}
+          isSubmitting={isSubmitting}
+          t={t}
+        />
+      );
+    });
   }
-
-  /**
-   * Handle sort order change.
-   * @param {Event} e - Select change event
-   */
-  function handleSortChange(e) {
-    setSortOrder(e.target.value);
-  }
-
-  /**
-   * Handle issue card toggle.
-   * @param {string} issueId - Issue ID to toggle
-   */
-  function handleToggleIssue(issueId) {
-    if (expandedIssue === issueId) {
-      setExpandedIssue(null);
-    } else {
-      setExpandedIssue(issueId);
-    }
-  }
-
-  // ============================================================================
-  // CONDITIONAL RENDERS
-  // ============================================================================
 
   if (loading) {
     return <LoadingState t={t} />;
@@ -393,161 +283,105 @@ function AdminIssueManagement() {
     );
   }
 
-  // ============================================================================
-  // RENDER HELPER FUNCTIONS
-  // ============================================================================
+  const subtitleText = isSuperAdmin
+    ? t.subtitle
+    : userWard
+    ? `${t.subtitleWardAdmin} • ${t.ward} ${userWard}`
+    : t.subtitleWardAdmin;
 
-  /**
-   * Render status filter buttons.
-   * @returns {Array} Array of button elements
-   */
-  function renderStatusFilters() {
-    const statuses = ["all", "pending", "inProgress", "resolved", "rejected"];
+  const superAdminNote = isSuperAdmin ? (
+    <p className="text-sm text-orange-600 mt-2 flex items-center gap-2">
+      <Flag size={14} />
+      {t.viewOnlyDesc}
+    </p>
+  ) : null;
 
-    return statuses.map(function(s) {
-      let buttonClass = "px-3 py-1.5 rounded-lg text-sm font-medium transition ";
-      if (statusFilter === s) {
-        buttonClass = buttonClass + "bg-emerald-600 text-white";
-      } else {
-        buttonClass = buttonClass + "bg-gray-100 text-gray-600 hover:bg-gray-200";
-      }
-
-      let buttonLabel = t[s];
-      if (!buttonLabel) {
-        buttonLabel = t.all;
-      }
-
-      return (
-        <button
-          key={s}
-          onClick={function () {
-            handleStatusFilterClick(s);
-          }}
-          className={buttonClass}
-        >
-          {buttonLabel}
-        </button>
-      );
-    });
-  }
-
-  /**
-   * Render ward options for select dropdown.
-   * @returns {Array} Array of option elements
-   */
-  function renderWardOptions() {
-    return Array.from({ length: DAMAK_TOTAL_WARDS }, function(_, index) {
-      const ward = index + 1;
-      return (
-        <option key={ward} value={ward}>
-          {t.ward} {ward}
-        </option>
-      );
-    });
-  }
-
-  /**
-   * Render issue cards.
-   * @returns {Array} Array of IssueCard elements
-   */
-  function renderIssueCards() {
-    return issues.map(function(issue) {
-      return (
-        <IssueCard
-          key={issue.id}
-          issue={issue}
-          onStatusUpdate={handleStatusUpdate}
-          onPrioritySet={handlePrioritySet}
-          isSuperAdmin={isSuperAdmin}
-          isSubmitting={isSubmitting}
-          t={t}
-        />
-      );
-    });
-  }
-
-  // ============================================================================
-  // RENDER
-  // ============================================================================
-
-  // Determine subtitle based on role
-  let subtitleText;
-  if (isSuperAdmin) {
-    subtitleText = t.subtitle;
-  } else {
-    subtitleText = t.subtitleWardAdmin;
-  }
-
-  // Render super admin note
-  let superAdminNote = null;
-  if (isSuperAdmin) {
-    superAdminNote = (
-      <p className="text-sm text-orange-600 mt-2">
-        <Flag size={14} className="inline mr-1" />
-        {t.viewOnlyDesc}
-      </p>
-    );
-  }
-
-  // Render ward filter (super admin only)
-  let wardFilterElement = null;
-  if (isSuperAdmin) {
-    wardFilterElement = (
-      <select
+  const wardFilterElement = isSuperAdmin ? (
+    <div className="flex items-center gap-2">
+      <input
+        list="ward-options"
         value={wardFilter}
-        onChange={handleWardFilterChange}
-        className="px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-emerald-500"
-      >
+        onChange={(e) => setWardFilter(e.target.value || "all")}
+        placeholder={t.allWards}
+        className="px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-emerald-500 w-32"
+      />
+      <datalist id="ward-options">
         <option value="all">{t.allWards}</option>
         {renderWardOptions()}
-      </select>
-    );
-  }
+      </datalist>
+      <button
+        type="button"
+        onClick={() => setWardFilter("all")}
+        className="px-3 py-2 text-sm font-semibold text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200"
+      >
+        {t.all}
+      </button>
+    </div>
+  ) : null;
 
-  // Render issues list or empty state
-  let issuesListElement;
-  if (issues.length === 0) {
-    issuesListElement = <EmptyState t={t} />;
-  } else {
-    issuesListElement = <div className="space-y-4">{renderIssueCards()}</div>;
-  }
+  const summaryCards = [
+    { key: "all", label: t.all, count: statusCounts.all, tone: "bg-indigo-50 text-indigo-700" },
+    { key: "pending", label: t.pending, count: statusCounts.pending, tone: "bg-yellow-50 text-yellow-700" },
+    { key: "in_progress", label: t.inProgress, count: statusCounts.in_progress, tone: "bg-blue-50 text-blue-700" },
+    { key: "resolved", label: t.resolved, count: statusCounts.resolved, tone: "bg-emerald-50 text-emerald-700" },
+    { key: "rejected", label: t.rejected, count: statusCounts.rejected, tone: "bg-red-50 text-red-700" },
+  ];
+
+  const issuesListElement = issues.length === 0 ? (
+    <EmptyState t={t} />
+  ) : (
+    <div className="space-y-4">{renderIssueCards()}</div>
+  );
 
   return (
     <div className="max-w-6xl mx-auto space-y-6">
       <ToastContainer />
 
-      {/* Header */}
-      <div className="bg-white rounded-2xl shadow-sm p-6">
-        <h2 className="text-2xl font-bold text-gray-800 mb-2">{t.title}</h2>
-        <p className="text-gray-500">{subtitleText}</p>
-        {superAdminNote}
+      <div className="bg-white rounded-2xl shadow-sm p-6 border border-gray-100">
+        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
+          <div>
+            <h2 className="text-2xl font-bold text-gray-900">{t.title}</h2>
+            <p className="text-gray-500">{subtitleText}</p>
+            {superAdminNote}
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-3 w-full lg:w-auto">
+            {summaryCards.map((card) => (
+              <div
+                key={card.key}
+                className="bg-white border border-gray-100 rounded-xl p-3 text-center shadow-sm"
+              >
+                <span
+                  className={`inline-flex px-2.5 py-1 rounded-full text-xs font-semibold uppercase ${card.tone}`}
+                >
+                  {card.label}
+                </span>
+                <p className="text-2xl font-bold text-gray-900 mt-2">{card.count}</p>
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
 
-      {/* Filters */}
-      <div className="bg-white rounded-2xl shadow-sm p-4">
-        <div className="flex flex-wrap gap-4 items-center">
-          {/* Search */}
-          <div className="flex-1 min-w-[200px] relative">
+      <div className="bg-white rounded-2xl shadow-sm p-4 border border-gray-100">
+        <div className="flex flex-col lg:flex-row lg:items-center gap-4">
+          <div className="flex-1 min-w-[220px] relative">
             <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
             <input
               type="text"
               placeholder={t.searchPlaceholder}
               value={searchQuery}
-              onChange={handleSearchChange}
+              onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-emerald-500"
             />
           </div>
 
-          {/* Status Filter */}
-          <div className="flex gap-2">{renderStatusFilters()}</div>
+          <div className="flex flex-wrap gap-2">{renderStatusFilters()}</div>
 
-          {/* Ward Filter (Super Admin only) */}
           {wardFilterElement}
 
-          {/* Sort */}
           <select
             value={sortOrder}
-            onChange={handleSortChange}
+            onChange={(e) => setSortOrder(e.target.value)}
             className="px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-emerald-500"
           >
             <option value="newest">{t.newest}</option>
@@ -556,10 +390,7 @@ function AdminIssueManagement() {
         </div>
       </div>
 
-      {/* Issues List */}
       {issuesListElement}
     </div>
   );
 }
-
-export default AdminIssueManagement;
