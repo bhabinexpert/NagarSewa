@@ -134,7 +134,7 @@ export const adminAPI = {
   enableUser: (id) => apiClient.patch(`/admin/users/${id}/enable`),
   
   verifyKYC: (id, kyc_status) => 
-    apiClient.patch(`/admin/users/${id}/kyc`, { kyc_status }),
+    apiClient.patch(`/admin/users/${id}/kyc`, { status: kyc_status }),
   
   // Ward admin management
   getWardAdmins: () => apiClient.get('/admin/ward-admins'),
@@ -178,8 +178,14 @@ export const usersAPI = {
     apiClient.patch(`/users/${id}/profile`, profileData),
   
   // Submit KYC documents
-  submitKYC: (id, kycData) => 
-    apiClient.post(`/users/${id}/kyc`, kycData),
+  submitKYC: (id, kycData) => {
+    // kycData should be a FormData object with files
+    return apiClient.post(`/users/${id}/kyc`, kycData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+  },
 };
 
 // =============================================================================
