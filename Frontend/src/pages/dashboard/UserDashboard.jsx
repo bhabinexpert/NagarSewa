@@ -24,10 +24,11 @@ import {
   Clock,
   Send,
   Megaphone,
+  BadgeCheck,
 } from "lucide-react";
 import ReportIssue from "../../components/dashboard/user/ReportIssue";
 import UserProfile from "../../components/dashboard/user/UserProfile";
-import IssueHistory from "../../components/dashboard/user/IssueHistory";
+import MyHistory from "../../components/dashboard/user/MyHistory";
 import NewsFeed from "../../components/dashboard/user/NewsFeed";
 import RequestCampaign from "../../components/dashboard/user/RequestCampaign";
 import { Link } from "react-router-dom";
@@ -118,14 +119,21 @@ function UserDashboard() {
   // ============================================================
   // REAL STATS FROM API
   // ============================================================
-  const { issues, loading: issuesLoading } = useIssues({ user_id: currentUser?.id });
+  const { issues, loading: issuesLoading, refetch: refetchIssues } = useIssues({ user_id: currentUser?.id });
   
   const stats = {
     totalReports: issues.length || 0,
-    pending: issues.filter(i => i.status === 'pending').length || 0,
-    resolved: issues.filter(i => i.status === 'resolved').length || 0,
-    inProgress: issues.filter(i => i.status === 'in_progress').length || 0,
+    pending: issues.filter(i => i.status === 'pending' || i.status === 'PENDING').length || 0,
+    resolved: issues.filter(i => i.status === 'resolved' || i.status === 'RESOLVED').length || 0,
+    inProgress: issues.filter(i => i.status === 'in_progress' || i.status === 'IN_PROGRESS').length || 0,
   };
+  
+  // Refetch issues when switching to dashboard tab
+  useEffect(() => {
+    if (activeTab === 'dashboard') {
+      refetchIssues();
+    }
+  }, [activeTab]);
 
   // ============================================================
   // MENU ITEMS
@@ -183,7 +191,7 @@ function UserDashboard() {
    */
   function renderContent() {
     if (activeTab === "report") {
-      return <ReportIssue onNavigate={handleTabChange} />;
+      return <ReportIssue onNavigate={handleTabChange} onIssueSubmitted={refetchIssues} />;
     }
     if (activeTab === "campaign") {
       return <RequestCampaign />;
@@ -192,7 +200,7 @@ function UserDashboard() {
       return <UserProfile />;
     }
     if (activeTab === "history") {
-      return <IssueHistory />;
+      return <MyHistory />;
     }
     if (activeTab === "newsfeed") {
       return <NewsFeed />;
@@ -256,8 +264,11 @@ function UserDashboard() {
       <div className="space-y-6">
         {/* Welcome Section */}
         <div className="bg-linear-to-r from-emerald-500 to-teal-600 rounded-2xl p-6 text-white">
-          <h2 className="text-2xl font-bold mb-2">
+          <h2 className="text-2xl font-bold mb-2 flex items-center gap-2">
             {t.welcome}, {user.name}! 👋
+            {user.isVerified && (
+              <BadgeCheck size={24} className="text-white drop-shadow-lg" title="KYC Verified" />
+            )}
           </h2>
           <p className="opacity-90 flex items-center gap-2">
             <MapPin size={16} />
