@@ -106,6 +106,11 @@ const profileText = {
     saveSuccess: "Profile updated successfully!",
     saveError: "Failed to update profile",
     uploadBothSides: "Please upload both sides of citizenship",
+    alreadyPending: "Your KYC documents are already under review. Please wait for admin approval.",
+    alreadyVerified: "Your KYC is already verified. No need to submit again.",
+    selectFiles: "Please select both citizenship documents before submitting.",
+    verificationSubmitted: "Verification Submitted Successfully!",
+    pendingReviewNotice: "Your documents are now being reviewed by our team. This typically takes 24-48 hours. You will be notified once the verification is complete.",
   },
   np: {
     title: "प्रोफाइल र KYC प्रमाणीकरण",
@@ -150,6 +155,11 @@ const profileText = {
     saveSuccess: "प्रोफाइल सफलतापूर्वक अद्यावधिक भयो!",
     saveError: "प्रोफाइल अद्यावधिक गर्न असफल",
     uploadBothSides: "कृपया नागरिकताको दुवै पक्ष अपलोड गर्नुहोस्",
+    alreadyPending: "तपाईंको KYC कागजातहरू पहिले नै समीक्षाधीन छन्। कृपया प्रशासक अनुमोदनको लागि पर्खनुहोस्।",
+    alreadyVerified: "तपाईंको KYC पहिले नै प्रमाणित छ। फेरि पेश गर्न आवश्यक छैन।",
+    selectFiles: "कृपया पेश गर्नु अघि दुवै नागरिकता कागजातहरू चयन गर्नुहोस्।",
+    verificationSubmitted: "प्रमाणीकरण सफलतापूर्वक पेश गरियो!",
+    pendingReviewNotice: "तपाईंको कागजातहरू अहिले हाम्रो टोलीद्वारा समीक्षा भइरहेको छ। यो सामान्यतया 24-48 घण्टा लाग्छ। प्रमाणीकरण पूरा भएपछि तपाईंलाई सूचित गरिनेछ।",
   },
 };
 
@@ -471,6 +481,9 @@ function UserProfile() {
   // Whether a save/submit operation is in progress
   const [isSubmitting, setIsSubmitting] = useState(false);
   
+  // Track if KYC was just submitted successfully
+  const [kycSubmitted, setKycSubmitted] = useState(false);
+  
   // Temporary storage for edited profile data
   const [editData, setEditData] = useState({});
   
@@ -703,12 +716,35 @@ function UserProfile() {
 
   /**
    * Submit KYC documents to backend for verification.
-   * Backend: PATCH /api/users/:id/kyc
+   * Backend: POST /api/users/:id/kyc
    */
-  async function handleSubmitKyc() {
+  async function handleSubmitKyc(e) {
+    // Prevent default form submission if triggered from a form
+    if (e && e.preventDefault) {
+      e.preventDefault();
+    }
+
+    // Check if KYC is already verified
+    if (kycStatus === "verified") {
+      toast.info(t.alreadyVerified, { position: "top-right", autoClose: 4000 });
+      return;
+    }
+
+    // Check if KYC is already pending
+    if (kycStatus === "pending") {
+      toast.warning(t.alreadyPending, { position: "top-right", autoClose: 4000 });
+      return;
+    }
+
     // Validate that both documents are uploaded
     if (!kycFiles.citizenshipFront || !kycFiles.citizenshipBack) {
-      toast.warning(t.uploadBothSides, { position: "top-right", autoClose: 3000 });
+      toast.warning(t.selectFiles, { position: "top-right", autoClose: 3000 });
+      return;
+    }
+
+    // Ensure user ID is available
+    if (!user || !user.id) {
+      toast.error("User not found. Please refresh the page.", { position: "top-right", autoClose: 3000 });
       return;
     }
 
@@ -720,20 +756,60 @@ function UserProfile() {
       formData.append("citizenshipFront", kycFiles.citizenshipFront);
       formData.append("citizenshipBack", kycFiles.citizenshipBack);
       
-      // Send to backend
-      await usersAPI.submitKYC(userId, formData);
+      // Send to backend using user ID
+      const response = await usersAPI.submitKYC(user.id, formData);
       
-      // Update auth context KYC status
+      // Clear the file inputs after successful submission
+      setKycFiles({
+        citizenshipFront: null,
+        citizenshipBack: null
+      });
+      setKycDocuments({
+        citizenshipFront: null,
+        citizenshipBack: null
+      });
+      
+      // Mark KYC as submitted to immediately update UI
+      setKycSubmitted(true);
+      
+      // Update auth context KYC status if available
       if (verifyKyc) {
         verifyKyc();
       }
       
-      // Show success and refresh
-      toast.success(t.kycSuccess, { position: "top-right", autoClose: 3000 });
-      refetch();
+      // Show success message with detailed info
+      toast.success(t.verificationSubmitted, { 
+        position: "top-right", 
+        autoClose: 5000,
+        style: { minWidth: '350px' }
+      });
+      
+      // Show pending review notice
+      setTimeout(() => {
+        toast.info(t.pendingReviewNotice, { 
+          position: "top-right", 
+          autoClose: 6000,
+          style: { minWidth: '350px' }
+        });
+      }, 500);
+      
+      // Refresh user data from backend
+      try {
+        const freshData = await api.auth.getMe();
+        if (freshData && freshData.user) {
+          localStorage.setItem('nagarsewa_user', JSON.stringify(freshData.user));
+          // Force page reload to update AuthContext and show pending status
+          setTimeout(() => {
+            window.location.reload();
+          }, 2000);
+        }
+      } catch (refreshError) {
+        console.error('Failed to refresh user data:', refreshError);
+      }
       
     } catch (error) {
-      toast.error(t.saveError, { position: "top-right", autoClose: 3000 });
+      console.error('KYC submission error:', error);
+      toast.error(error.message || t.saveError, { position: "top-right", autoClose: 4000 });
     } finally {
       setIsSubmitting(false);
     }
@@ -766,8 +842,13 @@ function UserProfile() {
   
   // Determine current KYC status
   let kycStatus = "notSubmitted";
-  if (user && user.kycStatus) {
-    kycStatus = user.kycStatus;
+  
+  // If KYC was just submitted, show pending status immediately
+  if (kycSubmitted) {
+    kycStatus = "pending";
+  } else if (user && user.kycStatus) {
+    // Normalize to lowercase for comparison (backend returns UPPERCASE)
+    kycStatus = user.kycStatus.toLowerCase();
   } else if (isKycVerified && isKycVerified()) {
     kycStatus = "verified";
   }
@@ -793,7 +874,7 @@ function UserProfile() {
       <div className="bg-white rounded-2xl shadow-sm p-12 text-center">
         <AlertCircle className="mx-auto text-red-400 mb-4" size={48} />
         <p className="text-gray-700 font-medium mb-2">{t.error}</p>
-        <button onClick={refetch} className="text-emerald-600 hover:underline">
+        <button onClick={() => window.location.reload()} className="text-emerald-600 hover:underline">
           {t.retry}
         </button>
       </div>
@@ -1071,9 +1152,10 @@ function UserProfile() {
             
             {/* Submit Button */}
             <button 
+              type="button"
               onClick={handleSubmitKyc} 
-              disabled={isSubmitting} 
-              className="w-full py-3 bg-emerald-600 text-white rounded-xl font-medium hover:bg-emerald-700 transition flex items-center justify-center gap-2 disabled:opacity-50"
+              disabled={isSubmitting || !kycFiles.citizenshipFront || !kycFiles.citizenshipBack} 
+              className="w-full py-3 bg-emerald-600 text-white rounded-xl font-medium hover:bg-emerald-700 transition flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isSubmitting ? (
                 <>
