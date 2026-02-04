@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { useLanguage } from "../../contexts/language/useLanguage";
 import { useAuth } from "../../contexts/auth/useAuth";
 import { useDashboardStats, useIssues } from "../../hooks/useData";
@@ -6,7 +6,6 @@ import {
   Home,
   Users,
   FileText,
-  Bell,
   Settings,
   LogOut,
   Menu,
@@ -27,9 +26,6 @@ import {
   UserCheck,
   UserX,
   Megaphone,
-  TrendingUp,
-  ArrowUp,
-  ArrowDown,
   UserPlus,
 } from "lucide-react";
 import AdminUserManagement from "../../components/dashboard/admin/AdminUserManagement";
@@ -63,6 +59,7 @@ const adminDashboardText = {
     overview: "Overview",
     totalIssues: "Total Issues",
     pendingIssues: "Pending",
+    inProgressIssues: "In Progress",
     resolvedIssues: "Resolved",
     totalUsers: "Total Users",
     verifiedUsers: "Verified Users",
@@ -70,13 +67,18 @@ const adminDashboardText = {
     recentIssues: "Recent Issues",
     quickActions: "Quick Actions",
     viewAll: "View All",
-    todayStats: "Today's Stats",
-    newReports: "New Reports",
-    closedToday: "Closed Today",
-    averageResTime: "Avg. Resolution Time",
-    ward: "Ward",
-    allWards: "All Wards",
     filterByWard: "Filter by Ward",
+    ward: "Ward",
+    pendingIssuesLabel: "Pending Issues",
+    pendingKycLabel: "Pending KYC",
+    sendBroadcast: "Send Broadcast",
+    notifyCitizens: "Notify citizens",
+    viewAnalyticsLabel: "View Analytics",
+    performanceReports: "Performance reports",
+    loadingIssues: "Loading issues...",
+    noRecentIssues: "No recent issues",
+    unknownIssue: "Unknown",
+    na: "N/A",
   },
   np: {
     brand: "नगरसेवा",
@@ -96,6 +98,7 @@ const adminDashboardText = {
     overview: "अवलोकन",
     totalIssues: "कुल समस्याहरू",
     pendingIssues: "पेन्डिङ",
+    inProgressIssues: "प्रगतिमा",
     resolvedIssues: "समाधान भएको",
     totalUsers: "कुल प्रयोगकर्ताहरू",
     verifiedUsers: "प्रमाणित प्रयोगकर्ताहरू",
@@ -103,13 +106,18 @@ const adminDashboardText = {
     recentIssues: "हालका समस्याहरू",
     quickActions: "द्रुत कार्यहरू",
     viewAll: "सबै हेर्नुहोस्",
-    todayStats: "आजको तथ्याङ्क",
-    newReports: "नयाँ रिपोर्टहरू",
-    closedToday: "आज बन्द",
-    averageResTime: "औसत समाधान समय",
-    ward: "वडा",
-    allWards: "सबै वडाहरू",
     filterByWard: "वडा अनुसार फिल्टर",
+    ward: "वडा",
+    pendingIssuesLabel: "पेन्डिङ समस्याहरू",
+    pendingKycLabel: "पेन्डिङ KYC",
+    sendBroadcast: "प्रसारण पठाउनुहोस्",
+    notifyCitizens: "नागरिकहरूलाई सूचित गर्नुहोस्",
+    viewAnalyticsLabel: "विश्लेषण हेर्नुहोस्",
+    performanceReports: "प्रदर्शन रिपोर्टहरू",
+    loadingIssues: "समस्याहरू लोड हुँदैछ...",
+    noRecentIssues: "कुनै हालको समस्या छैन",
+    unknownIssue: "अज्ञात",
+    na: "उपलब्ध छैन",
   },
 };
 
@@ -129,7 +137,7 @@ function AdminDashboard() {
   // HOOKS AND CONTEXT
   // ============================================================
   const languageContext = useLanguage();
-  const language = languageContext.language;
+  const language = languageContext.language || "en";
   const toggleLanguage = languageContext.toggleLanguage;
   
   const authContext = useAuth();
@@ -141,7 +149,7 @@ function AdminDashboard() {
   const DAMAK_TOTAL_WARDS = authContext.DAMAK_TOTAL_WARDS;
   
   const navigate = useNavigate();
-  const t = adminDashboardText[language];
+  const t = adminDashboardText[language] || adminDashboardText.en;
   
   // ============================================================
   // STATE VARIABLES
@@ -168,8 +176,7 @@ function AdminDashboard() {
   const wardFilterParams = isSuperAdmin() && wardFilter !== "all" ? { ward: wardFilter } : {};
   const { issues: recentIssuesList, loading: issuesLoading, refetch: refetchIssues } = useIssues({ 
     ...wardFilterParams, 
-    sort: 'newest',
-    limit: 3 
+    sort: 'newest'
   });
   
   // Fetch data only when on dashboard tab and user is admin
@@ -180,10 +187,22 @@ function AdminDashboard() {
         refetchStats();
       }
       refetchIssues();
-    }
-  }, [activeTab, wardFilter]);
 
-  // Calculate stats from real data
+      const intervalId = setInterval(function () {
+        if (isSuperAdmin() || isWardAdmin()) {
+          refetchStats();
+        }
+        refetchIssues();
+      }, 30000);
+
+      return function () {
+        clearInterval(intervalId);
+      };
+    }
+
+    return undefined;
+  }, [activeTab, wardFilter, currentUser?.role, currentUser?.wardNumber, isSuperAdmin, isWardAdmin, refetchStats, refetchIssues]);
+
   const stats = {
     totalIssues: dashboardStats.issues?.total || 0,
     pending: dashboardStats.issues?.pending || 0,
@@ -196,9 +215,6 @@ function AdminDashboard() {
     totalCampaigns: dashboardStats.campaigns?.total || 0,
     pendingCampaigns: dashboardStats.campaigns?.pending || 0,
     approvedCampaigns: dashboardStats.campaigns?.approved || 0,
-    newToday: Math.floor((dashboardStats.issues?.pending || 0) * 0.2),
-    closedToday: Math.floor((dashboardStats.issues?.resolved || 0) * 0.05),
-    avgResolutionTime: "2.5 days",
   };
 
   // ============================================================
@@ -246,13 +262,13 @@ function AdminDashboard() {
     }
     
     // Issues - available to all with badge
-    items.push({ id: "issues", icon: FileText, label: t.issues, badge: stats.pending });
+    items.push({ id: "issues", icon: FileText, label: t.issues, badge: stats.pending > 0 ? stats.pending : null });
     
     // Campaigns - available to all
     items.push({ id: "campaigns", icon: Megaphone, label: t.campaigns });
     
     // Users - available to all with badge
-    items.push({ id: "users", icon: Users, label: t.users, badge: stats.pendingKyc });
+    items.push({ id: "users", icon: Users, label: t.users, badge: stats.pendingKyc > 0 ? stats.pendingKyc : null });
     
     // Analytics - available to all
     items.push({ id: "analytics", icon: BarChart3, label: t.analytics });
@@ -322,7 +338,7 @@ function AdminDashboard() {
    * @returns {string} Formatted relative time
    */
   function formatTimeAgo(timestamp) {
-    if (!timestamp) return 'N/A';
+    if (!timestamp) return t.na;
     const now = new Date();
     const date = new Date(timestamp);
     const seconds = Math.floor((now - date) / 1000);
@@ -405,11 +421,19 @@ function AdminDashboard() {
    * @returns {string} CSS class for the indicator
    */
   function getStatusIndicatorClass(status) {
-    if (status === "pending") {
+    const normalizedStatus = String(status || "").toLowerCase();
+    if (normalizedStatus === "pending") {
       return "bg-yellow-500";
     }
-    if (status === "inProgress") {
+    if (
+      normalizedStatus === "in_progress" ||
+      normalizedStatus === "inprogress" ||
+      normalizedStatus === "in progress"
+    ) {
       return "bg-blue-500";
+    }
+    if (normalizedStatus === "rejected") {
+      return "bg-red-500";
     }
     return "bg-green-500";
   }
@@ -420,11 +444,19 @@ function AdminDashboard() {
    * @returns {string} CSS class for the badge
    */
   function getStatusBadgeClass(status) {
-    if (status === "pending") {
+    const normalizedStatus = String(status || "").toLowerCase();
+    if (normalizedStatus === "pending") {
       return "bg-yellow-100 text-yellow-700";
     }
-    if (status === "inProgress") {
+    if (
+      normalizedStatus === "in_progress" ||
+      normalizedStatus === "inprogress" ||
+      normalizedStatus === "in progress"
+    ) {
       return "bg-blue-100 text-blue-700";
+    }
+    if (normalizedStatus === "rejected") {
+      return "bg-red-100 text-red-700";
     }
     return "bg-green-100 text-green-700";
   }
@@ -436,9 +468,9 @@ function AdminDashboard() {
   function renderDashboardHome() {
     // Format recent issues from API data (use empty array if data not loaded yet)
     const recentIssues = (recentIssuesList || []).slice(0, 3).map(issue => ({
-      id: issue.id || 'N/A',
-      type: issue.issue_type || issue.type || 'Unknown',
-      status: issue.status || 'pending',
+      id: issue.id || t.na,
+      type: issue.category || issue.issue_type || issue.type || t.unknownIssue,
+      status: String(issue.status || 'pending').replace('_', ' '),
       time: formatTimeAgo(issue.created_at),
       ward: issue.ward_number
     }));
@@ -477,12 +509,6 @@ function AdminDashboard() {
                 <div className="p-2 bg-blue-100 rounded-lg">
                   <FileText className="text-blue-600" size={20} />
                 </div>
-                {!statsLoading && (
-                  <span className="flex items-center text-green-500 text-sm">
-                    <ArrowUp size={14} />
-                    12%
-                  </span>
-                )}
               </div>
               {statsLoading ? (
                 <div className="animate-pulse">
@@ -501,12 +527,6 @@ function AdminDashboard() {
                 <div className="p-2 bg-yellow-100 rounded-lg">
                   <Clock className="text-yellow-600" size={20} />
                 </div>
-                {!statsLoading && (
-                  <span className="flex items-center text-red-500 text-sm">
-                    <ArrowUp size={14} />
-                    5%
-                  </span>
-                )}
               </div>
               {statsLoading ? (
                 <div className="animate-pulse">
@@ -515,8 +535,8 @@ function AdminDashboard() {
                 </div>
               ) : (
                 <>
-                  <p className="text-2xl font-bold text-gray-800">{stats.pending}</p>
-                  <p className="text-gray-500 text-sm">{t.pendingIssues}</p>
+                  <p className="text-2xl font-bold text-gray-800">{stats.inProgress}</p>
+                  <p className="text-gray-500 text-sm">{t.inProgressIssues}</p>
                 </>
               )}
             </div>
@@ -525,12 +545,6 @@ function AdminDashboard() {
                 <div className="p-2 bg-green-100 rounded-lg">
                   <CheckCircle className="text-green-600" size={20} />
                 </div>
-                {!statsLoading && (
-                  <span className="flex items-center text-green-500 text-sm">
-                    <ArrowUp size={14} />
-                    18%
-                  </span>
-                )}
               </div>
               {statsLoading ? (
                 <div className="animate-pulse">
@@ -549,12 +563,6 @@ function AdminDashboard() {
                 <div className="p-2 bg-purple-100 rounded-lg">
                   <Users className="text-purple-600" size={20} />
                 </div>
-                {!statsLoading && (
-                  <span className="flex items-center text-green-500 text-sm">
-                    <ArrowUp size={14} />
-                    8%
-                  </span>
-                )}
               </div>
               {statsLoading ? (
                 <div className="animate-pulse">
@@ -571,43 +579,6 @@ function AdminDashboard() {
           </div>
         </div>
 
-        {/* Today's Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
-            <div className="flex items-center gap-3">
-              <div className="p-3 bg-emerald-100 rounded-xl">
-                <TrendingUp className="text-emerald-600" size={24} />
-              </div>
-              <div>
-                <p className="text-sm text-gray-500">{t.newReports}</p>
-                <p className="text-2xl font-bold text-gray-800">{stats.newToday}</p>
-              </div>
-            </div>
-          </div>
-          <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
-            <div className="flex items-center gap-3">
-              <div className="p-3 bg-blue-100 rounded-xl">
-                <CheckCircle className="text-blue-600" size={24} />
-              </div>
-              <div>
-                <p className="text-sm text-gray-500">{t.closedToday}</p>
-                <p className="text-2xl font-bold text-gray-800">{stats.closedToday}</p>
-              </div>
-            </div>
-          </div>
-          <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
-            <div className="flex items-center gap-3">
-              <div className="p-3 bg-orange-100 rounded-xl">
-                <Clock className="text-orange-600" size={24} />
-              </div>
-              <div>
-                <p className="text-sm text-gray-500">{t.averageResTime}</p>
-                <p className="text-2xl font-bold text-gray-800">{stats.avgResolutionTime}</p>
-              </div>
-            </div>
-          </div>
-        </div>
-
         {/* Quick Actions */}
         <div>
           <h3 className="text-lg font-semibold text-gray-800 mb-4">{t.quickActions}</h3>
@@ -620,7 +591,7 @@ function AdminDashboard() {
                 <Clock className="text-yellow-600" size={20} />
               </div>
               <p className="font-semibold text-gray-800">
-                {language === "en" ? "Pending Issues" : "पेन्डिङ समस्याहरू"}
+                {t.pendingIssuesLabel}
               </p>
               <p className="text-2xl font-bold text-yellow-600">{stats.pending}</p>
             </button>
@@ -632,7 +603,7 @@ function AdminDashboard() {
                 <Shield className="text-purple-600" size={20} />
               </div>
               <p className="font-semibold text-gray-800">
-                {language === "en" ? "Pending KYC" : "पेन्डिङ KYC"}
+                {t.pendingKycLabel}
               </p>
               <p className="text-2xl font-bold text-purple-600">{stats.pendingKyc}</p>
             </button>
@@ -644,10 +615,10 @@ function AdminDashboard() {
                 <Megaphone className="text-blue-600" size={20} />
               </div>
               <p className="font-semibold text-gray-800">
-                {language === "en" ? "Send Broadcast" : "प्रसारण पठाउनुहोस्"}
+                {t.sendBroadcast}
               </p>
               <p className="text-sm text-gray-500">
-                {language === "en" ? "Notify citizens" : "नागरिकहरूलाई सूचित गर्नुहोस्"}
+                {t.notifyCitizens}
               </p>
             </button>
             <button
@@ -658,10 +629,10 @@ function AdminDashboard() {
                 <BarChart3 className="text-green-600" size={20} />
               </div>
               <p className="font-semibold text-gray-800">
-                {language === "en" ? "View Analytics" : "विश्लेषण हेर्नुहोस्"}
+                {t.viewAnalyticsLabel}
               </p>
               <p className="text-sm text-gray-500">
-                {language === "en" ? "Performance reports" : "प्रदर्शन रिपोर्टहरू"}
+                {t.performanceReports}
               </p>
             </button>
           </div>
@@ -698,7 +669,7 @@ function AdminDashboard() {
       return (
         <div className="p-8 text-center text-gray-500">
           <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600 mb-2"></div>
-          <p className="text-sm">{language === "en" ? "Loading issues..." : "समस्याहरू लोड हुँदैछ..."}</p>
+          <p className="text-sm">{t.loadingIssues}</p>
         </div>
       );
     }
@@ -708,7 +679,7 @@ function AdminDashboard() {
       return (
         <div className="p-8 text-center text-gray-500">
           <AlertCircle className="mx-auto mb-2 text-gray-400" size={32} />
-          <p className="text-sm">{language === "en" ? "No recent issues" : "कुनै हालको समस्या छैन"}</p>
+          <p className="text-sm">{t.noRecentIssues}</p>
         </div>
       );
     }
@@ -910,10 +881,6 @@ function AdminDashboard() {
               className="px-4 py-2 bg-indigo-100 text-indigo-700 rounded-lg text-sm font-medium hover:bg-indigo-200 transition"
             >
               {language === "en" ? "नेपाली" : "English"}
-            </button>
-            <button className="relative p-2 rounded-lg hover:bg-gray-100">
-              <Bell size={20} className="text-gray-600" />
-              <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full" />
             </button>
           </div>
         </header>
