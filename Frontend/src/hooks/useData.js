@@ -302,18 +302,18 @@ export const useAnalytics = (params = {}) => {
       
       // Fetch all 3 endpoints at the same time (faster than one by one)
       const [overview, issueStats, trends] = await Promise.all([
-        analyticsAPI.getOverview(parsedParams),
-        analyticsAPI.getIssueStats(parsedParams),
-        analyticsAPI.getTrends(parsedParams),
+        adminAPI.getAnalyticsOverview(parsedParams),
+        adminAPI.getIssueAnalytics(parsedParams),
+        adminAPI.getTrends(parsedParams),
       ]);
       
       // Combine all the data into one object
       setAnalytics({
-        overview: overview.data,                       // General stats
-        issuesByType: issueStats.data?.byType || [],   // Issues grouped by type
-        issuesByStatus: issueStats.data?.byStatus || [],// Issues grouped by status
-        issuesByWard: issueStats.data?.byWard || [],   // Issues grouped by ward
-        monthlyTrends: trends.data || [],              // Monthly trend data
+        overview: overview.data || overview,                       // General stats
+        issuesByType: issueStats.data?.byType || issueStats.byType || [],   // Issues grouped by type
+        issuesByStatus: issueStats.data?.byStatus || issueStats.byStatus || [],// Issues grouped by status
+        issuesByWard: issueStats.data?.byWard || issueStats.byWard || [],   // Issues grouped by ward
+        monthlyTrends: trends.data || trends || [],              // Monthly trend data
       });
     } catch (err) {
       setError(err.message || 'Failed to fetch analytics');
@@ -351,7 +351,7 @@ export const useDashboardStats = () => {
     setError(null);
     try {
       const response = await adminAPI.getDashboardStats();
-      setData(response.data);
+      setData(response.data || response);
     } catch (err) {
       // Silently fail for non-admin users - return dummy data instead of showing error
       console.warn('Dashboard stats not available (admin access required)');
