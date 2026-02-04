@@ -8,6 +8,7 @@ import {
   TrendingUp,
   TrendingDown,
   Users,
+  UserCheck,
   FileText,
   CheckCircle,
   Clock,
@@ -35,6 +36,8 @@ const analyticsText = {
     totalReports: "Total Reports",
     resolvedRate: "Resolution Rate",
     activeUsers: "Active Users",
+    totalUsersLabel: "Total Users",
+    verifiedUsersLabel: "Verified Users",
     days: "days",
     issues: "issues",
     users: "users",
@@ -59,6 +62,8 @@ const analyticsText = {
     totalReports: "कुल रिपोर्टहरू",
     resolvedRate: "समाधान दर",
     activeUsers: "सक्रिय प्रयोगकर्ताहरू",
+    totalUsersLabel: "कुल प्रयोगकर्ताहरू",
+    verifiedUsersLabel: "प्रमाणित प्रयोगकर्ताहरू",
     days: "दिन",
     issues: "समस्याहरू",
     users: "प्रयोगकर्ताहरू",
@@ -276,7 +281,7 @@ function StatusDistribution(props) {
     }
 
     // Calculate width percentage
-    const widthPercent = (item.count / total) * 100;
+    const widthPercent = total > 0 ? (item.count / total) * 100 : 0;
 
     // Get color class
     const colorClass = getStatusBarColor(item.color);
@@ -314,14 +319,18 @@ function TrendChart(props) {
 
   // Find max reports value using reduce
   const maxReports = data.reduce(function(max, item) {
-    return item.reports > max ? item.reports : max;
+    const reportsValue = item.reports ?? item.issues ?? 0;
+    return reportsValue > max ? reportsValue : max;
   }, 0);
 
   // Render bars using map
   const bars = data.map(function(item, index) {
     // Calculate heights
-    const reportsHeight = (item.reports / maxReports) * 100;
-    const resolvedHeight = (item.resolved / maxReports) * 100;
+    const reportsValue = item.reports ?? item.issues ?? 0;
+    const resolvedValue = item.resolved ?? 0;
+    const baseValue = maxReports || 1;
+    const reportsHeight = (reportsValue / baseValue) * 100;
+    const resolvedHeight = (resolvedValue / baseValue) * 100;
 
     return (
       <div key={index} className="flex-1 flex flex-col items-center gap-1">
@@ -371,8 +380,8 @@ function AdminAnalytics() {
 
 
   const languageContext = useLanguage();
-  const language = languageContext.language;
-  const t = analyticsText[language];
+  const language = languageContext.language || "en";
+  const t = analyticsText[language] || analyticsText.en;
 
   // Fetch analytics data from API
   const analyticsData = useAnalytics();
@@ -443,47 +452,10 @@ function AdminAnalytics() {
   // Render overview stats cards
   let overviewSection = null;
   if (overview) {
-    // Extract overview values with defaults
-    let totalReportsValue = 0;
-    let totalReportsChange;
-    let totalReportsTrend;
-    if (overview.totalReports) {
-      totalReportsValue = overview.totalReports.value || 0;
-      totalReportsChange = overview.totalReports.change;
-      totalReportsTrend = overview.totalReports.trend;
-    }
-
-    let resolvedRateValue = 0;
-    let resolvedRateChange;
-    let resolvedRateTrend;
-    if (overview.resolvedRate) {
-      resolvedRateValue = overview.resolvedRate.value || 0;
-      resolvedRateChange = overview.resolvedRate.change;
-      resolvedRateTrend = overview.resolvedRate.trend;
-    }
-
-    let avgResTimeValue = 0;
-    let avgResTimeChange;
-    let avgResTimeTrend;
-    if (overview.avgResTime) {
-      avgResTimeValue = overview.avgResTime.value || 0;
-      avgResTimeChange = overview.avgResTime.change;
-      // Invert trend for resolution time (lower is better)
-      if (overview.avgResTime.trend === "down") {
-        avgResTimeTrend = "up";
-      } else {
-        avgResTimeTrend = "down";
-      }
-    }
-
-    let activeUsersValue = 0;
-    let activeUsersChange;
-    let activeUsersTrend;
-    if (overview.activeUsers) {
-      activeUsersValue = overview.activeUsers.value || 0;
-      activeUsersChange = overview.activeUsers.change;
-      activeUsersTrend = overview.activeUsers.trend;
-    }
+    const totalIssuesValue = overview.totalIssues || 0;
+    const resolvedIssuesValue = overview.resolvedIssues || 0;
+    const totalUsersValue = overview.totalUsers || 0;
+    const verifiedUsersValue = overview.verifiedUsers || 0;
 
     overviewSection = (
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -491,35 +463,25 @@ function AdminAnalytics() {
           icon={FileText}
           iconBg="bg-blue-500"
           title={t.totalReports}
-          value={totalReportsValue}
-          change={totalReportsChange}
-          trend={totalReportsTrend}
+          value={totalIssuesValue}
         />
         <StatCard
           icon={CheckCircle}
           iconBg="bg-green-500"
-          title={t.resolvedRate}
-          value={resolvedRateValue}
-          unit="%"
-          change={resolvedRateChange}
-          trend={resolvedRateTrend}
-        />
-        <StatCard
-          icon={Clock}
-          iconBg="bg-orange-500"
-          title={t.avgResTime}
-          value={avgResTimeValue}
-          unit={t.days}
-          change={avgResTimeChange}
-          trend={avgResTimeTrend}
+          title={t.resolved}
+          value={resolvedIssuesValue}
         />
         <StatCard
           icon={Users}
           iconBg="bg-purple-500"
-          title={t.activeUsers}
-          value={activeUsersValue}
-          change={activeUsersChange}
-          trend={activeUsersTrend}
+          title={t.totalUsersLabel}
+          value={totalUsersValue}
+        />
+        <StatCard
+          icon={UserCheck}
+          iconBg="bg-emerald-500"
+          title={t.verifiedUsersLabel}
+          value={verifiedUsersValue}
         />
       </div>
     );
