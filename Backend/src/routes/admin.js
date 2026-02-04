@@ -310,8 +310,8 @@ router.get('/analytics/overview', authMiddleware, adminOnly, async (req, res) =>
     const overview = {
       totalIssues: issues.length,
       totalUsers: users.length,
-      verifiedUsers: users.filter(u => u.kyc_status === 'VERIFIED').length,
-      resolvedIssues: issues.filter(i => i.status === 'resolved').length,
+      verifiedUsers: users.filter(u => (u.kyc_status || '').toUpperCase() === 'VERIFIED').length,
+      resolvedIssues: issues.filter(i => (i.status || '').toLowerCase() === 'resolved').length,
       avgResolutionTime: 2.5, // This should be calculated from actual data
     };
     
@@ -336,16 +336,16 @@ router.get('/analytics/issues', authMiddleware, adminOnly, async (req, res) => {
     
     // Group by status
     const byStatus = [
-      { status: 'pending', count: issues.filter(i => i.status === 'pending').length, color: 'yellow' },
-      { status: 'in progress', count: issues.filter(i => i.status === 'in_progress').length, color: 'blue' },
-      { status: 'resolved', count: issues.filter(i => i.status === 'resolved').length, color: 'green' },
-      { status: 'rejected', count: issues.filter(i => i.status === 'rejected').length, color: 'red' },
+      { status: 'pending', count: issues.filter(i => (i.status || '').toLowerCase() === 'pending').length, color: 'yellow' },
+      { status: 'in progress', count: issues.filter(i => (i.status || '').toLowerCase() === 'in_progress').length, color: 'blue' },
+      { status: 'resolved', count: issues.filter(i => (i.status || '').toLowerCase() === 'resolved').length, color: 'green' },
+      { status: 'rejected', count: issues.filter(i => (i.status || '').toLowerCase() === 'rejected').length, color: 'red' },
     ];
     
     // Group by type
     const typeGroups = {};
     issues.forEach(issue => {
-      const type = issue.issue_type || 'Other';
+      const type = issue.category || issue.issue_type || 'Other';
       typeGroups[type] = (typeGroups[type] || 0) + 1;
     });
     
