@@ -95,6 +95,7 @@ const campaignManagementText = {
     hideDetails: "Hide Details",
     totalCampaigns: "Total Campaigns",
     pendingReview: "Pending Review",
+    unknown: "Unknown",
   },
   np: {
     title: "अभियान व्यवस्थापन",
@@ -147,6 +148,7 @@ const campaignManagementText = {
     hideDetails: "विवरण लुकाउनुहोस्",
     totalCampaigns: "कुल अभियानहरू",
     pendingReview: "समीक्षामा",
+    unknown: "अज्ञात",
   },
 };
 
@@ -256,7 +258,7 @@ function CampaignCard({ campaign, t, onStatusUpdate, isUpdating }) {
         <div className="mt-4 flex flex-wrap gap-4 text-sm text-gray-600">
           <div className="flex items-center gap-1">
             <User size={14} className="text-gray-400" />
-            <span>{campaign.requester_name || "Unknown"}</span>
+            <span>{campaign.requester_name || campaign.creator_name || t.unknown}</span>
           </div>
           <div className="flex items-center gap-1">
             <Calendar size={14} className="text-gray-400" />
@@ -343,7 +345,8 @@ function CampaignCard({ campaign, t, onStatusUpdate, isUpdating }) {
             <div className="flex items-center gap-2">
               <User size={16} className="text-gray-400" />
               <span className="text-sm">
-                <strong>{t.requestedBy}:</strong> {campaign.requester_name} ({campaign.requester_email})
+                <strong>{t.requestedBy}:</strong> {campaign.requester_name || campaign.creator_name || t.unknown}
+                {campaign.requester_email ? ` (${campaign.requester_email})` : ""}
               </span>
             </div>
             <div className="flex items-center gap-2">
