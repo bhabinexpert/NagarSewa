@@ -5,7 +5,6 @@ import { useIssues } from "../../hooks/useData";
 import {
   Camera,
   Image,
-  Bell,
   User,
   FileText,
   Home,
@@ -514,10 +513,6 @@ function UserDashboard() {
               className="px-4 py-2 bg-emerald-100 text-emerald-700 rounded-lg text-sm font-medium hover:bg-emerald-200 transition"
             >
               {language === "en" ? "नेपाली" : "English"}
-            </button>
-            <button className="relative p-2 rounded-lg hover:bg-gray-100">
-              <Bell size={20} className="text-gray-600" />
-              <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full" />
             </button>
           </div>
         </header>
