@@ -8,6 +8,9 @@ import { asyncHandler, sendSuccess, sendError, HTTP_STATUS } from '../utils/resp
  */
 export const getFeed = asyncHandler(async (req, res) => {
   const { type, ward, search, limit = 20 } = req.query;
+  const role = (req.user?.role || '').toLowerCase();
+  const isAdmin = role === 'super_admin' || role === 'ward_admin';
+  const userWard = req.user?.wardNumber || null;
 
   // Build query to fetch issues and campaigns
   let feedItems = [];
@@ -112,6 +115,50 @@ export const getFeed = asyncHandler(async (req, res) => {
     feedItems = [...feedItems, ...campaignsResult.rows];
   }
 
+  // Fetch notices (broadcasts) for non-admin users
+  if (!isAdmin && (!type || type === 'notices' || type === 'notice' || type === 'all')) {
+    let broadcastsSql = `
+      SELECT 
+        b.id,
+        'notice' as type,
+        b.title,
+        b.message as description,
+        b.target_ward,
+        b.created_at,
+        COALESCE(u.full_name, CASE WHEN b.type = 'super_admin' THEN 'Super Admin' ELSE 'Ward Admin' END) as full_name
+      FROM broadcasts b
+      LEFT JOIN users u ON b.sent_by = u.id
+      WHERE 1=1
+    `;
+    const broadcastParams = [];
+    let paramCount = 1;
+
+    const effectiveWard = ward ? parseInt(ward) : userWard;
+    if (effectiveWard) {
+      broadcastsSql += ` AND (b.type = 'super_admin' OR (b.type = 'ward_admin' AND b.target_ward = $${paramCount}))`;
+      broadcastParams.push(effectiveWard);
+      paramCount++;
+    } else {
+      broadcastsSql += ` AND b.type = 'super_admin'`;
+    }
+
+    if (search) {
+      broadcastsSql += ` AND (
+        LOWER(b.title) LIKE $${paramCount} OR 
+        LOWER(b.message) LIKE $${paramCount}
+      )`;
+      broadcastParams.push(`%${search.toLowerCase()}%`);
+      paramCount++;
+    }
+
+    broadcastsSql += ' ORDER BY b.created_at DESC';
+    broadcastsSql += ` LIMIT $${paramCount}`;
+    broadcastParams.push(parseInt(limit));
+
+    const broadcastsResult = await query(broadcastsSql, broadcastParams);
+    feedItems = [...feedItems, ...broadcastsResult.rows];
+  }
+
   // Transform to camelCase format expected by frontend
   const formattedFeed = feedItems.map(item => ({
     id: item.id,
@@ -122,7 +169,7 @@ export const getFeed = asyncHandler(async (req, res) => {
     description: item.description,
     descriptionNp: item.description, // Add Nepali version when available
     location: item.location || null,
-    wardNumber: item.ward_number,
+    wardNumber: item.ward_number || item.target_ward || null,
     timestamp: item.created_at,
     status: item.status?.toLowerCase() || null,
     hasImage: false,

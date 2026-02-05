@@ -10,6 +10,7 @@ import issueRoutes from './routes/issues.js';
 import adminRoutes from './routes/admin.js';
 import userRoutes from './routes/users.js';
 import feedRoutes from './routes/feed.js';
+import broadcastRoutes from './routes/broadcasts.js';
 import { requestLogger } from './middleware/logger.js';
 import { sendError, HTTP_STATUS } from './utils/response.js';
 
@@ -53,6 +54,7 @@ app.use('/api/campaigns', campaignRoutes);
 app.use('/api/issues', issueRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/feed', feedRoutes);
+app.use('/api/broadcasts', broadcastRoutes);
 
 // 404 handler
 app.use((req, res) => {
