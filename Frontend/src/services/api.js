@@ -206,6 +206,18 @@ export const feedAPI = {
 };
 
 // =============================================================================
+// BROADCASTS API (Admin Broadcasts)
+// =============================================================================
+
+export const broadcastsAPI = {
+  // Send a broadcast (admin only)
+  send: (payload) => apiClient.post('/broadcasts', payload),
+
+  // Get super admin broadcasts for admin tab
+  getAdmin: () => apiClient.get('/broadcasts'),
+};
+
+// =============================================================================
 // EXPORT DEFAULT FOR BACKWARD COMPATIBILITY
 // =============================================================================
 
@@ -216,6 +228,7 @@ const apiService = {
   admin: adminAPI,
   users: usersAPI,
   feed: feedAPI,
+  broadcasts: broadcastsAPI,
 };
 
 export default apiService;
