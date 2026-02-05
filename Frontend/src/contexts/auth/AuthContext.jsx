@@ -51,6 +51,11 @@ export function AuthProvider({ children }) {
    * List of all ward administrators (for super admin).
    */
   const [wardAdmins, setWardAdmins] = useState([]);
+
+  /**
+   * List of disabled users (admin-only tracking).
+   */
+  const [disabledUsers, setDisabledUsers] = useState([]);
   
   
   // =========================================================================
@@ -338,18 +343,18 @@ export function AuthProvider({ children }) {
       });
       
       // Backend returns { message, admin } directly (not wrapped in data)
-      const adminData = response.admin || response;
+      const createdAdmin = response.admin || response;
       
       // Add to local state with functional update for immediate UI refresh
       const newAdmin = {
-        id: adminData.id,
-        email: adminData.email,
-        fullName: adminData.full_name,
+        id: createdAdmin.id,
+        email: createdAdmin.email,
+        fullName: createdAdmin.full_name,
         role: ROLES.WARD_ADMIN,
-        wardNumber: adminData.ward_number,
-        phone: adminData.phone,
-        isActive: !adminData.is_disabled, // Convert is_disabled to isActive
-        createdAt: adminData.created_at || adminData.createdAt
+        wardNumber: createdAdmin.ward_number,
+        phone: createdAdmin.phone,
+        isActive: !createdAdmin.is_disabled, // Convert is_disabled to isActive
+        createdAt: createdAdmin.created_at || createdAdmin.createdAt
       };
       
       setWardAdmins(prevAdmins => [...prevAdmins, newAdmin]);
