@@ -34,6 +34,7 @@ import AdminCampaignManagement from "../../components/dashboard/admin/AdminCampa
 import AdminProfile from "../../components/dashboard/admin/AdminProfile";
 import SuperAdminPanel from "../../components/dashboard/admin/SuperAdminPanel";
 import AdminIssueManagement from "../../components/dashboard/admin/AdminIssueManagement";
+import AdminBroadcasts from "../../components/dashboard/admin/AdminBroadcasts";
 import { Link, useNavigate } from "react-router-dom";
 
 // ============================================================
@@ -272,6 +273,9 @@ function AdminDashboard() {
     
     // Analytics - available to all
     items.push({ id: "analytics", icon: BarChart3, label: t.analytics });
+
+    // Broadcasts - available to all admins
+    items.push({ id: "broadcasts", icon: Megaphone, label: t.sendBroadcast });
     
     // Profile - available to all
     items.push({ id: "profile", icon: Settings, label: t.profile });
@@ -383,6 +387,10 @@ function AdminDashboard() {
     
     if (activeTab === "analytics") {
       return <AdminAnalytics wardFilter={wardFilter} isSuperAdmin={isSuperAdmin()} />;
+    }
+
+    if (activeTab === "broadcasts") {
+      return <AdminBroadcasts />;
     }
     
     if (activeTab === "profile") {
@@ -608,7 +616,7 @@ function AdminDashboard() {
               <p className="text-2xl font-bold text-purple-600">{stats.pendingKyc}</p>
             </button>
             <button
-              onClick={function() { handleTabChange("notifications"); }}
+              onClick={function() { handleTabChange("broadcasts"); }}
               className="bg-white rounded-xl p-4 shadow-sm border border-gray-100 hover:shadow-md transition group text-left"
             >
               <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center mb-3 group-hover:bg-blue-200 transition">
