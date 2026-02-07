@@ -30,6 +30,7 @@
  *   const municipalities = getMunicipalities(111);
  */
 
+import axios from 'axios';
 import { 
   getProvinces as fetchProvinces, 
   getDistrictsByProvince, 
@@ -231,15 +232,13 @@ export async function getLocationFromCoordinates(latitude, longitude) {
     const fullUrl = apiUrl + '?format=json&lat=' + latitude + '&lon=' + longitude + '&addressdetails=1';
     
     // Step 2: Make the API request
-    const response = await fetch(fullUrl);
+    const response = await axios.get(fullUrl);
     
-    // Step 3: Check if the request was successful
-    if (!response.ok) {
+    // Step 3: Parse the JSON response
+    const data = response?.data;
+    if (!data) {
       throw new Error('Failed to fetch location from coordinates');
     }
-    
-    // Step 4: Parse the JSON response
-    const data = await response.json();
     
     // Step 5: Extract the address details
     // The API returns an 'address' object with various fields
