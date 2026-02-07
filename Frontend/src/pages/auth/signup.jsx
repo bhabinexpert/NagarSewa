@@ -15,11 +15,11 @@ import {
   Crosshair,
   Loader2,
 } from "lucide-react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { useLanguage } from "../../contexts/language/useLanguage";
-import { useAuth } from "../../contexts/auth/useAuth";
 import { toast, ToastContainer } from "react-toastify";
 import { authAPI } from "../../services/api";
+import axios from "axios";
 import "react-toastify/dist/ReactToastify.css";
 import {
   getProvinces,
@@ -274,8 +274,6 @@ export default function Signup() {
   // ============================================================
   // HOOKS AND CONTEXT
   // ============================================================
-  const navigate = useNavigate();
-  const { login: authLogin } = useAuth();
   const languageContext = useLanguage();
   const language = languageContext.language;
   const toggleLanguage = languageContext.toggleLanguage;
@@ -455,18 +453,17 @@ export default function Signup() {
         latitude + "&lon=" + longitude + "&addressdetails=1&accept-language=en";
 
       // Fetch location data
-      fetch(geocodeUrl, {
-        headers: {
-          "User-Agent": "NagarSewa/1.0",
-        },
-      })
+      axios
+        .get(geocodeUrl, {
+          headers: {
+            "User-Agent": "NagarSewa/1.0",
+          },
+        })
         .then(function(response) {
-          if (!response.ok) {
+          const data = response?.data;
+          if (!data) {
             throw new Error("Geocoding failed");
           }
-          return response.json();
-        })
-        .then(function(data) {
           // Check if user is in Jhapa District area (approximate bounds)
           // Jhapa District approximate bounds: lat 26.3-26.9, lon 87.6-88.2
           const isInJhapa =
