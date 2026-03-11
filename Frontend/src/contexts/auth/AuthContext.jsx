@@ -1,8 +1,5 @@
 /**
- * =============================================================================
  * AUTHENTICATION PROVIDER - Manages User Login State with Backend Integration
- * =============================================================================
- * 
  * This is the main authentication component for the app.
  * It handles:
  * - User login and logout with real backend API
@@ -22,19 +19,8 @@ import { AuthContext, DAMAK_TOTAL_WARDS, ROLES } from "./authConstants";
 import api from "../../services/api";
 
 
-/**
- * Auth Provider Component
- * 
- * Wrap your app with this to enable authentication.
- * 
- * @param {Object} props
- * @param {React.ReactNode} props.children - The app content
- */
 export function AuthProvider({ children }) {
   
-  // =========================================================================
-  // STATE VARIABLES
-  // =========================================================================
   
   /**
    * The currently logged-in user.
@@ -57,10 +43,6 @@ export function AuthProvider({ children }) {
    */
   const [disabledUsers, setDisabledUsers] = useState([]);
   
-  
-  // =========================================================================
-  // SIDE EFFECTS - Things that happen automatically
-  // =========================================================================
   
   /**
    * On component mount, check if user is already logged in.

@@ -48,9 +48,7 @@ const footerContent = {
 
 export default function Footer() {
  
-  // STATE AND CONTEXT
-
-  
+    
   // Get language context without destructuring for clarity
   const languageContext = useLanguage();
   const language = languageContext.language;

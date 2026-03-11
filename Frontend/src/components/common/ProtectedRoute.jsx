@@ -9,13 +9,7 @@ import React from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/auth/useAuth';
 
-/**
- * ProtectedRoute - Protects routes based on authentication
- * 
- * @param {Object} props
- * @param {React.ReactNode} props.children - The component to render if authorized
- * @returns {JSX.Element} The protected component or redirect
- */
+
 export default function ProtectedRoute({ children }) {
   const { currentUser, isLoading } = useAuth();
 

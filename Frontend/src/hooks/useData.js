@@ -10,32 +10,11 @@
  *   - loading   → true while fetching, false when done
  *   - error     → Error message if something went wrong, null otherwise
  *   - refetch   → Function to reload the data manually
- * 
- * HOW TO USE:
- * 
- *   import { useIssues } from '../hooks/useData';
- * 
- *   function MyComponent() {
- *     const { issues, loading, error, refetch } = useIssues({ status: 'pending' });
- *     
- *     if (loading) return <p>Loading...</p>;
- *     if (error) return <p>Error: {error}</p>;
- *     
- *     return (
- *       <ul>
- *         {issues.map(issue => <li key={issue.id}>{issue.title}</li>)}
- *       </ul>
- *     );
- *   }
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState,  useCallback } from 'react';
 import { issuesAPI, campaignsAPI, usersAPI, feedAPI, adminAPI } from '../services/api';
 
-
-// =============================================================================
-// HELPER HOOK (used by all hooks below)
-// =============================================================================
 
 /**
  * This is a helper hook that handles the common pattern:
@@ -88,9 +67,9 @@ function useApiData(fetchFn, params = {}) {
   return { data, loading, error, refetch: fetchData };
 }
 
-// =============================================================================
+
 // ISSUES HOOKS - For loading issue/complaint data
-// =============================================================================
+
 
 /**
  * Load a list of issues (complaints reported by users)
@@ -100,12 +79,10 @@ function useApiData(fetchFn, params = {}) {
  *   - ward: ward number to filter by
  *   - search: text to search for
  *   - sort: 'newest' or 'oldest'
- * 
- * EXAMPLE:
- *   const { issues, loading } = useIssues({ status: 'pending' });
- * 
+
  * BACKEND API: GET /api/issues
  */
+
 export const useIssues = (params = {}) => {
   const { data, loading, error, refetch } = useApiData(issuesAPI.getAll, params);
   
@@ -122,9 +99,6 @@ export const useIssues = (params = {}) => {
 /**
  * Load a single issue by its ID
  * 
- * EXAMPLE:
- *   const { issue, loading } = useIssue('abc123');
- * 
  * BACKEND API: GET /api/issues/:id
  */
 export const useIssue = (id) => {
@@ -136,9 +110,6 @@ export const useIssue = (id) => {
   return { issue: data, loading, error, refetch };
 };
 
-// =============================================================================
-// USERS HOOKS - For loading user data (admin only)
-// =============================================================================
 
 /**
  * Load a list of users (only admins can access this)
@@ -147,9 +118,6 @@ export const useIssue = (id) => {
  *   - kycStatus: 'verified', 'pending', or 'rejected'
  *   - search: search by name, email, or phone
  *   - sort: 'newest' or 'oldest'
- * 
- * EXAMPLE:
- *   const { users, loading } = useUsers({ kycStatus: 'pending' });
  * 
  * BACKEND API: GET /api/admin/users
  */
@@ -168,10 +136,6 @@ export const useUsers = (params = {}) => {
 
 /**
  * Load a single user by their ID
- * 
- * EXAMPLE:
- *   const { user, loading } = useUser('user123');
- * 
  * BACKEND API: GET /api/users/:id
  */
 export const useUser = (id) => {
@@ -181,9 +145,6 @@ export const useUser = (id) => {
   return { user: data, loading, error, refetch };
 };
 
-// =============================================================================
-// NEWS FEED HOOKS - For loading community feed
-// =============================================================================
 
 /**
  * Load the community news feed
@@ -194,9 +155,6 @@ export const useUser = (id) => {
  *   - ward: ward number to filter by
  *   - search: text to search for
  * 
- * EXAMPLE:
- *   const { feed, loading } = useFeed({ type: 'issue' });
- * 
  * BACKEND API: GET /api/feed
  */
 export const useFeed = (params = {}) => {
@@ -205,9 +163,6 @@ export const useFeed = (params = {}) => {
   return { feed: data || [], loading, error, refetch };
 };
 
-// =============================================================================
-// CAMPAIGNS HOOKS - For loading campaign request data
-// =============================================================================
 
 /**
  * Load a list of campaign requests
@@ -218,10 +173,6 @@ export const useFeed = (params = {}) => {
  *   - category: campaign category
  *   - search: text to search for
  *   - sort: 'newest' or 'oldest'
- * 
- * EXAMPLE:
- *   const { campaigns, loading } = useCampaigns({ status: 'pending' });
- * 
  * BACKEND API: GET /api/campaigns
  */
 export const useCampaigns = (params = {}) => {
@@ -240,10 +191,6 @@ export const useCampaigns = (params = {}) => {
 
 /**
  * Load a single campaign by its ID
- * 
- * EXAMPLE:
- *   const { campaign, loading } = useCampaign('abc123');
- * 
  * BACKEND API: GET /api/campaigns/:id
  */
 export const useCampaign = (id) => {
@@ -256,9 +203,6 @@ export const useCampaign = (id) => {
 };
 
 
-// =============================================================================
-// ANALYTICS HOOKS - For loading dashboard statistics (admin only)
-// =============================================================================
 
 /**
  * Load analytics data for the admin dashboard
@@ -327,18 +271,10 @@ export const useAnalytics = (params = {}) => {
   return { analytics, loading, error, refetch: fetchAnalytics };
 };
 
-// =============================================================================
-// ADMIN HOOKS - For admin dashboard functionality
-// =============================================================================
-
 /**
  * Load dashboard statistics for admin panel
  * Fetches issue stats, user stats, and campaign stats
  * Automatically filtered by ward for ward admins
- * 
- * EXAMPLE:
- *   const { stats, loading } = useDashboardStats();
- * 
  * BACKEND API: GET /api/admin/dashboard/stats
  */
 export const useDashboardStats = () => {
@@ -360,6 +296,7 @@ export const useDashboardStats = () => {
         users: { total: 0, verified: 0, pendingKyc: 0 },
         campaigns: { total: 0, pending: 0, approved: 0 }
       });
+      console.log(err);
     } finally {
       setLoading(false);
     }
@@ -378,9 +315,9 @@ export const useDashboardStats = () => {
 };
 
 
-// =============================================================================
+
 // EXPORT ALL HOOKS
-// =============================================================================
+
 
 export default {
   useIssues,

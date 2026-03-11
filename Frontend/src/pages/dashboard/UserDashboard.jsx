@@ -118,7 +118,7 @@ function UserDashboard() {
   // ============================================================
   // REAL STATS FROM API
   // ============================================================
-  const { issues, loading: issuesLoading, refetch: refetchIssues } = useIssues({ user_id: currentUser?.id });
+  const { issues, refetch: refetchIssues } = useIssues({ user_id: currentUser?.id });
   
   const stats = {
     totalReports: issues.length || 0,
@@ -132,7 +132,7 @@ function UserDashboard() {
     if (activeTab === 'dashboard') {
       refetchIssues();
     }
-  }, [activeTab]);
+  }, [activeTab, refetchIssues]);
 
   // ============================================================
   // MENU ITEMS

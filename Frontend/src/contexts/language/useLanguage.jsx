@@ -5,24 +5,6 @@
  * 
  * This hook lets any component access the current language
  * and the function to change it.
- * 
- * HOW TO USE:
- * 
- *   import { useLanguage } from '../context/useLanguage';
- * 
- *   function MyComponent() {
- *     const { language, toggleLanguage } = useLanguage();
- *     
- *     return (
- *       <div>
- *         <p>Current language: {language}</p>
- *         <button onClick={toggleLanguage}>
- *           Switch to {language === 'en' ? 'Nepali' : 'English'}
- *         </button>
- *       </div>
- *     );
- *   }
- * 
  * WHAT YOU GET:
  * - language: 'en' for English, 'np' for Nepali
  * - toggleLanguage: Function that switches between languages

@@ -46,8 +46,6 @@ const headerContent = {
 
 export default function Header() {
 
-  // STATE AND CONTEXT
-
   
   // Get language context without destructuring for clarity
   const languageContext = useLanguage();
@@ -60,9 +58,6 @@ export default function Header() {
   // State for mobile menu visibility
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
-  
-  // NAVIGATION ITEMS CONFIGURATION
- 
   
   // Define navigation items with their keys, links, and icons
   const navItems = [
@@ -92,15 +87,12 @@ export default function Header() {
     setIsMobileMenuOpen(!isMobileMenuOpen);
   }
 
-  
-  // HELPER FUNCTIONS FOR RENDERING
- 
-
-  /**
+    /**
    * Renders the desktop navigation links
   
    * @returns {JSX.Element[]} Array of navigation link elements
    */
+  
   function renderDesktopNavLinks() {
     return navItems.map(function(item) {
       return (
