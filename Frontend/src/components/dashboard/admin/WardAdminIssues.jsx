@@ -24,7 +24,6 @@ import {
   ChevronDown,
   ChevronUp,
   Flag,
-  Filter,
 } from "lucide-react";
 
 // ============================================================================
@@ -81,34 +80,46 @@ const text = {
 // ============================================================================
 
 /**
+ * Normalize status to consistent format for comparison.
+ * Backend uses UPPERCASE (PENDING, IN_PROGRESS), frontend uses camelCase.
+ */
+function normalizeStatus(status) {
+  if (!status) return "pending";
+  const s = String(status).toLowerCase().replace("_", "");
+  if (s === "inprogress") return "inProgress";
+  return s;
+}
+
+/**
  * Get status configuration including color and icon.
  * @param {string} status - The issue status
  * @param {Object} t - Translation object
  * @returns {Object} Status configuration with bg, text, icon, and label
  */
 function getStatusConfig(status, t) {
-  if (status === "pending") {
+  const normalized = normalizeStatus(status);
+  if (normalized === "pending") {
     return {
       bg: "bg-yellow-100",
       text: "text-yellow-700",
       icon: Clock,
       label: t.pending,
     };
-  } else if (status === "inProgress") {
+  } else if (normalized === "inProgress") {
     return {
       bg: "bg-blue-100",
       text: "text-blue-700",
       icon: AlertCircle,
       label: t.inProgress,
     };
-  } else if (status === "resolved") {
+  } else if (normalized === "resolved") {
     return {
       bg: "bg-green-100",
       text: "text-green-700",
       icon: CheckCircle,
       label: t.resolved,
     };
-  } else if (status === "rejected") {
+  } else if (normalized === "rejected") {
     return {
       bg: "bg-red-100",
       text: "text-red-700",
@@ -156,9 +167,9 @@ function filterIssues(issuesList, filter, search) {
   const filteredByType = issuesList.filter(function(issue) {
     if (filter === "all") {
       return true;
-    } else if (filter === "prioritized" && issue.superAdminPriority !== null) {
+    } else if (filter === "prioritized" && (issue.superAdminPriority || issue.priority)) {
       return true;
-    } else if (issue.status === filter) {
+    } else if (normalizeStatus(issue.status) === filter) {
       return true;
     }
     return false;
@@ -172,9 +183,9 @@ function filterIssues(issuesList, filter, search) {
   const searchLower = search.toLowerCase();
 
   return filteredByType.filter(function(issue) {
-    const idLower = issue.id.toLowerCase();
-    const typeLower = issue.type.toLowerCase();
-    const locationLower = issue.location.toLowerCase();
+    const idLower = String(issue.id || "").toLowerCase();
+    const typeLower = String(issue.type || issue.category || "").toLowerCase();
+    const locationLower = String(issue.location || "").toLowerCase();
 
     return (
       idLower.includes(searchLower) ||
@@ -225,16 +236,17 @@ function sortIssues(issuesList, sortOrder) {
  */
 function countIssues(issuesList) {
   return issuesList.reduce(function(counts, issue) {
-    if (issue.superAdminPriority) {
+    const normalized = normalizeStatus(issue.status);
+    if (issue.superAdminPriority || issue.priority) {
       counts.prioritized = counts.prioritized + 1;
     }
-    if (issue.status === "pending") {
+    if (normalized === "pending") {
       counts.pending = counts.pending + 1;
     }
-    if (issue.status === "inProgress") {
+    if (normalized === "inProgress") {
       counts.inProgress = counts.inProgress + 1;
     }
-    if (issue.status === "resolved") {
+    if (normalized === "resolved") {
       counts.resolved = counts.resolved + 1;
     }
     return counts;

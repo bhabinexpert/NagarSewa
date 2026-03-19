@@ -8,7 +8,7 @@
  * @component
  */
 
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { useLanguage } from "../../../contexts/language/useLanguage";
 import { DAMAK_TOTAL_WARDS } from "../../../contexts/auth/authConstants";
 import { useIssues } from "../../../hooks/useData";
@@ -26,7 +26,6 @@ import {
   ChevronUp,
   Flag,
   X,
-  Filter,
 } from "lucide-react";
 
 // ============================================================================
@@ -93,40 +92,33 @@ const text = {
 // ============================================================================
 
 /**
+ * Normalize status to consistent format for comparison.
+ * Backend uses UPPERCASE (PENDING, IN_PROGRESS), frontend uses camelCase.
+ */
+function normalizeStatus(status) {
+  if (!status) return "pending";
+  const s = String(status).toLowerCase().replace("_", "");
+  if (s === "inprogress") return "inProgress";
+  return s;
+}
+
+/**
  * Get status configuration including color and icon.
  * @param {string} status - The issue status
  * @returns {Object} Status configuration with bg, text, and icon
  */
 function getStatusConfig(status) {
-  if (status === "pending") {
+  const normalized = normalizeStatus(status);
+  if (normalized === "pending") {
     return { bg: "bg-yellow-100", text: "text-yellow-700", icon: Clock };
-  } else if (status === "inProgress") {
+  } else if (normalized === "inProgress") {
     return { bg: "bg-blue-100", text: "text-blue-700", icon: AlertCircle };
-  } else if (status === "resolved") {
+  } else if (normalized === "resolved") {
     return { bg: "bg-green-100", text: "text-green-700", icon: CheckCircle };
-  } else if (status === "rejected") {
+  } else if (normalized === "rejected") {
     return { bg: "bg-red-100", text: "text-red-700", icon: XCircle };
   } else {
     return { bg: "bg-yellow-100", text: "text-yellow-700", icon: Clock };
-  }
-}
-
-/**
- * Get priority button color class.
- * @param {string} priority - The priority level
- * @returns {string} CSS class for the priority color
- */
-function getPriorityColor(priority) {
-  if (priority === "urgent") {
-    return "bg-red-500";
-  } else if (priority === "high") {
-    return "bg-orange-500";
-  } else if (priority === "medium") {
-    return "bg-yellow-500";
-  } else if (priority === "low") {
-    return "bg-blue-500";
-  } else {
-    return "bg-gray-500";
   }
 }
 
@@ -142,22 +134,22 @@ function filterIssues(issuesList, wardFilter, statusFilter, search) {
   return issuesList.filter(function(issue) {
     // Check ward filter
     if (wardFilter !== "all") {
-      if (issue.wardNumber.toString() !== wardFilter) {
+      if (String(issue.wardNumber || issue.ward_number) !== wardFilter) {
         return false;
       }
     }
 
-    // Check status filter
+    // Check status filter (normalize for comparison)
     if (statusFilter !== "all") {
-      if (issue.status !== statusFilter) {
+      if (normalizeStatus(issue.status) !== statusFilter) {
         return false;
       }
     }
 
     // Check search text
     if (search) {
-      const idLower = issue.id.toLowerCase();
-      const typeLower = issue.type.toLowerCase();
+      const idLower = String(issue.id).toLowerCase();
+      const typeLower = String(issue.type || issue.category || "").toLowerCase();
       const searchLower = search.toLowerCase();
 
       if (!idLower.includes(searchLower) && !typeLower.includes(searchLower)) {
@@ -201,10 +193,10 @@ function sortIssues(issuesList, sortOrder) {
  */
 function calculateStats(issuesList) {
   return issuesList.reduce(function(stats, issue) {
-    if (issue.status === "pending") {
+    if (normalizeStatus(issue.status) === "pending") {
       stats.pending = stats.pending + 1;
     }
-    if (issue.superAdminPriority) {
+    if (issue.superAdminPriority || issue.priority) {
       stats.prioritized = stats.prioritized + 1;
     }
     return stats;

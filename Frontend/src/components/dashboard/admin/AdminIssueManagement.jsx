@@ -118,26 +118,22 @@ export default function AdminIssueManagement() {
   const [sortOrder, setSortOrder] = useState("newest");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Fetch ALL issues (no status filter) - we filter client-side
   const queryParams = useMemo(
     function () {
       const params = { sort: sortOrder };
-
-      if (statusFilter !== "all") {
-        params.status = statusFilter;
-      }
       if (wardFilter !== "all") {
         params.ward = wardFilter;
       }
       if (searchQuery) {
         params.search = searchQuery;
       }
-
       return params;
     },
-    [statusFilter, wardFilter, searchQuery, sortOrder]
+    [wardFilter, searchQuery, sortOrder]
   );
 
-  const { issues = [], loading, error, refetch } = useIssues(queryParams);
+  const { issues: allIssues = [], loading, error, refetch } = useIssues(queryParams);
 
   useEffect(() => {
     refetch();
@@ -145,22 +141,23 @@ export default function AdminIssueManagement() {
 
   function normalizeStatus(value) {
     if (!value) return "pending";
-    const statusValue = String(value).toLowerCase();
+    const statusValue = String(value).toLowerCase().replace("_", "");
     if (statusValue === "inprogress") return "in_progress";
-    return statusValue;
+    return statusValue.replace("_", "");
   }
 
+  // Calculate counts from ALL issues
   const statusCounts = useMemo(
     function () {
       const counts = {
-        all: issues.length,
+        all: allIssues.length,
         pending: 0,
         in_progress: 0,
         resolved: 0,
         rejected: 0,
       };
 
-      issues.forEach(function (issue) {
+      allIssues.forEach(function (issue) {
         const normalized = normalizeStatus(issue.status);
         if (counts[normalized] !== undefined) {
           counts[normalized] = counts[normalized] + 1;
@@ -169,7 +166,20 @@ export default function AdminIssueManagement() {
 
       return counts;
     },
-    [issues]
+    [allIssues]
+  );
+
+  // Filter issues client-side based on status filter
+  const issues = useMemo(
+    function () {
+      if (statusFilter === "all") {
+        return allIssues;
+      }
+      return allIssues.filter(function (issue) {
+        return normalizeStatus(issue.status) === statusFilter;
+      });
+    },
+    [allIssues, statusFilter]
   );
 
   const statusOptions = [
