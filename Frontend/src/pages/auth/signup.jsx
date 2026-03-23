@@ -483,19 +483,16 @@ export default function Signup() {
           }
 
           // Auto-fill with Damak Municipality (the only allowed municipality)
-          const newFormData = {
-            fullName: formData.fullName,
-            email: formData.email,
-            phone: formData.phone,
-            province: ALLOWED_PROVINCE_CODE,
-            district: ALLOWED_DISTRICT_CODE,
-            municipality: ALLOWED_MUNICIPALITY_CODE,
-            wardNumber: "",
-            password: formData.password,
-            confirmPassword: formData.confirmPassword,
-            acceptTerms: formData.acceptTerms,
-          };
-          setFormData(newFormData);
+          // Keep existing fields (gender, DOB, address, etc.) and only update location fields.
+          setFormData(function(previousData) {
+            return {
+              ...previousData,
+              province: ALLOWED_PROVINCE_CODE,
+              district: ALLOWED_DISTRICT_CODE,
+              municipality: ALLOWED_MUNICIPALITY_CODE,
+              wardNumber: "",
+            };
+          });
 
           toast.success(t.alerts.locationDetected, {
             position: "top-right",
@@ -507,19 +504,16 @@ export default function Signup() {
         .catch(function(error) {
           console.error("Geocoding error:", error);
           // Even if geocoding fails, set province, district, and municipality since we're targeting Damak
-          const newFormData = {
-            fullName: formData.fullName,
-            email: formData.email,
-            phone: formData.phone,
-            province: ALLOWED_PROVINCE_CODE,
-            district: ALLOWED_DISTRICT_CODE,
-            municipality: ALLOWED_MUNICIPALITY_CODE,
-            wardNumber: "",
-            password: formData.password,
-            confirmPassword: formData.confirmPassword,
-            acceptTerms: formData.acceptTerms,
-          };
-          setFormData(newFormData);
+          // Keep existing fields (gender, DOB, address, etc.) and only update location fields.
+          setFormData(function(previousData) {
+            return {
+              ...previousData,
+              province: ALLOWED_PROVINCE_CODE,
+              district: ALLOWED_DISTRICT_CODE,
+              municipality: ALLOWED_MUNICIPALITY_CODE,
+              wardNumber: "",
+            };
+          });
           
           toast.info(t.alerts.locationDetected, {
             position: "top-right",
@@ -584,36 +578,28 @@ export default function Signup() {
           autoClose: 4000,
           icon: "🚧",
         });
-        // Reset province selection
-        const resetFormData = {
-          fullName: formData.fullName,
-          email: formData.email,
-          phone: formData.phone,
-          province: "",
-          district: "",
-          municipality: "",
-          wardNumber: "",
-          password: formData.password,
-          confirmPassword: formData.confirmPassword,
-          acceptTerms: formData.acceptTerms,
-        };
-        setFormData(resetFormData);
+        // Reset location fields only, keep the rest of form values unchanged.
+        setFormData(function(previousData) {
+          return {
+            ...previousData,
+            province: "",
+            district: "",
+            municipality: "",
+            wardNumber: "",
+          };
+        });
         return;
       }
       
-      const newFormData = {
-        fullName: formData.fullName,
-        email: formData.email,
-        phone: formData.phone,
-        province: fieldValue,
-        district: "",
-        municipality: "",
-        wardNumber: "",
-        password: formData.password,
-        confirmPassword: formData.confirmPassword,
-        acceptTerms: formData.acceptTerms,
-      };
-      setFormData(newFormData);
+      setFormData(function(previousData) {
+        return {
+          ...previousData,
+          province: fieldValue,
+          district: "",
+          municipality: "",
+          wardNumber: "",
+        };
+      });
       return;
     }
 
@@ -626,36 +612,26 @@ export default function Signup() {
           autoClose: 4000,
           icon: "🚧",
         });
-        // Reset district selection
-        const resetFormData = {
-          fullName: formData.fullName,
-          email: formData.email,
-          phone: formData.phone,
-          province: formData.province,
-          district: "",
-          municipality: "",
-          wardNumber: "",
-          password: formData.password,
-          confirmPassword: formData.confirmPassword,
-          acceptTerms: formData.acceptTerms,
-        };
-        setFormData(resetFormData);
+        // Reset dependent location fields only.
+        setFormData(function(previousData) {
+          return {
+            ...previousData,
+            district: "",
+            municipality: "",
+            wardNumber: "",
+          };
+        });
         return;
       }
       
-      const newFormData = {
-        fullName: formData.fullName,
-        email: formData.email,
-        phone: formData.phone,
-        province: formData.province,
-        district: fieldValue,
-        municipality: "",
-        wardNumber: "",
-        password: formData.password,
-        confirmPassword: formData.confirmPassword,
-        acceptTerms: formData.acceptTerms,
-      };
-      setFormData(newFormData);
+      setFormData(function(previousData) {
+        return {
+          ...previousData,
+          district: fieldValue,
+          municipality: "",
+          wardNumber: "",
+        };
+      });
       return;
     }
 
@@ -668,73 +644,46 @@ export default function Signup() {
           autoClose: 4000,
           icon: "🚧",
         });
-        // Reset municipality selection
-        const resetFormData = {
-          fullName: formData.fullName,
-          email: formData.email,
-          phone: formData.phone,
-          province: formData.province,
-          district: formData.district,
-          municipality: "",
-          wardNumber: "",
-          password: formData.password,
-          confirmPassword: formData.confirmPassword,
-          acceptTerms: formData.acceptTerms,
-        };
-        setFormData(resetFormData);
+        // Reset dependent location fields only.
+        setFormData(function(previousData) {
+          return {
+            ...previousData,
+            municipality: "",
+            wardNumber: "",
+          };
+        });
         return;
       }
       
-      const newFormData = {
-        fullName: formData.fullName,
-        email: formData.email,
-        phone: formData.phone,
-        province: formData.province,
-        district: formData.district,
-        municipality: fieldValue,
-        wardNumber: "",
-        password: formData.password,
-        confirmPassword: formData.confirmPassword,
-        acceptTerms: formData.acceptTerms,
-      };
-      setFormData(newFormData);
+      setFormData(function(previousData) {
+        return {
+          ...previousData,
+          municipality: fieldValue,
+          wardNumber: "",
+        };
+      });
       return;
     }
 
     // For other fields, just update the value
-    const newFormData = {
-      fullName: formData.fullName,
-      email: formData.email,
-      phone: formData.phone,
-      province: formData.province,
-      district: formData.district,
-      municipality: formData.municipality,
-      wardNumber: formData.wardNumber,
-      password: formData.password,
-      confirmPassword: formData.confirmPassword,
-      acceptTerms: formData.acceptTerms,
-    };
-    newFormData[fieldName] = fieldValue;
-    setFormData(newFormData);
+    setFormData(function(previousData) {
+      return {
+        ...previousData,
+        [fieldName]: fieldValue,
+      };
+    });
   }
 
   /**
    * Toggle terms acceptance checkbox.
    */
   function toggleTerms() {
-    const newFormData = {
-      fullName: formData.fullName,
-      email: formData.email,
-      phone: formData.phone,
-      province: formData.province,
-      district: formData.district,
-      municipality: formData.municipality,
-      wardNumber: formData.wardNumber,
-      password: formData.password,
-      confirmPassword: formData.confirmPassword,
-      acceptTerms: !formData.acceptTerms,
-    };
-    setFormData(newFormData);
+    setFormData(function(previousData) {
+      return {
+        ...previousData,
+        acceptTerms: !previousData.acceptTerms,
+      };
+    });
   }
 
   // ============================================================
