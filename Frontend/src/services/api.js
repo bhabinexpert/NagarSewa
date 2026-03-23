@@ -71,7 +71,19 @@ export const issuesAPI = {
   
   getById: (id) => apiClient.get(`/issues/${id}`),
   
-  create: (issueData) => apiClient.post('/issues', issueData),
+  create: (issueData) => {
+    // When sending files, keep request as multipart/form-data so Multer can read req.files.
+    if (issueData instanceof FormData) {
+      return apiClient.post('/issues', issueData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+    }
+
+    // Fallback for non-file payloads.
+    return apiClient.post('/issues', issueData);
+  },
   
   updateStatus: (id, status, resolution_note) => 
     apiClient.patch(`/issues/${id}/status`, { status, resolution_note }),

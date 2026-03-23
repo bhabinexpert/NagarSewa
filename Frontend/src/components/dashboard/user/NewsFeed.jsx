@@ -51,6 +51,10 @@ import {
   FileText,
 } from "lucide-react";
 
+const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:2026/api";
+const FILE_BASE_URL = API_BASE_URL.replace(/\/api\/?$/, "");
+const BASE64_CHARS_REGEX = /^[A-Za-z0-9+/=\s]+$/;
+
 // ============================================================================
 // TRANSLATIONS
 // ============================================================================
@@ -293,6 +297,45 @@ function getTypeStyle(type) {
   return defaultStyle;
 }
 
+/**
+ * Convert DB photo values to a browser-safe image URL.
+ * Supports data URLs, raw base64 strings, and path-based uploads.
+ */
+function getFeedImageUrl(rawValue) {
+  if (!rawValue) return null;
+
+  if (typeof rawValue === "object" && rawValue.type === "Buffer" && Array.isArray(rawValue.data)) {
+    try {
+      const bytes = Uint8Array.from(rawValue.data);
+      let binary = "";
+      const chunkSize = 0x8000;
+      for (let i = 0; i < bytes.length; i += chunkSize) {
+        binary += String.fromCharCode(...bytes.slice(i, i + chunkSize));
+      }
+      return `data:image/jpeg;base64,${btoa(binary)}`;
+    } catch {
+      return null;
+    }
+  }
+
+  const value = String(rawValue).trim();
+  if (!value) return null;
+
+  if (value.startsWith("data:")) return value;
+  if (value.startsWith("http://") || value.startsWith("https://")) return value;
+
+  const compact = value.replace(/\s/g, "");
+  if (compact.length > 120 && BASE64_CHARS_REGEX.test(value)) {
+    return `data:image/jpeg;base64,${compact}`;
+  }
+
+  const normalizedPath = value.replace(/\\/g, "/").startsWith("/")
+    ? value.replace(/\\/g, "/")
+    : `/${value.replace(/\\/g, "/")}`;
+
+  return `${FILE_BASE_URL}${normalizedPath}`;
+}
+
 // ============================================================================
 // SUB-COMPONENTS
 // ============================================================================
@@ -378,10 +421,20 @@ function FeedCard(props) {
         </div>
       )}
 
-      {/* Image Placeholder (shown if post has an image) */}
-      {post.hasImage && (
-        <div className="bg-gray-100 rounded-xl h-48 flex items-center justify-center mb-4">
-          <Image className="text-gray-400" size={32} />
+      {/* Show issue image when available */}
+      {post.hasImage && post.imageUrl && (
+        <div className="mb-4 bg-gray-100 rounded-xl overflow-hidden">
+          <img
+            src={getFeedImageUrl(post.imageUrl)}
+            alt="Issue attachment"
+            className="w-full h-52 object-cover"
+            onError={(e) => {
+              e.currentTarget.style.display = "none";
+              if (e.currentTarget.parentElement) {
+                e.currentTarget.parentElement.innerHTML = '<div class="h-52 flex items-center justify-center text-gray-500 text-sm">Image unavailable</div>';
+              }
+            }}
+          />
         </div>
       )}
 

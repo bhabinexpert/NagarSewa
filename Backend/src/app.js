@@ -11,6 +11,7 @@ import adminRoutes from './routes/admin.js';
 import userRoutes from './routes/users.js';
 import feedRoutes from './routes/feed.js';
 import broadcastRoutes from './routes/broadcasts.js';
+import { globalRateLimiter } from './middleware/rateLimiter.js';
 import { requestLogger } from './middleware/logger.js';
 import { sendError, HTTP_STATUS } from './utils/response.js';
 
@@ -33,6 +34,7 @@ const corsOptions = {
 app.use(cors(corsOptions));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+app.use(globalRateLimiter);
 
 // Serve uploaded files statically
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));

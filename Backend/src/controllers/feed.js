@@ -3,6 +3,39 @@ import { query } from '../db.js';
 import { asyncHandler, sendSuccess, sendError, HTTP_STATUS } from '../utils/response.js';
 
 /**
+ * Normalize issue photo field to an array.
+ * Handles JSON strings, arrays, plain strings, and Buffer-like objects.
+ */
+function parseIssuePhotos(photoField) {
+  if (!photoField) return [];
+
+  if (Array.isArray(photoField)) {
+    return photoField.flatMap((item) => parseIssuePhotos(item));
+  }
+
+  if (typeof photoField === 'object' && photoField !== null) {
+    if (photoField.type === 'Buffer' && Array.isArray(photoField.data)) {
+      return [photoField];
+    }
+    return Object.values(photoField).flatMap((item) => parseIssuePhotos(item));
+  }
+
+  if (typeof photoField !== 'string') {
+    return [photoField];
+  }
+
+  const value = photoField.trim();
+  if (!value) return [];
+
+  try {
+    const parsed = JSON.parse(value);
+    return parseIssuePhotos(parsed);
+  } catch {
+    return [value];
+  }
+}
+
+/**
  * Get community feed (issues, campaigns, programs, notices)
  * GET /api/feed
  */
@@ -28,6 +61,7 @@ export const getFeed = asyncHandler(async (req, res) => {
         i.location,
         i.latitude,
         i.longitude,
+        i.photo_url,
         i.category,
         i.created_at,
         i.updated_at,
@@ -160,24 +194,30 @@ export const getFeed = asyncHandler(async (req, res) => {
   }
 
   // Transform to camelCase format expected by frontend
-  const formattedFeed = feedItems.map(item => ({
-    id: item.id,
-    type: item.type,
-    author: item.full_name || 'Anonymous',
-    title: item.title,
-    titleNp: item.title, // Add Nepali version when available
-    description: item.description,
-    descriptionNp: item.description, // Add Nepali version when available
-    location: item.location || null,
-    wardNumber: item.ward_number || item.target_ward || null,
-    timestamp: item.created_at,
-    status: item.status?.toLowerCase() || null,
-    hasImage: false,
-    category: item.category,
-    priority: item.priority || null,
-    adminResponse: null,
-    adminResponseNp: null
-  }));
+  const formattedFeed = feedItems.map(item => {
+    const issuePhotos = item.type === 'issue' ? parseIssuePhotos(item.photo_url) : [];
+
+    return {
+      id: item.id,
+      type: item.type,
+      author: item.full_name || 'Anonymous',
+      title: item.title,
+      titleNp: item.title, // Add Nepali version when available
+      description: item.description,
+      descriptionNp: item.description, // Add Nepali version when available
+      location: item.location || null,
+      wardNumber: item.ward_number || item.target_ward || null,
+      timestamp: item.created_at,
+      status: item.status?.toLowerCase() || null,
+      hasImage: issuePhotos.length > 0,
+      imageUrl: issuePhotos[0] || null,
+      imageUrls: issuePhotos,
+      category: item.category,
+      priority: item.priority || null,
+      adminResponse: null,
+      adminResponseNp: null
+    };
+  });
 
   // Sort combined feed by timestamp descending
   formattedFeed.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));

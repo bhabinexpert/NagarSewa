@@ -25,6 +25,8 @@ import {
 // Build a stable base URL from API URL so uploaded files load in all environments.
 const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:2026/api";
 const FILE_BASE_URL = API_BASE_URL.replace(/\/api\/?$/, "");
+const VIDEO_EXTENSIONS = /\.(mp4|mov|avi|webm|mkv)$/i;
+const BASE64_CHARS_REGEX = /^[A-Za-z0-9+/=\s]+$/;
 
 /**
  * Parse issue attachment field into a clean string array.
@@ -38,25 +40,28 @@ function parseIssuePhotos(photoField) {
   if (!photoField) return [];
 
   if (Array.isArray(photoField)) {
-    return photoField.filter(Boolean).map((item) => String(item));
+    return photoField.flatMap((item) => parseIssuePhotos(item));
+  }
+
+  if (typeof photoField === "object" && photoField !== null) {
+    // Keep Buffer-like objects as-is so we can convert them to data URLs later.
+    if (photoField.type === "Buffer" && Array.isArray(photoField.data)) {
+      return [photoField];
+    }
+    return Object.values(photoField).flatMap((item) => parseIssuePhotos(item));
   }
 
   if (typeof photoField !== "string") {
-    return [String(photoField)];
+    return [photoField];
   }
 
   const value = photoField.trim();
   if (!value) return [];
 
-  // 1) JSON format
+  // 1) JSON format (including double-encoded JSON strings)
   try {
     const parsed = JSON.parse(value);
-    if (Array.isArray(parsed)) {
-      return parsed.filter(Boolean).map((item) => String(item));
-    }
-    if (typeof parsed === "string" && parsed.trim()) {
-      return [parsed.trim()];
-    }
+    return parseIssuePhotos(parsed);
   } catch {
     // Continue to alternative parsers below
   }
@@ -83,6 +88,114 @@ function parseIssuePhotos(photoField) {
   return [value];
 }
 
+function bytesToBase64(bytes) {
+  let binary = "";
+  const chunkSize = 0x8000;
+  for (let i = 0; i < bytes.length; i += chunkSize) {
+    const chunk = bytes.slice(i, i + chunkSize);
+    binary += String.fromCharCode(...chunk);
+  }
+  return btoa(binary);
+}
+
+function detectMimeFromBytes(bytes) {
+  if (!bytes || bytes.length < 4) return "image/jpeg";
+  if (bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4e && bytes[3] === 0x47) return "image/png";
+  if (bytes[0] === 0xff && bytes[1] === 0xd8) return "image/jpeg";
+  if (bytes[0] === 0x47 && bytes[1] === 0x49 && bytes[2] === 0x46) return "image/gif";
+  if (bytes[0] === 0x52 && bytes[1] === 0x49 && bytes[2] === 0x46 && bytes[3] === 0x46) return "image/webp";
+  return "image/jpeg";
+}
+
+function detectMimeFromBase64(base64Value) {
+  const compact = base64Value.replace(/\s/g, "");
+  if (compact.startsWith("iVBORw0KGgo")) return "image/png";
+  if (compact.startsWith("/9j/")) return "image/jpeg";
+  if (compact.startsWith("R0lGOD")) return "image/gif";
+  if (compact.startsWith("UklGR")) return "image/webp";
+  if (compact.startsWith("AAAAIGZ0eXA") || compact.startsWith("AAAAGGZ0eXA")) return "video/mp4";
+  return "image/jpeg";
+}
+
+function toDataUrlFromRaw(rawValue) {
+  if (!rawValue) return null;
+
+  // Buffer object serialized by JSON (common when binary is read from DB)
+  if (typeof rawValue === "object" && rawValue.type === "Buffer" && Array.isArray(rawValue.data)) {
+    try {
+      const bytes = Uint8Array.from(rawValue.data);
+      const mime = detectMimeFromBytes(bytes);
+      return `data:${mime};base64,${bytesToBase64(bytes)}`;
+    } catch {
+      return null;
+    }
+  }
+
+  if (typeof rawValue !== "string") {
+    return null;
+  }
+
+  const value = rawValue.trim();
+  if (!value) return null;
+
+  // Already a renderable data URI from DB
+  if (value.startsWith("data:")) {
+    return value;
+  }
+
+  // Raw base64 from DB (without data URI prefix)
+  const compact = value.replace(/\s/g, "");
+  if (compact.length > 120 && BASE64_CHARS_REGEX.test(value)) {
+    const mime = detectMimeFromBase64(compact);
+    return `data:${mime};base64,${compact}`;
+  }
+
+  return null;
+}
+
+/**
+ * Build multiple URL candidates so media still loads if backend is served
+ * from either /uploads or /api/uploads.
+ */
+function buildMediaCandidates(rawPath) {
+  if (!rawPath || typeof rawPath !== "string") return [];
+
+  const cleaned = rawPath.replace(/\\/g, "/").trim();
+  if (!cleaned) return [];
+
+  if (cleaned.startsWith("http://") || cleaned.startsWith("https://")) {
+    return [cleaned];
+  }
+
+  // If backend accidentally stores filesystem path, extract uploads segment.
+  const uploadSegment = cleaned.includes("/uploads/")
+    ? cleaned.slice(cleaned.indexOf("/uploads/"))
+    : null;
+
+  const normalizedRaw = cleaned.startsWith("/") ? cleaned : `/${cleaned}`;
+  const normalizedUpload = uploadSegment
+    ? (uploadSegment.startsWith("/") ? uploadSegment : `/${uploadSegment}`)
+    : null;
+
+  // If value is only a filename, assume issues upload folder.
+  const filenameOnly = !cleaned.includes("/") ? `/uploads/issues/${cleaned}` : null;
+
+  const possiblePaths = [
+    normalizedRaw,
+    normalizedUpload,
+    filenameOnly,
+  ].filter(Boolean);
+
+  const candidates = possiblePaths.flatMap((pathValue) => ([
+    `${FILE_BASE_URL}${pathValue}`,
+    `${FILE_BASE_URL}/api${pathValue}`,
+    `${API_BASE_URL}${pathValue}`,
+  ]));
+
+  // Keep order but remove duplicates
+  return [...new Set(candidates)];
+}
+
 export function IssueCard({ issue, t, isSuperAdmin, onStatusUpdate, onPrioritySet, isSubmitting }) {
   const [expanded, setExpanded] = useState(false);
   const [response, setResponse] = useState("");
@@ -107,19 +220,7 @@ export function IssueCard({ issue, t, isSuperAdmin, onStatusUpdate, onPrioritySe
   const [showStatusModal, setShowStatusModal] = useState(false);
   const [selectedStatus, setSelectedStatus] = useState("");
   const [imagePreview, setImagePreview] = useState(null);
-
-  /**
-   * Convert stored media paths to a valid browser URL.
-   * Supports absolute URLs and relative paths like /uploads/issues/xxx.jpg.
-   */
-  const toMediaUrl = (value) => {
-    if (!value || typeof value !== "string") return null;
-    if (value.startsWith("http://") || value.startsWith("https://")) return value;
-    // Normalize Windows path separators and ensure leading slash.
-    const sanitized = value.replace(/\\/g, "/").trim();
-    const normalized = sanitized.startsWith("/") ? sanitized : `/${sanitized}`;
-    return `${FILE_BASE_URL}${normalized}`;
-  };
+  const [previewSourceIndex, setPreviewSourceIndex] = useState(0);
 
   // Format date
   const formatDate = (dateString) => {
@@ -216,10 +317,21 @@ export function IssueCard({ issue, t, isSuperAdmin, onStatusUpdate, onPrioritySe
     urgent: t.urgent || 'Urgent',
   };
 
-  // Parse photo URLs
-  let photos = parseIssuePhotos(issue.photo_url);
-  photos = photos
-    .map((item) => toMediaUrl(item))
+  // Parse issue attachments and prepare resilient URL candidates.
+  const attachments = parseIssuePhotos(issue.photo_url)
+    .map((rawValue) => {
+      const dbDataUrl = toDataUrlFromRaw(rawValue);
+      const sources = dbDataUrl ? [dbDataUrl] : buildMediaCandidates(String(rawValue));
+      if (sources.length === 0) return null;
+      const primarySource = sources[0] || "";
+      const isVideoBySource = primarySource.startsWith("data:video/");
+      const isVideoByPath = typeof rawValue === "string" && VIDEO_EXTENSIONS.test(rawValue);
+      return {
+        rawValue,
+        sources,
+        isVideo: isVideoBySource || isVideoByPath,
+      };
+    })
     .filter(Boolean);
 
   // Handle status update
@@ -314,41 +426,71 @@ export function IssueCard({ issue, t, isSuperAdmin, onStatusUpdate, onPrioritySe
               <p className="text-sm text-gray-900 font-medium">{formatDate(issue.created_at)}</p>
             </div>
           </div>
-          {photos.length > 0 && (
+          {attachments.length > 0 && (
             <div className="flex items-start gap-3">
               <ImageIcon size={20} className="text-indigo-600 mt-0.5 shrink-0" />
               <div>
                 <p className="text-xs text-gray-500 uppercase font-semibold">Attachments</p>
-                <p className="text-sm text-gray-900 font-medium">{photos.length} Photo(s)</p>
+                <p className="text-sm text-gray-900 font-medium">{attachments.length} File(s)</p>
               </div>
             </div>
           )}
         </div>
 
         {/* Photos Grid */}
-        {photos.length > 0 && (
+        {attachments.length > 0 && (
           <div className="mb-4">
-            <h4 className="text-sm font-bold text-gray-900 mb-3 uppercase">Attached Photos</h4>
-            <div className={`grid ${photos.length === 1 ? 'grid-cols-1 max-w-md' : photos.length === 2 ? 'grid-cols-2' : 'grid-cols-3'} gap-3`}>
-              {photos.map((photo, idx) => (
+            <h4 className="text-sm font-bold text-gray-900 mb-3 uppercase">Attached Files</h4>
+            <div className={`grid ${attachments.length === 1 ? 'grid-cols-1 max-w-md' : attachments.length === 2 ? 'grid-cols-2' : 'grid-cols-3'} gap-3`}>
+              {attachments.map((attachment, idx) => (
                 <div 
                   key={idx} 
                   className="relative aspect-video bg-gray-100 rounded-lg overflow-hidden group cursor-pointer border-2 border-gray-200 hover:border-indigo-500 transition-all"
-                  onClick={() => setImagePreview(photo)}
+                  onClick={() => {
+                    setImagePreview(attachment);
+                    setPreviewSourceIndex(0);
+                  }}
                 >
-                  <img
-                    src={photo}
-                    alt={`Issue evidence ${idx + 1}`}
-                    className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
-                    onError={(e) => {
-                      e.target.parentElement.innerHTML = '<div class="flex items-center justify-center h-full"><span class="text-gray-400 text-sm">Image unavailable</span></div>';
-                    }}
-                  />
+                  {attachment.isVideo ? (
+                    <video
+                      src={attachment.sources[0]}
+                      className="w-full h-full object-cover"
+                      muted
+                      playsInline
+                      onError={(e) => {
+                        const currentIndex = Number(e.currentTarget.dataset.srcIndex || "0");
+                        const nextIndex = currentIndex + 1;
+                        if (nextIndex < attachment.sources.length) {
+                          e.currentTarget.dataset.srcIndex = String(nextIndex);
+                          e.currentTarget.src = attachment.sources[nextIndex];
+                          e.currentTarget.load();
+                          return;
+                        }
+                        e.currentTarget.parentElement.innerHTML = '<div class="flex items-center justify-center h-full"><span class="text-gray-400 text-sm">Video unavailable</span></div>';
+                      }}
+                    />
+                  ) : (
+                    <img
+                      src={attachment.sources[0]}
+                      alt={`Issue evidence ${idx + 1}`}
+                      className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
+                      onError={(e) => {
+                        const currentIndex = Number(e.currentTarget.dataset.srcIndex || "0");
+                        const nextIndex = currentIndex + 1;
+                        if (nextIndex < attachment.sources.length) {
+                          e.currentTarget.dataset.srcIndex = String(nextIndex);
+                          e.currentTarget.src = attachment.sources[nextIndex];
+                          return;
+                        }
+                        e.currentTarget.parentElement.innerHTML = '<div class="flex items-center justify-center h-full"><span class="text-gray-400 text-sm">Image unavailable</span></div>';
+                      }}
+                    />
+                  )}
                   <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-40 transition-all flex items-center justify-center">
                     <Eye className="text-white opacity-0 group-hover:opacity-100 transition-opacity drop-shadow-lg" size={32} />
                   </div>
                   <div className="absolute top-2 right-2 bg-black bg-opacity-70 text-white text-xs px-2 py-1 rounded">
-                    Photo {idx + 1}
+                    File {idx + 1}
                   </div>
                 </div>
               ))}
@@ -522,21 +664,47 @@ export function IssueCard({ issue, t, isSuperAdmin, onStatusUpdate, onPrioritySe
       {imagePreview && (
         <div 
           className="fixed inset-0 bg-black bg-opacity-90 flex items-center justify-center z-50 p-4"
-          onClick={() => setImagePreview(null)}
+          onClick={() => {
+            setImagePreview(null);
+            setPreviewSourceIndex(0);
+          }}
         >
           <div className="relative max-w-4xl max-h-[90vh]">
             <button
-              onClick={() => setImagePreview(null)}
+              onClick={() => {
+                setImagePreview(null);
+                setPreviewSourceIndex(0);
+              }}
               className="absolute -top-12 right-0 text-white hover:text-gray-300 text-xl font-bold"
             >
               ✕ Close
             </button>
-            <img
-              src={imagePreview}
-              alt="Full size preview"
-              className="max-w-full max-h-[85vh] object-contain rounded-lg shadow-2xl"
-              onClick={(e) => e.stopPropagation()}
-            />
+            {imagePreview.isVideo ? (
+              <video
+                src={imagePreview.sources[previewSourceIndex]}
+                controls
+                autoPlay
+                className="max-w-full max-h-[85vh] object-contain rounded-lg shadow-2xl"
+                onClick={(e) => e.stopPropagation()}
+                onError={() => {
+                  if (previewSourceIndex + 1 < imagePreview.sources.length) {
+                    setPreviewSourceIndex(previewSourceIndex + 1);
+                  }
+                }}
+              />
+            ) : (
+              <img
+                src={imagePreview.sources[previewSourceIndex]}
+                alt="Full size preview"
+                className="max-w-full max-h-[85vh] object-contain rounded-lg shadow-2xl"
+                onClick={(e) => e.stopPropagation()}
+                onError={() => {
+                  if (previewSourceIndex + 1 < imagePreview.sources.length) {
+                    setPreviewSourceIndex(previewSourceIndex + 1);
+                  }
+                }}
+              />
+            )}
           </div>
         </div>
       )}
