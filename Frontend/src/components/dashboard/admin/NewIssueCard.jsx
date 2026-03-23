@@ -22,6 +22,67 @@ import {
   Hash,
 } from "lucide-react";
 
+// Build a stable base URL from API URL so uploaded files load in all environments.
+const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:2026/api";
+const FILE_BASE_URL = API_BASE_URL.replace(/\/api\/?$/, "");
+
+/**
+ * Parse issue attachment field into a clean string array.
+ * Supports:
+ * - JSON array string: ["...","..."]
+ * - PostgreSQL array literal: {"...","..."}
+ * - Single string path
+ * - Already-parsed array
+ */
+function parseIssuePhotos(photoField) {
+  if (!photoField) return [];
+
+  if (Array.isArray(photoField)) {
+    return photoField.filter(Boolean).map((item) => String(item));
+  }
+
+  if (typeof photoField !== "string") {
+    return [String(photoField)];
+  }
+
+  const value = photoField.trim();
+  if (!value) return [];
+
+  // 1) JSON format
+  try {
+    const parsed = JSON.parse(value);
+    if (Array.isArray(parsed)) {
+      return parsed.filter(Boolean).map((item) => String(item));
+    }
+    if (typeof parsed === "string" && parsed.trim()) {
+      return [parsed.trim()];
+    }
+  } catch {
+    // Continue to alternative parsers below
+  }
+
+  // 2) PostgreSQL array literal: {"/a","/b"}
+  if (value.startsWith("{") && value.endsWith("}")) {
+    const inner = value.slice(1, -1).trim();
+    if (!inner) return [];
+    return inner
+      .split(",")
+      .map((item) => item.trim().replace(/^"(.*)"$/, "$1"))
+      .filter(Boolean);
+  }
+
+  // 3) Comma-separated fallback
+  if (value.includes(",")) {
+    return value
+      .split(",")
+      .map((item) => item.trim().replace(/^"(.*)"$/, "$1"))
+      .filter(Boolean);
+  }
+
+  // 4) Single path fallback
+  return [value];
+}
+
 export function IssueCard({ issue, t, isSuperAdmin, onStatusUpdate, onPrioritySet, isSubmitting }) {
   const [expanded, setExpanded] = useState(false);
   const [response, setResponse] = useState("");
@@ -46,6 +107,19 @@ export function IssueCard({ issue, t, isSuperAdmin, onStatusUpdate, onPrioritySe
   const [showStatusModal, setShowStatusModal] = useState(false);
   const [selectedStatus, setSelectedStatus] = useState("");
   const [imagePreview, setImagePreview] = useState(null);
+
+  /**
+   * Convert stored media paths to a valid browser URL.
+   * Supports absolute URLs and relative paths like /uploads/issues/xxx.jpg.
+   */
+  const toMediaUrl = (value) => {
+    if (!value || typeof value !== "string") return null;
+    if (value.startsWith("http://") || value.startsWith("https://")) return value;
+    // Normalize Windows path separators and ensure leading slash.
+    const sanitized = value.replace(/\\/g, "/").trim();
+    const normalized = sanitized.startsWith("/") ? sanitized : `/${sanitized}`;
+    return `${FILE_BASE_URL}${normalized}`;
+  };
 
   // Format date
   const formatDate = (dateString) => {
@@ -143,16 +217,10 @@ export function IssueCard({ issue, t, isSuperAdmin, onStatusUpdate, onPrioritySe
   };
 
   // Parse photo URLs
-  let photos = [];
-  if (issue.photo_url) {
-    try {
-      photos = typeof issue.photo_url === 'string' ? JSON.parse(issue.photo_url) : issue.photo_url;
-      if (!Array.isArray(photos)) photos = [photos];
-    } catch (e) {
-      photos = issue.photo_url ? [issue.photo_url] : [];
-      console.log(e);
-    }
-  }
+  let photos = parseIssuePhotos(issue.photo_url);
+  photos = photos
+    .map((item) => toMediaUrl(item))
+    .filter(Boolean);
 
   // Handle status update
   const handleStatusUpdate = (newStatus) => {
@@ -269,7 +337,7 @@ export function IssueCard({ issue, t, isSuperAdmin, onStatusUpdate, onPrioritySe
                   onClick={() => setImagePreview(photo)}
                 >
                   <img
-                    src={`http://localhost:2026${photo}`}
+                    src={photo}
                     alt={`Issue evidence ${idx + 1}`}
                     className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
                     onError={(e) => {
@@ -464,7 +532,7 @@ export function IssueCard({ issue, t, isSuperAdmin, onStatusUpdate, onPrioritySe
               ✕ Close
             </button>
             <img
-              src={`http://localhost:2026${imagePreview}`}
+              src={imagePreview}
               alt="Full size preview"
               className="max-w-full max-h-[85vh] object-contain rounded-lg shadow-2xl"
               onClick={(e) => e.stopPropagation()}

@@ -284,7 +284,7 @@ function WardAdminIssues() {
   // ============================================================
   // FETCH REAL DATA
   // ============================================================
-  const { issues: apiIssues, loading, error, refetch } = useIssues({ ward: wardNumber });
+  const { issues: apiIssues, refetch } = useIssues({ ward: wardNumber });
 
   // Fetch issues when component mounts
   useEffect(() => {

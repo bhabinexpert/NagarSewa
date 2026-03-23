@@ -227,7 +227,7 @@ function SuperAdminIssues() {
   // ============================================================
   // FETCH REAL DATA
   // ============================================================
-  const { issues: apiIssues, loading, error, refetch } = useIssues({});
+  const { issues: apiIssues,  refetch } = useIssues({});
 
   // Fetch issues when component mounts
   useEffect(() => {
