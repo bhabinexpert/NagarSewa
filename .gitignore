@@ -55,7 +55,8 @@ Thumbs.db
 # Database
 *.sqlite
 *.db
-*.nagarsewa.sql
+
+nagarsewa.sql
 
 # Sensitive data
 secrets.json
