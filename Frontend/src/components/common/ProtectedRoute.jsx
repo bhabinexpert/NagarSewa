@@ -10,8 +10,25 @@ import { Navigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/auth/useAuth';
 
 
-export default function ProtectedRoute({ children }) {
+export default function ProtectedRoute({ children, requiredRole }) {
   const { currentUser, isLoading } = useAuth();
+
+  const normalizeRole = (role) => String(role || '').toLowerCase();
+
+  const hasRequiredRole = () => {
+    if (!requiredRole) {
+      return true;
+    }
+
+    const userRole = normalizeRole(currentUser?.role);
+    const targetRole = normalizeRole(requiredRole);
+
+    if (targetRole === 'admin') {
+      return userRole === 'super_admin' || userRole === 'ward_admin';
+    }
+
+    return userRole === targetRole;
+  };
 
   if (isLoading) {
     return (
@@ -26,6 +43,11 @@ export default function ProtectedRoute({ children }) {
 
   if (!currentUser) {
     return <Navigate to="/login" replace />;
+  }
+
+  if (!hasRequiredRole()) {
+    const fallbackPath = normalizeRole(currentUser?.role) === 'user' ? '/user' : '/admin';
+    return <Navigate to={fallbackPath} replace />;
   }
 
   return children;

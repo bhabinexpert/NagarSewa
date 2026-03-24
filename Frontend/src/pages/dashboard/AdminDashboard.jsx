@@ -35,7 +35,7 @@ import AdminProfile from "../../components/dashboard/admin/AdminProfile";
 import SuperAdminPanel from "../../components/dashboard/admin/SuperAdminPanel";
 import AdminIssueManagement from "../../components/dashboard/admin/AdminIssueManagement";
 import AdminBroadcasts from "../../components/dashboard/admin/AdminBroadcasts";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, Navigate, useNavigate } from "react-router-dom";
 
 // ============================================================
 // TEXT TRANSLATIONS
@@ -151,6 +151,13 @@ function AdminDashboard() {
   
   const navigate = useNavigate();
   const t = adminDashboardText[language] || adminDashboardText.en;
+
+  const normalizedRole = String(currentUser?.role || "").toLowerCase();
+  const canAccessAdminDashboard = normalizedRole === "super_admin" || normalizedRole === "ward_admin";
+
+  if (currentUser && !canAccessAdminDashboard) {
+    return <Navigate to="/user" replace />;
+  }
   
   // ============================================================
   // STATE VARIABLES

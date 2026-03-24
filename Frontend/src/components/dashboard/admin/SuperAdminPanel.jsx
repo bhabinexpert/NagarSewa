@@ -11,6 +11,7 @@
 import React, { useState, useEffect } from "react";
 import { useLanguage } from "../../../contexts/language/useLanguage";
 import { useAuth } from "../../../contexts/auth/useAuth";
+import { Navigate } from "react-router-dom";
 import {
   UserPlus,
   Users,
@@ -213,6 +214,8 @@ function SuperAdminPanel() {
   const t = panelText[language];
 
   const authContext = useAuth();
+  const currentUser = authContext.currentUser;
+  const isSuperAdmin = authContext.isSuperAdmin;
   const getWardAdmins = authContext.getWardAdmins;
   const getWardsWithoutAdmin = authContext.getWardsWithoutAdmin;
   const createWardAdmin = authContext.createWardAdmin;
@@ -235,6 +238,10 @@ function SuperAdminPanel() {
     wardNumber: "",
     password: "",
   });
+
+  if (currentUser && !isSuperAdmin()) {
+    return <Navigate to="/admin" replace />;
+  }
 
   // ============================================================================
   // EFFECTS

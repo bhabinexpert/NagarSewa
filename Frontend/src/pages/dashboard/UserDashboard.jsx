@@ -30,7 +30,7 @@ import UserProfile from "../../components/dashboard/user/UserProfile";
 import MyHistory from "../../components/dashboard/user/MyHistory";
 import NewsFeed from "../../components/dashboard/user/NewsFeed";
 import RequestCampaign from "../../components/dashboard/user/RequestCampaign";
-import { Link } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 
 // ============================================================
 // TEXT TRANSLATIONS
@@ -94,6 +94,8 @@ function UserDashboard() {
   
   const authContext = useAuth();
   const currentUser = authContext.currentUser;
+  const logout = authContext.logout;
+  const navigate = useNavigate();
   
   const t = dashboardText[language];
   
@@ -178,6 +180,14 @@ function UserDashboard() {
    */
   function closeMobileMenu() {
     setMobileMenuOpen(false);
+  }
+
+  /**
+   * Log out the user and clear session before redirect.
+   */
+  function handleLogout() {
+    logout();
+    navigate("/login", { replace: true });
   }
 
   // ============================================================
@@ -478,13 +488,13 @@ function UserDashboard() {
             <Settings size={20} />
             {sidebarOpen && <span>{language === "en" ? "नेपाली" : "English"}</span>}
           </button>
-          <Link
-            to="/login"
+          <button
+            onClick={handleLogout}
             className="w-full flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-red-50 text-red-600"
           >
             <LogOut size={20} />
             {sidebarOpen && <span>{t.logout}</span>}
-          </Link>
+          </button>
         </div>
       </aside>
 

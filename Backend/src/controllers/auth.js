@@ -111,7 +111,8 @@ export const login = asyncHandler(async (req, res) => {
   };
 
   // Determine redirect based on role
-  const redirectTo = (user.role === 'ward_admin' || user.role === 'SUPER_ADMIN') ? '/admin' : '/user';
+  const normalizedRole = String(user.role || '').toLowerCase();
+  const redirectTo = (normalizedRole === 'ward_admin' || normalizedRole === 'super_admin') ? '/admin' : '/user';
 
   sendSuccess(res, { token, user: userResponse, redirectTo }, 'Login successful');
 });
