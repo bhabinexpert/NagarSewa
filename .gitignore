@@ -2,7 +2,7 @@
 **/node_modules/
 **/bower_components/
 
-# Environment Variables (NEVER commit these!)
+# Environment Variables 
 .env
 .env.local
 .env.development
@@ -13,7 +13,7 @@
 **/.env.development
 **/.env.production
 **/.env.test
-# BUT allow .env.example files (templates without sensitive data)
+# BUT allow .env.example files
 !**/.env.example
 !.env.example
 
@@ -55,6 +55,7 @@ Thumbs.db
 # Database
 *.sqlite
 *.db
+*.nagarsewa.sql
 
 # Sensitive data
 secrets.json
