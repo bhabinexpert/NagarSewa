@@ -7,7 +7,8 @@
 import axios from 'axios';
 
 // API Configuration
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:2026/api';
+const rawApiUrl = (import.meta.env.VITE_API_URL || 'http://localhost:2026/api').trim();
+const API_BASE_URL = rawApiUrl.endsWith('/api') ? rawApiUrl : `${rawApiUrl.replace(/\/$/, '')}/api`;
 
 // Create axios instance with default config
 const apiClient = axios.create({
