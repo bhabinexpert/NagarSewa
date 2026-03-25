@@ -23,23 +23,8 @@ const __dirname = path.dirname(__filename);
 const app = express();
 
 // CORS configuration
-const normalizeOrigin = (value = '') => value.trim().replace(/\/$/, '');
-
-const allowedOrigins = (process.env.FRONTEND_URL || 'http://localhost:5173')
-  .split(',')
-  .map((origin) => normalizeOrigin(origin))
-  .filter(Boolean);
-
 const corsOptions = {
-  origin: (origin, callback) => {
-    const requestOrigin = normalizeOrigin(origin || '');
-
-    if (!requestOrigin || allowedOrigins.includes(requestOrigin)) {
-      callback(null, true);
-    } else {
-      callback(new Error('Not allowed by CORS'));
-    }
-  },
+  origin: true,
   credentials: true
 };
 
