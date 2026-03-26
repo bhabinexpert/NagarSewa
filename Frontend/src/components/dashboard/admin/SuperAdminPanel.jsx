@@ -8,7 +8,7 @@
  * @component
  */
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useLanguage } from "../../../contexts/language/useLanguage";
 import { useAuth } from "../../../contexts/auth/useAuth";
 import { Navigate } from "react-router-dom";
@@ -230,8 +230,6 @@ function SuperAdminPanel() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [processingAdminId, setProcessingAdminId] = useState(null);
   const [processingAction, setProcessingAction] = useState(null);
-  const [isLoadingAdmins, setIsLoadingAdmins] = useState(false);
-  const [hasLoadedAdmins, setHasLoadedAdmins] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("active");
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
@@ -245,6 +243,9 @@ function SuperAdminPanel() {
     password: "",
   });
 
+  // Use ref to track if admins have been loaded (prevents duplicate loads)
+  const adminLoadedRef = useRef(false);
+
   if (currentUser && !isSuperAdmin()) {
     return <Navigate to="/admin" replace />;
   }
@@ -256,36 +257,26 @@ function SuperAdminPanel() {
   // EFFECTS
   // ============================================================================
 
-  // Load ward admins when component mounts
+  // Load ward admins when component mounts (only for super admin)
+  // eslint-disable-next-line react-hooks/rules-of-hooks
   useEffect(() => {
-    if (!userIsSuperAdmin || hasLoadedAdmins || isLoadingAdmins) {
-      return;
-    }
+    async function fetchWardAdminsIfNeeded() {
+      // Check if we should load
+      if (!userIsSuperAdmin || adminLoadedRef.current) {
+        return;
+      }
 
-    let isMounted = true;
+      adminLoadedRef.current = true;
 
-    async function fetchWardAdmins() {
       try {
-        setIsLoadingAdmins(true);
         await loadWardAdmins();
-        if (isMounted) {
-          setHasLoadedAdmins(true);
-        }
       } catch (err) {
         console.error('Failed to load ward admins:', err);
-      } finally {
-        if (isMounted) {
-          setIsLoadingAdmins(false);
-        }
       }
     }
     
-    fetchWardAdmins();
-
-    return function cleanup() {
-      isMounted = false;
-    };
-  }, [currentUser?.id, userIsSuperAdmin, hasLoadedAdmins, isLoadingAdmins]);
+    fetchWardAdminsIfNeeded();
+  }, [userIsSuperAdmin, loadWardAdmins]);
 
   // ============================================================================
   // DATA
@@ -655,68 +646,68 @@ function SuperAdminPanel() {
   // ============================================================================
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="min-h-screen bg-gray-50 p-3 sm:p-4 md:p-6 space-y-4 md:space-y-6">
       {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
-            <Shield className="text-indigo-600" size={28} />
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-800 flex items-center gap-2">
+            <Shield className="text-indigo-600" size={24} />
             {t.title}
           </h1>
-          <p className="text-gray-500 mt-1">{t.subtitle}</p>
+          <p className="text-sm text-gray-500 mt-1">{t.subtitle}</p>
         </div>
         <button
           onClick={openCreateForm}
-          className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
+          className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2.5 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors font-medium text-sm"
         >
-          <UserPlus size={20} />
+          <UserPlus size={18} />
           {t.createAdmin}
         </button>
       </div>
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
+      {/* Stats Cards - Responsive Grid */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+        <div className="bg-white rounded-lg sm:rounded-xl p-4 shadow-sm border border-gray-100">
           <div className="flex items-center gap-3">
-            <div className="p-2 bg-indigo-100 rounded-lg">
-              <Users className="text-indigo-600" size={20} />
+            <div className="p-2 bg-indigo-100 rounded-lg shrink-0">
+              <Users className="text-indigo-600" size={18} />
             </div>
-            <div>
-              <p className="text-sm text-gray-500">{t.totalAdmins}</p>
-              <p className="text-xl font-bold text-gray-800">{totalAdmins}</p>
+            <div className="min-w-0">
+              <p className="text-xs sm:text-sm text-gray-500 truncate">{t.totalAdmins}</p>
+              <p className="text-lg sm:text-xl font-bold text-gray-800">{totalAdmins}</p>
             </div>
           </div>
         </div>
-        <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
+        <div className="bg-white rounded-lg sm:rounded-xl p-4 shadow-sm border border-gray-100">
           <div className="flex items-center gap-3">
-            <div className="p-2 bg-green-100 rounded-lg">
-              <CheckCircle className="text-green-600" size={20} />
+            <div className="p-2 bg-green-100 rounded-lg shrink-0">
+              <CheckCircle className="text-green-600" size={18} />
             </div>
-            <div>
-              <p className="text-sm text-gray-500">{t.activeAdmins}</p>
-              <p className="text-xl font-bold text-gray-800">{activeAdmins}</p>
+            <div className="min-w-0">
+              <p className="text-xs sm:text-sm text-gray-500 truncate">{t.activeAdmins}</p>
+              <p className="text-lg sm:text-xl font-bold text-gray-800">{activeAdmins}</p>
             </div>
           </div>
         </div>
-        <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
+        <div className="bg-white rounded-lg sm:rounded-xl p-4 shadow-sm border border-gray-100">
           <div className="flex items-center gap-3">
-            <div className="p-2 bg-red-100 rounded-lg">
-              <X className="text-red-600" size={20} />
+            <div className="p-2 bg-red-100 rounded-lg shrink-0">
+              <X className="text-red-600" size={18} />
             </div>
-            <div>
-              <p className="text-sm text-gray-500">{t.inactiveAdmins}</p>
-              <p className="text-xl font-bold text-gray-800">{inactiveAdmins}</p>
+            <div className="min-w-0">
+              <p className="text-xs sm:text-sm text-gray-500 truncate">{t.inactiveAdmins}</p>
+              <p className="text-lg sm:text-xl font-bold text-gray-800">{inactiveAdmins}</p>
             </div>
           </div>
         </div>
-        <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
+        <div className="bg-white rounded-lg sm:rounded-xl p-4 shadow-sm border border-gray-100">
           <div className="flex items-center gap-3">
-            <div className="p-2 bg-yellow-100 rounded-lg">
-              <AlertCircle className="text-yellow-600" size={20} />
+            <div className="p-2 bg-yellow-100 rounded-lg shrink-0">
+              <AlertCircle className="text-yellow-600" size={18} />
             </div>
-            <div>
-              <p className="text-sm text-gray-500">{t.unassignedWards}</p>
-              <p className="text-xl font-bold text-gray-800">
+            <div className="min-w-0">
+              <p className="text-xs sm:text-sm text-gray-500 truncate">{t.unassignedWards}</p>
+              <p className="text-lg sm:text-xl font-bold text-gray-800">
                 {wardsWithoutAdmin.length}
               </p>
             </div>
@@ -726,8 +717,8 @@ function SuperAdminPanel() {
 
       {/* Wards Without Admin */}
       {wardsWithoutAdmin.length > 0 && (
-        <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4">
-          <h3 className="font-medium text-yellow-800 flex items-center gap-2 mb-2">
+        <div className="bg-yellow-50 border border-yellow-200 rounded-lg sm:rounded-xl p-3 sm:p-4">
+          <h3 className="text-sm sm:text-base font-medium text-yellow-800 flex items-center gap-2 mb-3">
             <AlertCircle size={18} />
             {t.wardsWithoutAdmin}
           </h3>
@@ -739,22 +730,22 @@ function SuperAdminPanel() {
 
       {/* Create Admin Modal */}
       {showCreateForm && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl w-full max-w-md p-6 space-y-4">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 sm:p-0">
+          <div className="bg-white rounded-2xl w-full max-w-md p-5 sm:p-6 space-y-4 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between">
-              <h2 className="text-xl font-bold text-gray-800">{t.createAdmin}</h2>
+              <h2 className="text-lg sm:text-xl font-bold text-gray-800">{t.createAdmin}</h2>
               <button
                 onClick={closeCreateForm}
-                className="p-2 hover:bg-gray-100 rounded-lg"
+                className="p-2 hover:bg-gray-100 rounded-lg shrink-0"
               >
-                <X size={20} />
+                <X size={18} />
               </button>
             </div>
 
             <div className="space-y-4">
               {/* Full Name */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1.5">
                   {t.fullName} <span className="text-red-500">*</span>
                 </label>
                 <div className="relative">
@@ -768,14 +759,14 @@ function SuperAdminPanel() {
                     value={formData.fullName}
                     onChange={handleInputChange}
                     placeholder={t.fullNamePlaceholder}
-                    className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                    className="w-full pl-10 pr-4 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                   />
                 </div>
               </div>
 
               {/* Email */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1.5">
                   {t.email} <span className="text-red-500">*</span>
                 </label>
                 <div className="relative">
@@ -789,14 +780,14 @@ function SuperAdminPanel() {
                     value={formData.email}
                     onChange={handleInputChange}
                     placeholder={t.emailPlaceholder}
-                    className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                    className="w-full pl-10 pr-4 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                   />
                 </div>
               </div>
 
               {/* Phone */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1.5">
                   {t.phone}
                 </label>
                 <div className="relative">
@@ -810,14 +801,14 @@ function SuperAdminPanel() {
                     value={formData.phone}
                     onChange={handleInputChange}
                     placeholder={t.phonePlaceholder}
-                    className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                    className="w-full pl-10 pr-4 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                   />
                 </div>
               </div>
 
               {/* Ward Selection */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1.5">
                   {t.selectWard} <span className="text-red-500">*</span>
                 </label>
                 <div className="relative">
@@ -829,7 +820,7 @@ function SuperAdminPanel() {
                     name="wardNumber"
                     value={formData.wardNumber}
                     onChange={handleInputChange}
-                    className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent appearance-none bg-white"
+                    className="w-full pl-10 pr-4 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent appearance-none bg-white"
                   >
                     <option value="">{t.wardPlaceholder}</option>
                     {renderWardOptions()}
@@ -839,7 +830,7 @@ function SuperAdminPanel() {
 
               {/* Password */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1.5">
                   {t.password} <span className="text-red-500">*</span>
                 </label>
                 <div className="relative">
@@ -853,7 +844,7 @@ function SuperAdminPanel() {
                     value={formData.password}
                     onChange={handleInputChange}
                     placeholder={t.passwordPlaceholder}
-                    className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                    className="w-full pl-10 pr-4 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                     minLength="8"
                   />
                 </div>
@@ -864,23 +855,23 @@ function SuperAdminPanel() {
             <div className="flex gap-3 pt-4">
               <button
                 onClick={closeCreateForm}
-                className="flex-1 px-4 py-2.5 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
+                className="flex-1 px-4 py-2.5 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 text-sm font-medium"
               >
                 {t.cancel}
               </button>
               <button
                 onClick={handleCreateAdmin}
                 disabled={isSubmitting}
-                className="flex-1 px-4 py-2.5 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 flex items-center justify-center gap-2"
+                className="flex-1 px-4 py-2.5 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 flex items-center justify-center gap-2 text-sm font-medium"
               >
                 {isSubmitting ? (
                   <>
-                    <RefreshCw className="animate-spin" size={18} />
+                    <RefreshCw className="animate-spin" size={16} />
                     {t.creating}
                   </>
                 ) : (
                   <>
-                    <Check size={18} />
+                    <Check size={16} />
                     {t.create}
                   </>
                 )}
@@ -891,29 +882,31 @@ function SuperAdminPanel() {
       )}
 
       {/* Search and Filter */}
-      <div className="flex flex-wrap gap-2">
-        <button
-          onClick={function() { setStatusFilter("active"); }}
-          className={`px-4 py-2 rounded-lg border text-sm font-medium ${statusFilter === "active" ? "bg-green-50 border-green-300 text-green-700" : "bg-white border-gray-300 text-gray-600 hover:bg-gray-50"}`}
-        >
-          {t.activeOnly}
-        </button>
-        <button
-          onClick={function() { setStatusFilter("inactive"); }}
-          className={`px-4 py-2 rounded-lg border text-sm font-medium ${statusFilter === "inactive" ? "bg-red-50 border-red-300 text-red-700" : "bg-white border-gray-300 text-gray-600 hover:bg-gray-50"}`}
-        >
-          {t.inactiveOnly}
-        </button>
-        <button
-          onClick={function() { setStatusFilter("all"); }}
-          className={`px-4 py-2 rounded-lg border text-sm font-medium ${statusFilter === "all" ? "bg-indigo-50 border-indigo-300 text-indigo-700" : "bg-white border-gray-300 text-gray-600 hover:bg-gray-50"}`}
-        >
-          {t.all}
-        </button>
-      </div>
+      <div className="space-y-3">
+        {/* Filter Buttons */}
+        <div className="flex flex-wrap gap-2">
+          <button
+            onClick={function() { setStatusFilter("active"); }}
+            className={`px-3 sm:px-4 py-2 rounded-lg border text-xs sm:text-sm font-medium whitespace-nowrap transition-colors ${statusFilter === "active" ? "bg-green-50 border-green-300 text-green-700" : "bg-white border-gray-300 text-gray-600 hover:bg-gray-50"}`}
+          >
+            {t.activeOnly}
+          </button>
+          <button
+            onClick={function() { setStatusFilter("inactive"); }}
+            className={`px-3 sm:px-4 py-2 rounded-lg border text-xs sm:text-sm font-medium whitespace-nowrap transition-colors ${statusFilter === "inactive" ? "bg-red-50 border-red-300 text-red-700" : "bg-white border-gray-300 text-gray-600 hover:bg-gray-50"}`}
+          >
+            {t.inactiveOnly}
+          </button>
+          <button
+            onClick={function() { setStatusFilter("all"); }}
+            className={`px-3 sm:px-4 py-2 rounded-lg border text-xs sm:text-sm font-medium whitespace-nowrap transition-colors ${statusFilter === "all" ? "bg-indigo-50 border-indigo-300 text-indigo-700" : "bg-white border-gray-300 text-gray-600 hover:bg-gray-50"}`}
+          >
+            {t.all}
+          </button>
+        </div>
 
-      <div className="flex flex-col md:flex-row gap-4">
-        <div className="relative flex-1">
+        {/* Search Bar */}
+        <div className="relative">
           <Search
             className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
             size={18}
@@ -923,63 +916,132 @@ function SuperAdminPanel() {
             value={searchQuery}
             onChange={handleSearchChange}
             placeholder={t.searchPlaceholder}
-            className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+            className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm"
           />
         </div>
       </div>
 
       {/* Admin List */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-        <div className="p-4 border-b border-gray-100">
-          <h2 className="font-semibold text-gray-800 flex items-center gap-2">
-            <Users size={20} />
+      <div className="bg-white rounded-lg sm:rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+        <div className="p-3 sm:p-4 border-b border-gray-100">
+          <h2 className="text-sm sm:text-base font-semibold text-gray-800 flex items-center gap-2">
+            <Users size={18} />
             {t.wardAdmins}
           </h2>
         </div>
 
         {filteredAdmins.length === 0 ? (
-          <div className="p-8 text-center text-gray-500">
-            <Users size={48} className="mx-auto mb-3 opacity-30" />
-            <p>{t.noAdmins}</p>
+          <div className="p-6 sm:p-8 text-center text-gray-500">
+            <Users size={40} className="mx-auto mb-3 opacity-30" />
+            <p className="text-sm">{t.noAdmins}</p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                    {t.fullName}
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                    {t.email}
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                    {t.ward}
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                    {t.status}
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                    {t.assignedOn}
-                  </th>
-                  <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">
-                    {t.actions}
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
-                {renderAdminRows()}
-              </tbody>
-            </table>
-          </div>
+          <>
+            {/* Desktop Table View */}
+            <div className="hidden md:block overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                      {t.fullName}
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                      {t.email}
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                      {t.ward}
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                      {t.status}
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                      {t.assignedOn}
+                    </th>
+                    <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">
+                      {t.actions}
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {renderAdminRows()}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Mobile Card View */}
+            <div className="md:hidden space-y-3 p-3 sm:p-4">
+              {filteredAdmins.map(function(admin) {
+                const isProcessingCurrentAdmin = processingAdminId === admin.id;
+                return (
+                  <div key={admin.id} className="border border-gray-200 rounded-lg p-3 sm:p-4 space-y-3">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex items-center gap-3 flex-1 min-w-0">
+                        <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-indigo-100 flex items-center justify-center shrink-0">
+                          <User className="text-indigo-600" size={16} />
+                        </div>
+                        <div className="min-w-0">
+                          <p className="font-medium text-gray-800 text-sm truncate">{admin.fullName}</p>
+                          <p className="text-xs text-gray-500 truncate">{admin.email}</p>
+                        </div>
+                      </div>
+                      <span className={`px-2 py-1 rounded-full text-xs font-medium whitespace-nowrap ${admin.isActive ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                        {admin.isActive ? t.active : t.inactive}
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2 text-xs">
+                      <div>
+                        <p className="text-gray-500">{t.ward}</p>
+                        <p className="font-medium text-gray-800">{admin.wardNumber}</p>
+                      </div>
+                      <div>
+                        <p className="text-gray-500">{t.assignedOn}</p>
+                        <p className="font-medium text-gray-800">{formatDate(admin.createdAt)}</p>
+                      </div>
+                    </div>
+
+                    <div>
+                      {admin.isActive ? (
+                        <button
+                          onClick={function () { handleDeactivate(admin.id); }}
+                          disabled={isProcessingCurrentAdmin}
+                          className="w-full px-3 py-2 text-sm font-medium text-red-700 bg-red-50 border border-red-200 hover:bg-red-100 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                        >
+                          {isProcessingCurrentAdmin && processingAction === "deactivate" ? (
+                            <RefreshCw size={14} className="animate-spin" />
+                          ) : (
+                            <X size={14} />
+                          )}
+                          {t.deactivate}
+                        </button>
+                      ) : (
+                        <button
+                          onClick={function () { handleReactivate(admin.id); }}
+                          disabled={isProcessingCurrentAdmin}
+                          className="w-full px-3 py-2 text-sm font-medium text-green-700 bg-green-50 border border-green-200 hover:bg-green-100 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                        >
+                          {isProcessingCurrentAdmin && processingAction === "reactivate" ? (
+                            <RefreshCw size={14} className="animate-spin" />
+                          ) : (
+                            <RefreshCw size={14} />
+                          )}
+                          {t.reactivate}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </>
         )}
       </div>
 
       {/* Confirmation Dialog */}
       {showConfirmDialog && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl w-full max-w-md p-6 space-y-4">
-            <h2 className="text-xl font-bold text-gray-800">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 sm:p-0">
+          <div className="bg-white rounded-2xl w-full max-w-md p-5 sm:p-6 space-y-4">
+            <h2 className="text-lg sm:text-xl font-bold text-gray-800">
               {confirmAction === "deactivate"
                 ? t.confirmDeactivate
                 : `Confirm Reactivation?`}
@@ -996,7 +1058,7 @@ function SuperAdminPanel() {
                   setConfirmAdminId(null);
                   setConfirmAction(null);
                 }}
-                className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
+                className="flex-1 px-4 py-2.5 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors text-sm font-medium"
               >
                 {t.cancel}
               </button>
@@ -1008,7 +1070,7 @@ function SuperAdminPanel() {
                     confirmReactivation();
                   }
                 }}
-                className={`flex-1 px-4 py-2 rounded-lg text-white transition-colors ${
+                className={`flex-1 px-4 py-2.5 rounded-lg text-white text-sm font-medium transition-colors ${
                   confirmAction === "deactivate"
                     ? "bg-red-600 hover:bg-red-700"
                     : "bg-green-600 hover:bg-green-700"

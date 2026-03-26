@@ -46,7 +46,7 @@ export function AuthProvider({ children }) {
   
   /**
    * On component mount, check if user is already logged in.
-   * If there's a token, validate it with the backend.
+   * If there's a token, validate it with the backend (non-blocking).
    */
   useEffect(function() {
     async function checkAuth() {
@@ -69,17 +69,34 @@ export function AuthProvider({ children }) {
           // Set the normalized user immediately to prevent redirect
           setCurrentUser(normalizedUser);
           
-          // Then validate token with backend (but don't block UI)
-          const response = await api.auth.getMe();
+          // Validate token with backend (non-blocking, with timeout)
+          // Use Promise.race to timeout after 8 seconds
+          const validationPromise = api.auth.getMe();
+          const timeoutPromise = new Promise((_, reject) => 
+            setTimeout(() => reject(new Error('Validation timeout')), 8000)
+          );
           
-          // Update with fresh data from backend if successful
-          if (response && response.user) {
-            setCurrentUser(response.user);
+          try {
+            const response = await Promise.race([validationPromise, timeoutPromise]);
+            
+            // Update with fresh data from backend if successful
+            if (response && response.user) {
+              setCurrentUser(response.user);
+            }
+          } catch (validationError) {
+            // If validation times out or fails, it's not blocking - user stays logged in
+            // Only clear session for actual auth failures (401/403)
+            if (validationError?.status === 401 || validationError?.status === 403) {
+              localStorage.removeItem("authToken");
+              localStorage.removeItem("nagarsewa_user");
+              setCurrentUser(null);
+            }
+            // For network errors or timeouts, silently continue - user stays logged in with cached data
           }
         } catch (error) {
-          console.error('Auth validation error:', error);
+          console.error('Auth initialization error:', error);
 
-          // Clear session only for actual auth failures.
+          // Clear session only for actual auth failures
           if (error?.status === 401 || error?.status === 403) {
             localStorage.removeItem("authToken");
             localStorage.removeItem("nagarsewa_user");
