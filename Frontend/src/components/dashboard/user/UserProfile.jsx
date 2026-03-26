@@ -38,7 +38,7 @@ import React, { useState, useRef } from "react";
 import { useLanguage } from "../../../contexts/language/useLanguage";
 import { useAuth } from "../../../contexts/auth/useAuth";
 import { useUser } from "../../../hooks/useData";
-import api, { usersAPI } from "../../../services/api";
+import { usersAPI } from "../../../services/api";
 import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import {
@@ -435,6 +435,7 @@ function UserProfile() {
   const currentUser = authContext.currentUser;
   const verifyKyc = authContext.verifyKyc;
   const isKycVerified = authContext.isKycVerified;
+  const refreshUser = authContext.refreshUser;
   const t = profileText[language];
 
   // Use current user from AuthContext
@@ -452,13 +453,7 @@ function UserProfile() {
         if (missingFields) {
           setLoading(true);
           try {
-            const response = await api.auth.getMe();
-            if (response && response.user) {
-              // Update AuthContext with fresh data
-              localStorage.setItem('nagarsewa_user', JSON.stringify(response.user));
-              // Force a page reload to update AuthContext
-              window.location.reload();
-            }
+            await refreshUser();
           } catch (err) {
             console.error('Failed to fetch user data:', err);
             setError('Failed to load profile data');
@@ -795,14 +790,7 @@ function UserProfile() {
       
       // Refresh user data from backend
       try {
-        const freshData = await api.auth.getMe();
-        if (freshData && freshData.user) {
-          localStorage.setItem('nagarsewa_user', JSON.stringify(freshData.user));
-          // Force page reload to update AuthContext and show pending status
-          setTimeout(() => {
-            window.location.reload();
-          }, 2000);
-        }
+        await refreshUser();
       } catch (refreshError) {
         console.error('Failed to refresh user data:', refreshError);
       }

@@ -229,6 +229,8 @@ function SuperAdminPanel() {
 
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isLoadingAdmins, setIsLoadingAdmins] = useState(false);
+  const [hasLoadedAdmins, setHasLoadedAdmins] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [formData, setFormData] = useState({
@@ -243,22 +245,43 @@ function SuperAdminPanel() {
     return <Navigate to="/admin" replace />;
   }
 
+  const userIsSuperAdmin =
+    currentUser?.role?.toUpperCase() === "SUPER_ADMIN";
+
   // ============================================================================
   // EFFECTS
   // ============================================================================
 
   // Load ward admins when component mounts
   useEffect(() => {
+    if (!userIsSuperAdmin || hasLoadedAdmins || isLoadingAdmins) {
+      return;
+    }
+
+    let isMounted = true;
+
     async function fetchWardAdmins() {
       try {
+        setIsLoadingAdmins(true);
         await loadWardAdmins();
+        if (isMounted) {
+          setHasLoadedAdmins(true);
+        }
       } catch (err) {
         console.error('Failed to load ward admins:', err);
+      } finally {
+        if (isMounted) {
+          setIsLoadingAdmins(false);
+        }
       }
     }
     
     fetchWardAdmins();
-  }, [loadWardAdmins]);
+
+    return function cleanup() {
+      isMounted = false;
+    };
+  }, [currentUser?.id, userIsSuperAdmin, hasLoadedAdmins, isLoadingAdmins]);
 
   // ============================================================================
   // DATA
@@ -317,14 +340,40 @@ function SuperAdminPanel() {
       return;
     }
 
+    const normalizedEmail = formData.email.trim().toLowerCase();
+    const selectedWard = Number(formData.wardNumber);
+
+    if (!Number.isInteger(selectedWard) || selectedWard < 1) {
+      toast.error(t.errorRequired, { position: "top-right" });
+      return;
+    }
+
+    const emailExists = wardAdmins.some(function(admin) {
+      return String(admin.email || '').toLowerCase() === normalizedEmail;
+    });
+
+    if (emailExists) {
+      toast.error(t.errorEmailExists, { position: "top-right" });
+      return;
+    }
+
+    const wardAlreadyAssigned = wardAdmins.some(function(admin) {
+      return admin.isActive && Number(admin.wardNumber) === selectedWard;
+    });
+
+    if (wardAlreadyAssigned) {
+      toast.error(t.errorWardAssigned, { position: "top-right" });
+      return;
+    }
+
     setIsSubmitting(true);
 
     // Create the admin data object with password
     const adminData = {
-      fullName: formData.fullName,
-      email: formData.email,
-      phone: formData.phone,
-      wardNumber: parseInt(formData.wardNumber),
+      fullName: formData.fullName.trim(),
+      email: normalizedEmail,
+      phone: formData.phone?.trim(),
+      wardNumber: selectedWard,
       password: formData.password
     };
 

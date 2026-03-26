@@ -78,10 +78,13 @@ export function AuthProvider({ children }) {
           }
         } catch (error) {
           console.error('Auth validation error:', error);
-          // Token is invalid, clear it
-          localStorage.removeItem("authToken");
-          localStorage.removeItem("nagarsewa_user");
-          setCurrentUser(null);
+
+          // Clear session only for actual auth failures.
+          if (error?.status === 401 || error?.status === 403) {
+            localStorage.removeItem("authToken");
+            localStorage.removeItem("nagarsewa_user");
+            setCurrentUser(null);
+          }
         } finally {
           // Always set loading to false, whether success or error
           setIsLoading(false);
@@ -110,7 +113,7 @@ export function AuthProvider({ children }) {
    * Load ward admins manually (called by SuperAdminPanel when needed).
    */
   async function loadWardAdmins() {
-    if (currentUser && currentUser.role === ROLES.SUPER_ADMIN) {
+    if (currentUser && String(currentUser.role || '').toUpperCase() === ROLES.SUPER_ADMIN) {
       try {
         const response = await api.admin.getWardAdmins();
         const formattedAdmins = response.admins.map(admin => ({
@@ -118,10 +121,10 @@ export function AuthProvider({ children }) {
           email: admin.email,
           fullName: admin.full_name,
           role: ROLES.WARD_ADMIN,
-          wardNumber: admin.ward_number,
+          wardNumber: Number(admin.ward_number),
           phone: admin.phone,
-          isActive: !admin.is_disabled, // Convert is_disabled to isActive
-          createdAt: admin.created_at
+          isActive: typeof admin.isActive === 'boolean' ? admin.isActive : !admin.is_disabled,
+          createdAt: admin.createdAt || admin.created_at
         }));
         setWardAdmins(formattedAdmins);
         return formattedAdmins;
@@ -333,9 +336,9 @@ export function AuthProvider({ children }) {
         email: createdAdmin.email,
         fullName: createdAdmin.full_name,
         role: ROLES.WARD_ADMIN,
-        wardNumber: createdAdmin.ward_number,
+        wardNumber: Number(createdAdmin.ward_number),
         phone: createdAdmin.phone,
-        isActive: !createdAdmin.is_disabled, // Convert is_disabled to isActive
+        isActive: typeof createdAdmin.isActive === 'boolean' ? createdAdmin.isActive : !createdAdmin.is_disabled,
         createdAt: createdAdmin.created_at || createdAdmin.createdAt
       };
       
@@ -455,7 +458,7 @@ export function AuthProvider({ children }) {
         return admin.isActive;
       })
       .map(function(admin) {
-        return admin.wardNumber;
+        return Number(admin.wardNumber);
       });
     
     // Generate list of all wards (1 to 10) using Array.from

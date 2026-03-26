@@ -355,7 +355,7 @@ export function IssueCard({ issue, t, isSuperAdmin, onStatusUpdate, onPrioritySe
   return (
     <div className="bg-white rounded-xl shadow-md border-l-4 overflow-hidden transition-all hover:shadow-lg" style={{ borderLeftColor: config.badgeBg.replace('bg-', '#') }}>
       {/* Professional Header */}
-      <div className="bg-gradient-to-r from-gray-50 to-white px-6 py-4 border-b border-gray-200">
+      <div className="bg-linear-to-r from-gray-50 to-white px-6 py-4 border-b border-gray-200">
         <div className="flex items-start justify-between">
           <div className="flex-1">
             <div className="flex items-center gap-3 mb-2">

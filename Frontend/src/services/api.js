@@ -19,6 +19,64 @@ const apiClient = axios.create({
   timeout: 30000, // 30 seconds
 });
 
+let getMeInFlightPromise = null;
+let getMeBlockedUntil = 0;
+let getMeLastResponse = null;
+let getMeLastSuccessAt = 0;
+const GET_ME_CACHE_MS = 2000;
+
+function clearGetMeCache() {
+  getMeInFlightPromise = null;
+  getMeBlockedUntil = 0;
+  getMeLastResponse = null;
+  getMeLastSuccessAt = 0;
+}
+
+async function getMeWithGuard(options = {}) {
+  const forceRefresh = Boolean(options.forceRefresh);
+  const now = Date.now();
+
+  if (!forceRefresh && getMeBlockedUntil > now) {
+    const retryAfterSeconds = Math.max(1, Math.ceil((getMeBlockedUntil - now) / 1000));
+    const limitedError = new Error('Too many requests. Please wait a few minutes before trying again.');
+    limitedError.status = 429;
+    limitedError.retryAfter = retryAfterSeconds;
+    throw limitedError;
+  }
+
+  if (!forceRefresh && getMeInFlightPromise) {
+    return getMeInFlightPromise;
+  }
+
+  if (
+    !forceRefresh &&
+    getMeLastResponse &&
+    now - getMeLastSuccessAt < GET_ME_CACHE_MS
+  ) {
+    return getMeLastResponse;
+  }
+
+  getMeInFlightPromise = apiClient
+    .get('/auth/me')
+    .then((response) => {
+      getMeLastResponse = response;
+      getMeLastSuccessAt = Date.now();
+      return response;
+    })
+    .catch((error) => {
+      if (error?.status === 429) {
+        const retryAfterSeconds = Number(error.retryAfter) || 60;
+        getMeBlockedUntil = Date.now() + retryAfterSeconds * 1000;
+      }
+      throw error;
+    })
+    .finally(() => {
+      getMeInFlightPromise = null;
+    });
+
+  return getMeInFlightPromise;
+}
+
 // Request interceptor - Add auth token to all requests
 apiClient.interceptors.request.use(
   (config) => {
@@ -40,7 +98,19 @@ apiClient.interceptors.response.use(
   },
   (error) => {
     const message = error.response?.data?.message || error.message || 'Something went wrong';
-    return Promise.reject(new Error(message));
+    const enhancedError = new Error(message);
+    enhancedError.status = error.response?.status;
+    enhancedError.code = error.code;
+
+    const retryAfterHeader = error.response?.headers?.['retry-after'];
+    if (retryAfterHeader !== undefined) {
+      const parsedRetryAfter = Number(retryAfterHeader);
+      if (Number.isFinite(parsedRetryAfter) && parsedRetryAfter > 0) {
+        enhancedError.retryAfter = parsedRetryAfter;
+      }
+    }
+
+    return Promise.reject(enhancedError);
   }
 );
 
@@ -50,9 +120,17 @@ apiClient.interceptors.response.use(
 
 export const authAPI = {
   register: (userData) => apiClient.post('/auth/register', userData),
-  login: (credentials) => apiClient.post('/auth/login', credentials),
-  logout: () => apiClient.post('/auth/logout'),
-  getMe: () => apiClient.get('/auth/me'),
+  login: async (credentials) => {
+    const response = await apiClient.post('/auth/login', credentials);
+    clearGetMeCache();
+    return response;
+  },
+  logout: async () => {
+    const response = await apiClient.post('/auth/logout');
+    clearGetMeCache();
+    return response;
+  },
+  getMe: (options) => getMeWithGuard(options),
 };
 
 // =============================================================================

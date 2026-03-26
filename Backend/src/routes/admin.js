@@ -13,10 +13,18 @@ const router = express.Router();
 router.post('/ward-admins', authMiddleware, superAdminOnly, async (req, res) => {
   try {
     const { full_name, email, phone, ward_number, password } = req.body;
+    const normalizedName = String(full_name || '').trim();
+    const normalizedEmail = String(email || '').trim().toLowerCase();
+    const normalizedPhone = phone ? String(phone).trim() : null;
+    const parsedWardNumber = Number(ward_number);
 
     // Validate input - password is now required
-    if (!full_name || !email || !ward_number || !password) {
+    if (!normalizedName || !normalizedEmail || !ward_number || !password) {
       return res.status(400).json({ message: "Name, email, ward number and password are required" });
+    }
+
+    if (!Number.isInteger(parsedWardNumber) || parsedWardNumber < 1 || parsedWardNumber > 10) {
+      return res.status(400).json({ message: "Ward number must be a valid value between 1 and 10" });
     }
 
     // Validate password strength
@@ -25,7 +33,7 @@ router.post('/ward-admins', authMiddleware, superAdminOnly, async (req, res) => 
     }
 
     // Check if email exists
-    const existing = await User.findByEmail(email);
+    const existing = await User.findByEmail(normalizedEmail);
     if (existing) {
       return res.status(400).json({ message: "Email already exists" });
     }
@@ -33,7 +41,7 @@ router.post('/ward-admins', authMiddleware, superAdminOnly, async (req, res) => 
     // Check if ward already has an active admin
     const wardAdmins = await User.getAllWardAdmins();
     const wardHasAdmin = wardAdmins.some(admin => 
-      admin.ward_number === parseInt(ward_number) && !admin.is_disabled
+      Number(admin.ward_number) === parsedWardNumber && !admin.is_disabled
     );
     
     if (wardHasAdmin) {
@@ -45,11 +53,11 @@ router.post('/ward-admins', authMiddleware, superAdminOnly, async (req, res) => 
 
     // Create ward admin
     const admin = await User.createWardAdmin({
-      full_name,
-      email,
+      full_name: normalizedName,
+      email: normalizedEmail,
       password: hashedPassword,
-      phone,
-      ward_number: parseInt(ward_number)
+      phone: normalizedPhone,
+      ward_number: parsedWardNumber
     });
 
     res.status(201).json({ 

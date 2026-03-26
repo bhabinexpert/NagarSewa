@@ -22,6 +22,9 @@ const __dirname = path.dirname(__filename);
 
 const app = express();
 
+// Needed for correct client IP resolution behind reverse proxies (e.g., Render).
+app.set('trust proxy', 1);
+
 // CORS configuration
 const corsOptions = {
   origin: true,
