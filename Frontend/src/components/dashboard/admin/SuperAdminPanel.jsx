@@ -21,8 +21,6 @@ import {
   MapPin,
   Check,
   X,
-  Edit,
-  Trash2,
   RefreshCw,
   Search,
   AlertCircle,
@@ -30,7 +28,8 @@ import {
   User,
   Lock,
 } from "lucide-react";
-import { toast } from "react-toastify";
+import { toast, ToastContainer } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
 
 // ============================================================================
 // TRANSLATIONS
@@ -229,10 +228,15 @@ function SuperAdminPanel() {
 
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [processingAdminId, setProcessingAdminId] = useState(null);
+  const [processingAction, setProcessingAction] = useState(null);
   const [isLoadingAdmins, setIsLoadingAdmins] = useState(false);
   const [hasLoadedAdmins, setHasLoadedAdmins] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState("active");
+  const [showConfirmDialog, setShowConfirmDialog] = useState(false);
+  const [confirmAction, setConfirmAction] = useState(null);
+  const [confirmAdminId, setConfirmAdminId] = useState(null);
   const [formData, setFormData] = useState({
     fullName: "",
     email: "",
@@ -400,20 +404,42 @@ function SuperAdminPanel() {
    * Shows confirmation dialog before deactivating.
    * @param {string} adminId - The ID of the admin to deactivate
    */
-  async function handleDeactivate(adminId) {
-    const confirmed = window.confirm(t.confirmDeactivate);
+  function handleDeactivate(adminId) {
+    setConfirmAdminId(adminId);
+    setConfirmAction("deactivate");
+    setShowConfirmDialog(true);
+  }
 
-    if (confirmed) {
-      try {
-        const result = await deactivateWardAdmin(adminId);
-        if (result.success) {
-          toast.success(t.successDeactivate, { position: "top-right" });
-        } else {
-          toast.error(result.error, { position: "top-right" });
-        }
-      } catch (error) {
-        toast.error("An error occurred. Please try again.", { position: "top-right" }, error);
+  /**
+   * Confirm and execute the deactivation.
+   */
+  async function confirmDeactivation() {
+    setShowConfirmDialog(false);
+    setProcessingAdminId(confirmAdminId);
+    setProcessingAction("deactivate");
+
+    try {
+      console.log("[SuperAdminPanel] Starting deactivation for admin:", confirmAdminId);
+      
+      const result = await deactivateWardAdmin(confirmAdminId);
+      
+      console.log("[SuperAdminPanel] Deactivation result:", result);
+      if (result.success) {
+        console.log("[SuperAdminPanel] Deactivation successful, switching to active tab");
+        setStatusFilter("active");
+        toast.success(t.successDeactivate, { position: "top-right" });
+      } else {
+        console.error("[SuperAdminPanel] Deactivation failed:", result.error);
+        toast.error(result.error, { position: "top-right" });
       }
+    } catch (error) {
+      console.error("[SuperAdminPanel] Deactivation error:", error);
+      toast.error("An error occurred. Please try again.", { position: "top-right" });
+    } finally {
+      setProcessingAdminId(null);
+      setProcessingAction(null);
+      setConfirmAdminId(null);
+      setConfirmAction(null);
     }
   }
 
@@ -421,18 +447,41 @@ function SuperAdminPanel() {
    * Handle reactivating a ward admin.
    * @param {string} adminId - The ID of the admin to reactivate
    */
-  async function handleReactivate(adminId) {
-    try {
-      const result = await reactivateWardAdmin(adminId);
+  function handleReactivate(adminId) {
+    setConfirmAdminId(adminId);
+    setConfirmAction("reactivate");
+    setShowConfirmDialog(true);
+  }
 
+  /**
+   * Confirm and execute the reactivation.
+   */
+  async function confirmReactivation() {
+    setShowConfirmDialog(false);
+    setProcessingAdminId(confirmAdminId);
+    setProcessingAction("reactivate");
+
+    try {
+      console.log("[SuperAdminPanel] Starting reactivation for admin:", confirmAdminId);
+      
+      const result = await reactivateWardAdmin(confirmAdminId);
+
+      console.log("[SuperAdminPanel] Reactivation result:", result);
       if (result.success) {
+        console.log("[SuperAdminPanel] Reactivation successful");
         toast.success(t.successReactivate, { position: "top-right" });
       } else {
+        console.error("[SuperAdminPanel] Reactivation failed:", result.error);
         toast.error(result.error, { position: "top-right" });
       }
     } catch (error) {
+      console.error("[SuperAdminPanel] Reactivation error:", error);
       toast.error("An error occurred. Please try again.", { position: "top-right" });
-      console.log(error)
+    } finally {
+      setProcessingAdminId(null);
+      setProcessingAction(null);
+      setConfirmAdminId(null);
+      setConfirmAction(null);
     }
   }
 
@@ -456,14 +505,6 @@ function SuperAdminPanel() {
    */
   function handleSearchChange(e) {
     setSearchQuery(e.target.value);
-  }
-
-  /**
-   * Handle status filter change.
-   * @param {Event} e - The select change event
-   */
-  function handleStatusFilterChange(e) {
-    setStatusFilter(e.target.value);
   }
 
   // ============================================================================
@@ -539,16 +580,23 @@ function SuperAdminPanel() {
 
       // Determine action button
       let actionButton;
+      const isProcessingCurrentAdmin = processingAdminId === admin.id;
       if (admin.isActive) {
         actionButton = (
           <button
             onClick={function () {
               handleDeactivate(admin.id);
             }}
-            className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+            disabled={isProcessingCurrentAdmin}
+            className="inline-flex items-center gap-2 px-3 py-2 text-sm font-medium text-red-700 bg-red-50 border border-red-200 hover:bg-red-100 rounded-lg transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
             title={t.deactivate}
           >
-            <X size={18} />
+            {isProcessingCurrentAdmin && processingAction === "deactivate" ? (
+              <RefreshCw size={16} className="animate-spin" />
+            ) : (
+              <X size={16} />
+            )}
+            {t.deactivate}
           </button>
         );
       } else {
@@ -557,10 +605,16 @@ function SuperAdminPanel() {
             onClick={function () {
               handleReactivate(admin.id);
             }}
-            className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
+            disabled={isProcessingCurrentAdmin}
+            className="inline-flex items-center gap-2 px-3 py-2 text-sm font-medium text-green-700 bg-green-50 border border-green-200 hover:bg-green-100 rounded-lg transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
             title={t.reactivate}
           >
-            <RefreshCw size={18} />
+            {isProcessingCurrentAdmin && processingAction === "reactivate" ? (
+              <RefreshCw size={16} className="animate-spin" />
+            ) : (
+              <RefreshCw size={16} />
+            )}
+            {t.reactivate}
           </button>
         );
       }
@@ -837,6 +891,27 @@ function SuperAdminPanel() {
       )}
 
       {/* Search and Filter */}
+      <div className="flex flex-wrap gap-2">
+        <button
+          onClick={function() { setStatusFilter("active"); }}
+          className={`px-4 py-2 rounded-lg border text-sm font-medium ${statusFilter === "active" ? "bg-green-50 border-green-300 text-green-700" : "bg-white border-gray-300 text-gray-600 hover:bg-gray-50"}`}
+        >
+          {t.activeOnly}
+        </button>
+        <button
+          onClick={function() { setStatusFilter("inactive"); }}
+          className={`px-4 py-2 rounded-lg border text-sm font-medium ${statusFilter === "inactive" ? "bg-red-50 border-red-300 text-red-700" : "bg-white border-gray-300 text-gray-600 hover:bg-gray-50"}`}
+        >
+          {t.inactiveOnly}
+        </button>
+        <button
+          onClick={function() { setStatusFilter("all"); }}
+          className={`px-4 py-2 rounded-lg border text-sm font-medium ${statusFilter === "all" ? "bg-indigo-50 border-indigo-300 text-indigo-700" : "bg-white border-gray-300 text-gray-600 hover:bg-gray-50"}`}
+        >
+          {t.all}
+        </button>
+      </div>
+
       <div className="flex flex-col md:flex-row gap-4">
         <div className="relative flex-1">
           <Search
@@ -851,15 +926,6 @@ function SuperAdminPanel() {
             className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
           />
         </div>
-        <select
-          value={statusFilter}
-          onChange={handleStatusFilterChange}
-          className="px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-        >
-          <option value="all">{t.all}</option>
-          <option value="active">{t.activeOnly}</option>
-          <option value="inactive">{t.inactiveOnly}</option>
-        </select>
       </div>
 
       {/* Admin List */}
@@ -908,6 +974,54 @@ function SuperAdminPanel() {
           </div>
         )}
       </div>
+
+      {/* Confirmation Dialog */}
+      {showConfirmDialog && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl w-full max-w-md p-6 space-y-4">
+            <h2 className="text-xl font-bold text-gray-800">
+              {confirmAction === "deactivate"
+                ? t.confirmDeactivate
+                : `Confirm Reactivation?`}
+            </h2>
+            <p className="text-gray-600 text-sm">
+              {confirmAction === "deactivate"
+                ? "This admin will be deactivated and unable to log in."
+                : "This admin will be reactivated and able to log in."}
+            </p>
+            <div className="flex gap-3 pt-4">
+              <button
+                onClick={() => {
+                  setShowConfirmDialog(false);
+                  setConfirmAdminId(null);
+                  setConfirmAction(null);
+                }}
+                className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
+              >
+                {t.cancel}
+              </button>
+              <button
+                onClick={() => {
+                  if (confirmAction === "deactivate") {
+                    confirmDeactivation();
+                  } else {
+                    confirmReactivation();
+                  }
+                }}
+                className={`flex-1 px-4 py-2 rounded-lg text-white transition-colors ${
+                  confirmAction === "deactivate"
+                    ? "bg-red-600 hover:bg-red-700"
+                    : "bg-green-600 hover:bg-green-700"
+                }`}
+              >
+                {confirmAction === "deactivate" ? t.deactivate : t.reactivate}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <ToastContainer position="top-right" autoClose={3000} />
     </div>
   );
 }

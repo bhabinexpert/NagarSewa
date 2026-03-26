@@ -126,6 +126,8 @@ export function AuthProvider({ children }) {
           isActive: typeof admin.isActive === 'boolean' ? admin.isActive : !admin.is_disabled,
           createdAt: admin.createdAt || admin.created_at
         }));
+
+        // Keep both active and inactive admins for counts and tab filtering.
         setWardAdmins(formattedAdmins);
         return formattedAdmins;
       } catch (error) {
@@ -174,18 +176,13 @@ export function AuthProvider({ children }) {
     } catch (error) {
       setIsLoading(false);
       
-      // Check if account is disabled
-      if (error.message.includes('disabled')) {
-        return {
-          success: false,
-          error: error.message,
-          isDisabled: true
-        };
-      }
+      // Check if account is disabled (backend returns 403 with isDisabled flag)
+      const isDisabled = error.data?.isDisabled || error.message?.includes('disabled');
       
       return {
         success: false,
-        error: error.message || "Login failed. Please check your credentials."
+        error: error.message || "Login failed. Please check your credentials.",
+        isDisabled: isDisabled
       };
     }
   }
@@ -343,6 +340,13 @@ export function AuthProvider({ children }) {
       };
       
       setWardAdmins(prevAdmins => [...prevAdmins, newAdmin]);
+
+      // Keep UI fully aligned with backend constraints and latest status.
+      try {
+        await loadWardAdmins();
+      } catch (refreshError) {
+        console.error('Failed to refresh ward admins after create:', refreshError);
+      }
       
       return { success: true, admin: newAdmin };
     } catch (error) {
@@ -385,17 +389,34 @@ export function AuthProvider({ children }) {
     }
 
     try {
-      await api.admin.deactivateWardAdmin(adminId);
+      console.log("[AuthContext] Deactivating admin:", adminId);
+      const result = await api.admin.deactivateWardAdmin(adminId);
+      console.log("[AuthContext] Deactivate API response:", result);
       
-      // Update local state with functional update for immediate UI refresh
-      setWardAdmins(prevAdmins => 
-        prevAdmins.map(admin => 
-          admin.id === adminId ? { ...admin, isActive: false } : admin
-        )
-      );
+      // Refresh the admin list from server to get the latest state
+      try {
+        console.log("[AuthContext] Refreshing admin list after deactivation");
+        await loadWardAdmins();
+      } catch (refreshError) {
+        console.error('Failed to refresh ward admins after deactivation:', refreshError);
+      }
       
       return { success: true };
     } catch (error) {
+      console.error("[AuthContext] Deactivate error:", error);
+      console.error("[AuthContext] Error status:", error?.status);
+      console.error("[AuthContext] Error message:", error?.message);
+      
+      if (error?.status === 404) {
+        // Stale UI row: remove it locally and sync list from server.
+        console.warn("[AuthContext] Admin ID not found (404), refreshing list");
+        try {
+          await loadWardAdmins();
+        } catch (refreshError) {
+          console.error('Failed to refresh ward admins after 404 deactivation:', refreshError);
+        }
+        return { success: false, error: "Selected admin was not found. The list has been refreshed." };
+      }
       return { success: false, error: error.message || "Failed to deactivate admin" };
     }
   }
@@ -415,15 +436,24 @@ export function AuthProvider({ children }) {
     try {
       await api.admin.reactivateWardAdmin(adminId);
       
-      // Update local state with functional update for immediate UI refresh
-      setWardAdmins(prevAdmins => 
-        prevAdmins.map(admin => 
-          admin.id === adminId ? { ...admin, isActive: true } : admin
-        )
-      );
+      // Refresh the admin list from server to get the latest state
+      try {
+        await loadWardAdmins();
+      } catch (refreshError) {
+        console.error('Failed to refresh ward admins after reactivation:', refreshError);
+      }
       
       return { success: true };
     } catch (error) {
+      if (error?.status === 404) {
+        // Stale UI row: remove it locally and sync list from server.
+        try {
+          await loadWardAdmins();
+        } catch (refreshError) {
+          console.error('Failed to refresh ward admins after 404 reactivation:', refreshError);
+        }
+        return { success: false, error: "Selected admin was not found. The list has been refreshed." };
+      }
       return { success: false, error: error.message || "Failed to reactivate admin" };
     }
   }

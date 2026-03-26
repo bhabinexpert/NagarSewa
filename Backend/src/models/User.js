@@ -120,7 +120,7 @@ export const User = {
   async createWardAdmin(adminData) {
     const sql = `
       INSERT INTO users (full_name, email, password, phone, role, ward_number, kyc_status)
-      VALUES ($1, $2, $3, $4, 'WARD_ADMIN', $5, 'VERIFIED')
+      VALUES ($1, $2, $3, $4, 'ward_admin', $5, 'VERIFIED')
       RETURNING id, full_name, email, phone, role, ward_number, created_at
     `;
     const values = [
@@ -139,22 +139,36 @@ export const User = {
     const sql = `
       SELECT id, full_name, email, phone, ward_number, is_disabled, created_at 
       FROM users 
-      WHERE role = 'WARD_ADMIN' OR role = 'ward_admin'
+      WHERE UPPER(role) = 'WARD_ADMIN'
       ORDER BY ward_number ASC
     `;
     const result = await query(sql);
+    console.log('[User.getAllWardAdmins] Found', result.rows.length, 'ward admins');
+    if (result.rows.length > 0) {
+      console.log('[User.getAllWardAdmins] First admin:', result.rows[0]);
+    }
     return result.rows;
   },
 
   // Toggle ward admin active status
   async toggleAdminStatus(adminId, isActive) {
+    console.log('[User.toggleAdminStatus] Called with adminId:', adminId, 'isActive:', isActive);
+    
     const sql = `
       UPDATE users 
       SET is_disabled = $1, updated_at = NOW()
-      WHERE id = $2 AND role = 'ward_admin'
+      WHERE id = $2 AND UPPER(role) = 'WARD_ADMIN'
       RETURNING id, full_name, email, ward_number, is_disabled
     `;
+    
+    console.log('[User.toggleAdminStatus] SQL:', sql);
+    console.log('[User.toggleAdminStatus] Params:', [!isActive, adminId]);
+    
     const result = await query(sql, [!isActive, adminId]);
+    
+    console.log('[User.toggleAdminStatus] Result rows length:', result.rows.length);
+    console.log('[User.toggleAdminStatus] Result:', result.rows[0]);
+    
     return result.rows[0];
   }
 };

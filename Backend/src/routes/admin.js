@@ -35,6 +35,51 @@ router.post('/ward-admins', authMiddleware, superAdminOnly, async (req, res) => 
     // Check if email exists
     const existing = await User.findByEmail(normalizedEmail);
     if (existing) {
+      const existingRole = String(existing.role || '').replace('-', '_').toUpperCase();
+
+      // If an old ward admin account was disabled, revive and update it instead of failing.
+      if (existingRole === 'WARD_ADMIN' && existing.is_disabled) {
+        const wardAdmins = await User.getAllWardAdmins();
+        const wardHasOtherActiveAdmin = wardAdmins.some((admin) =>
+          admin.id !== existing.id && Number(admin.ward_number) === parsedWardNumber && !admin.is_disabled
+        );
+
+        if (wardHasOtherActiveAdmin) {
+          return res.status(400).json({ message: "This ward already has an active admin" });
+        }
+
+        const reactivatedPassword = await bcrypt.hash(password, 10);
+        const reactivatedAdminResult = await query(
+          `
+            UPDATE users
+            SET
+              full_name = $1,
+              phone = $2,
+              ward_number = $3,
+              password = $4,
+              is_disabled = false,
+              updated_at = NOW()
+            WHERE id = $5
+            RETURNING id, full_name, email, phone, ward_number, role, created_at
+          `,
+          [normalizedName, normalizedPhone, parsedWardNumber, reactivatedPassword, existing.id]
+        );
+
+        const reactivatedAdmin = reactivatedAdminResult.rows[0];
+        return res.status(200).json({
+          message: "Existing ward admin reactivated successfully",
+          admin: {
+            id: reactivatedAdmin.id,
+            full_name: reactivatedAdmin.full_name,
+            email: reactivatedAdmin.email,
+            phone: reactivatedAdmin.phone,
+            ward_number: reactivatedAdmin.ward_number,
+            role: reactivatedAdmin.role,
+            createdAt: reactivatedAdmin.created_at
+          }
+        });
+      }
+
       return res.status(400).json({ message: "Email already exists" });
     }
 
@@ -103,8 +148,13 @@ router.get('/ward-admins', authMiddleware, superAdminOnly, async (req, res) => {
 // Deactivate ward admin (super admin only)
 router.patch('/ward-admins/:id/deactivate', authMiddleware, superAdminOnly, async (req, res) => {
   try {
+    console.log('[Admin Route] Deactivate request received for ID:', req.params.id);
     const admin = await User.toggleAdminStatus(req.params.id, false);
+    
+    console.log('[Admin Route] toggleAdminStatus returned:', admin);
+    
     if (!admin) {
+      console.error('[Admin Route] Admin not found for ID:', req.params.id);
       return res.status(404).json({ message: "Ward admin not found" });
     }
 
@@ -118,8 +168,13 @@ router.patch('/ward-admins/:id/deactivate', authMiddleware, superAdminOnly, asyn
 // Reactivate ward admin (super admin only)
 router.patch('/ward-admins/:id/reactivate', authMiddleware, superAdminOnly, async (req, res) => {
   try {
+    console.log('[Admin Route] Reactivate request received for ID:', req.params.id);
     const admin = await User.toggleAdminStatus(req.params.id, true);
+    
+    console.log('[Admin Route] toggleAdminStatus returned:', admin);
+    
     if (!admin) {
+      console.error('[Admin Route] Admin not found for ID:', req.params.id);
       return res.status(404).json({ message: "Ward admin not found" });
     }
 

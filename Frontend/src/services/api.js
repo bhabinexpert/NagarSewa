@@ -101,6 +101,11 @@ apiClient.interceptors.response.use(
     const enhancedError = new Error(message);
     enhancedError.status = error.response?.status;
     enhancedError.code = error.code;
+    
+    // Pass through additional data from backend error responses (e.g., isDisabled flag)
+    if (error.response?.data?.data) {
+      enhancedError.data = error.response.data.data;
+    }
 
     const retryAfterHeader = error.response?.headers?.['retry-after'];
     if (retryAfterHeader !== undefined) {
