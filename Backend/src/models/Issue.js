@@ -1,6 +1,73 @@
 // Issue model - Database operations for issues
 import { query } from '../db.js';
 
+// Helper function to normalize photo URLs
+function parsePhotoUrls(photoField) {
+  if (!photoField) return [];
+
+  // If it's an array, ensure all items are valid URLs
+  if (Array.isArray(photoField)) {
+    return photoField
+      .map(url => {
+        if (typeof url === 'string') {
+          return url.trim();
+        }
+        return null;
+      })
+      .filter(url => url && url.length > 0);
+  }
+
+  // If it's a string, try multiple parsing strategies
+  if (typeof photoField === 'string') {
+    const trimmed = photoField.trim();
+    if (!trimmed) return [];
+
+    // Try JSON parsing first
+    try {
+      const parsed = JSON.parse(trimmed);
+      // If parsed is an array, recursively parse it
+      if (Array.isArray(parsed)) {
+        return parsePhotoUrls(parsed);
+      }
+      // If parsed is a string, process it
+      if (typeof parsed === 'string') {
+        return parsePhotoUrls(parsed);
+      }
+      return [];
+    } catch (e) {
+      // Not valid JSON, continue to other strategies
+    }
+
+    // Check if it looks like a URL path
+    if (trimmed.startsWith('/') || trimmed.includes('uploads')) {
+      return [trimmed];
+    }
+
+    // Check if it's PostgreSQL array format: {"path1","path2"}
+    if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
+      const inner = trimmed.slice(1, -1);
+      if (!inner) return [];
+      return inner
+        .split(',')
+        .map(item => item.trim().replace(/^"(.*)"$/, '$1'))
+        .filter(item => item && item.length > 0);
+    }
+
+    // Check if it's comma-separated paths
+    if (trimmed.includes(',')) {
+      return trimmed
+        .split(',')
+        .map(item => item.trim())
+        .filter(item => item && item.length > 0);
+    }
+
+    // Single value - return it if not empty
+    return trimmed.length > 0 ? [trimmed] : [];
+  }
+
+  return [];
+}
+
 export const Issue = {
   // Create new issue
   async create(issueData) {
@@ -36,7 +103,12 @@ export const Issue = {
       WHERE i.id = $1
     `;
     const result = await query(sql, [id]);
-    return result.rows[0];
+    if (result.rows.length === 0) return null;
+
+    const issue = result.rows[0];
+    // Parse photo_url to ensure it's an array of strings
+    issue.photo_url = parsePhotoUrls(issue.photo_url);
+    return issue;
   },
 
   // Get all issues
@@ -77,7 +149,11 @@ export const Issue = {
     sql += ' ORDER BY i.created_at DESC';
 
     const result = await query(sql, values);
-    return result.rows;
+    // Parse photo_urls for all issues
+    return result.rows.map(issue => ({
+      ...issue,
+      photo_url: parsePhotoUrls(issue.photo_url)
+    }));
   },
 
   // Update issue status
