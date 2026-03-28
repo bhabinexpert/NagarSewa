@@ -273,13 +273,23 @@ export const usersAPI = {
   getById: (id) => apiClient.get(`/users/${id}`),
   
   // Update user profile
-  updateProfile: (id, profileData) => 
+  updateProfile: (id, profileData) =>
     apiClient.patch(`/users/${id}/profile`, profileData),
-  
+
   // Submit KYC documents
   submitKYC: (id, kycData) => {
     // kycData should be a FormData object with files
     return apiClient.post(`/users/${id}/kyc`, kycData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+  },
+
+  // Update/Resubmit KYC documents
+  updateKYC: (id, kycData) => {
+    // kycData should be a FormData object with files
+    return apiClient.patch(`/users/${id}/kyc`, kycData, {
       headers: {
         'Content-Type': 'multipart/form-data',
       },
