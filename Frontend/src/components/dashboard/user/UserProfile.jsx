@@ -93,11 +93,13 @@ const profileText = {
     notSubmitted: "Not Submitted",
     rejected: "Rejected",
     submitKyc: "Submit for Verification",
+    resubmitKyc: "Resubmit Documents",
     submitting: "Submitting...",
     kycSuccess: "KYC documents submitted successfully!",
     kycPendingMsg: "Your documents are being reviewed. This usually takes 24-48 hours.",
     kycVerifiedMsg: "Your identity has been verified. You have full access to all features.",
     kycRejectedMsg: "Your documents were rejected. Please resubmit with clear images.",
+    kycUpdateMsg: "You can update your documents and resubmit them for review.",
     uploadPhoto: "Upload Photo",
     changePhoto: "Change Photo",
     loading: "Loading profile...",
@@ -142,11 +144,13 @@ const profileText = {
     notSubmitted: "पेश गरिएको छैन",
     rejected: "अस्वीकृत",
     submitKyc: "प्रमाणीकरणको लागि पेश गर्नुहोस्",
+    resubmitKyc: "कागजात पुन: पेश गर्नुहोस्",
     submitting: "पेश गर्दै...",
     kycSuccess: "KYC कागजातहरू सफलतापूर्वक पेश गरियो!",
     kycPendingMsg: "तपाईंको कागजातहरू समीक्षा भइरहेको छ। यो सामान्यतया 24-48 घण्टा लाग्छ।",
     kycVerifiedMsg: "तपाईंको पहिचान प्रमाणित भएको छ। तपाईंसँग सबै सुविधाहरूमा पूर्ण पहुँच छ।",
     kycRejectedMsg: "तपाईंको कागजातहरू अस्वीकार गरियो। कृपया स्पष्ट छविहरूसहित पुन: पेश गर्नुहोस्।",
+    kycUpdateMsg: "तपाईं आफ्नो कागजातहरू अपडेट गर्न र पुन: पेश गर्न सक्नुहुन्छ।",
     uploadPhoto: "फोटो अपलोड गर्नुहोस्",
     changePhoto: "फोटो परिवर्तन गर्नुहोस्",
     loading: "प्रोफाइल लोड हुँदैछ...",
@@ -711,7 +715,8 @@ function UserProfile() {
 
   /**
    * Submit KYC documents to backend for verification.
-   * Backend: POST /api/users/:id/kyc
+   * Backend: POST /api/users/:id/kyc (initial submission)
+   * Backend: PATCH /api/users/:id/kyc (resubmission for rejected)
    */
   async function handleSubmitKyc(e) {
     // Prevent default form submission if triggered from a form
@@ -744,16 +749,23 @@ function UserProfile() {
     }
 
     setIsSubmitting(true);
-    
+
     try {
       // Build FormData with both document files
       const formData = new FormData();
       formData.append("citizenshipFront", kycFiles.citizenshipFront);
       formData.append("citizenshipBack", kycFiles.citizenshipBack);
-      
-      // Send to backend using user ID
-      const response = await usersAPI.submitKYC(user.id, formData);
-      
+
+      // Determine if this is a resubmission (rejected) or initial submission
+      let response;
+      if (kycStatus === "rejected") {
+        // Use PATCH for resubmission of rejected documents
+        response = await usersAPI.updateKYC(user.id, formData);
+      } else {
+        // Use POST for initial submission
+        response = await usersAPI.submitKYC(user.id, formData);
+      }
+
       // Clear the file inputs after successful submission
       setKycFiles({
         citizenshipFront: null,
@@ -763,38 +775,38 @@ function UserProfile() {
         citizenshipFront: null,
         citizenshipBack: null
       });
-      
+
       // Mark KYC as submitted to immediately update UI
       setKycSubmitted(true);
-      
+
       // Update auth context KYC status if available
       if (verifyKyc) {
         verifyKyc();
       }
-      
+
       // Show success message with detailed info
-      toast.success(t.verificationSubmitted, { 
-        position: "top-right", 
+      toast.success(t.verificationSubmitted, {
+        position: "top-right",
         autoClose: 5000,
         style: { minWidth: '350px' }
       });
-      
+
       // Show pending review notice
       setTimeout(() => {
-        toast.info(t.pendingReviewNotice, { 
-          position: "top-right", 
+        toast.info(t.pendingReviewNotice, {
+          position: "top-right",
           autoClose: 6000,
           style: { minWidth: '350px' }
         });
       }, 500);
-      
+
       // Refresh user data from backend
       try {
         await refreshUser();
       } catch (refreshError) {
         console.error('Failed to refresh user data:', refreshError);
       }
-      
+
     } catch (error) {
       console.error('KYC submission error:', error);
       toast.error(error.message || t.saveError, { position: "top-right", autoClose: 4000 });
@@ -1113,11 +1125,16 @@ function UserProfile() {
             <p className={"text-sm " + statusMessageTextColor}>
               {statusStyle.message}
             </p>
+            {kycStatus === "rejected" && (
+              <p className={"text-sm " + statusMessageTextColor + " mt-2"}>
+                {t.kycUpdateMsg}
+              </p>
+            )}
           </div>
         )}
 
-        {/* Document Upload - Only show if not verified and not pending */}
-        {kycStatus !== "verified" && kycStatus !== "pending" && (
+        {/* Document Upload - Show if not verified and not pending, OR if rejected */}
+        {((kycStatus !== "verified" && kycStatus !== "pending") || kycStatus === "rejected") && (
           <>
             {/* Upload Boxes for Citizenship Documents */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
@@ -1139,10 +1156,10 @@ function UserProfile() {
             <p className="text-xs text-gray-500 text-center mb-4">{t.fileTypes}</p>
             
             {/* Submit Button */}
-            <button 
+            <button
               type="button"
-              onClick={handleSubmitKyc} 
-              disabled={isSubmitting || !kycFiles.citizenshipFront || !kycFiles.citizenshipBack} 
+              onClick={handleSubmitKyc}
+              disabled={isSubmitting || !kycFiles.citizenshipFront || !kycFiles.citizenshipBack}
               className="w-full py-3 bg-emerald-600 text-white rounded-xl font-medium hover:bg-emerald-700 transition flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isSubmitting ? (
@@ -1153,7 +1170,7 @@ function UserProfile() {
               ) : (
                 <>
                   <Shield size={18} />
-                  {t.submitKyc}
+                  {kycStatus === "rejected" ? t.resubmitKyc : t.submitKyc}
                 </>
               )}
             </button>
