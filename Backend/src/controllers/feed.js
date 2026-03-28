@@ -3,36 +3,73 @@ import { query } from '../db.js';
 import { asyncHandler, sendSuccess, sendError, HTTP_STATUS } from '../utils/response.js';
 
 /**
- * Normalize issue photo field to an array.
+ * Normalize issue photo field to an array of URLs.
  * Handles JSON strings, arrays, plain strings, and Buffer-like objects.
  */
 function parseIssuePhotos(photoField) {
   if (!photoField) return [];
 
+  // If it's an array, ensure all items are valid URLs
   if (Array.isArray(photoField)) {
-    return photoField.flatMap((item) => parseIssuePhotos(item));
+    return photoField
+      .map(url => {
+        if (typeof url === 'string') {
+          return url.trim();
+        }
+        return null;
+      })
+      .filter(url => url && url.length > 0);
   }
 
-  if (typeof photoField === 'object' && photoField !== null) {
-    if (photoField.type === 'Buffer' && Array.isArray(photoField.data)) {
-      return [photoField];
+  // If it's a string, try multiple parsing strategies
+  if (typeof photoField === 'string') {
+    const trimmed = photoField.trim();
+    if (!trimmed) return [];
+
+    // Try JSON parsing first
+    try {
+      const parsed = JSON.parse(trimmed);
+      // If parsed is an array, recursively parse it
+      if (Array.isArray(parsed)) {
+        return parseIssuePhotos(parsed);
+      }
+      // If parsed is a string, process it
+      if (typeof parsed === 'string') {
+        return parseIssuePhotos(parsed);
+      }
+      return [];
+    } catch (e) {
+      // Not valid JSON, continue to other strategies
     }
-    return Object.values(photoField).flatMap((item) => parseIssuePhotos(item));
+
+    // Check if it looks like a URL path
+    if (trimmed.startsWith('/') || trimmed.includes('uploads')) {
+      return [trimmed];
+    }
+
+    // Check if it's PostgreSQL array format: {"path1","path2"}
+    if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
+      const inner = trimmed.slice(1, -1);
+      if (!inner) return [];
+      return inner
+        .split(',')
+        .map(item => item.trim().replace(/^"(.*)"$/, '$1'))
+        .filter(item => item && item.length > 0);
+    }
+
+    // Check if it's comma-separated paths
+    if (trimmed.includes(',')) {
+      return trimmed
+        .split(',')
+        .map(item => item.trim())
+        .filter(item => item && item.length > 0);
+    }
+
+    // Single value - return it if not empty
+    return trimmed.length > 0 ? [trimmed] : [];
   }
 
-  if (typeof photoField !== 'string') {
-    return [photoField];
-  }
-
-  const value = photoField.trim();
-  if (!value) return [];
-
-  try {
-    const parsed = JSON.parse(value);
-    return parseIssuePhotos(parsed);
-  } catch {
-    return [value];
-  }
+  return [];
 }
 
 /**
@@ -196,6 +233,17 @@ export const getFeed = asyncHandler(async (req, res) => {
   // Transform to camelCase format expected by frontend
   const formattedFeed = feedItems.map(item => {
     const issuePhotos = item.type === 'issue' ? parseIssuePhotos(item.photo_url) : [];
+
+    // Debug logging
+    if (item.type === 'issue' && item.photo_url) {
+      console.log('[Feed] Photo parsing:', {
+        raw: item.photo_url,
+        type: typeof item.photo_url,
+        parsed: issuePhotos,
+        hasImage: issuePhotos.length > 0,
+        imageUrl: issuePhotos[0] || null
+      });
+    }
 
     return {
       id: item.id,
