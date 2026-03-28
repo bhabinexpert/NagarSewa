@@ -235,6 +235,99 @@ export const submitKYC = asyncHandler(async (req, res) => {
 });
 
 /**
+ * Update/Resubmit KYC documents
+ * PATCH /api/users/:id/kyc
+ */
+export const updateKYC = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+
+  // Check if files were uploaded
+  if (!req.files || (!req.files.citizenshipFront && !req.files.citizenshipBack)) {
+    return sendError(res, 'At least one citizenship document (front or back) is required', HTTP_STATUS.BAD_REQUEST);
+  }
+
+  // Check if user exists
+  const user = await User.findById(id);
+  if (!user) {
+    return sendError(res, 'User not found', HTTP_STATUS.NOT_FOUND);
+  }
+
+  // Only allow users to update their own KYC
+  if (req.user.id !== id) {
+    return sendError(res, 'Unauthorized', HTTP_STATUS.FORBIDDEN);
+  }
+
+  // Parse existing documents if they exist
+  let existingDocs = {};
+  if (user.kyc_documents) {
+    try {
+      existingDocs = typeof user.kyc_documents === 'string'
+        ? JSON.parse(user.kyc_documents)
+        : user.kyc_documents;
+    } catch (e) {
+      existingDocs = {};
+    }
+  }
+
+  // Update documents with new files (overwrite old ones)
+  const kycDocuments = {
+    ...existingDocs,
+    ...(req.files.citizenshipFront && {
+      citizenshipFront: `/uploads/kyc/${req.files.citizenshipFront[0].filename}`
+    }),
+    ...(req.files.citizenshipBack && {
+      citizenshipBack: `/uploads/kyc/${req.files.citizenshipBack[0].filename}`
+    }),
+    lastUpdatedAt: new Date().toISOString()
+  };
+
+  // If initially submitted, keep the original uploadedAt, otherwise update it
+  if (!existingDocs.uploadedAt) {
+    kycDocuments.uploadedAt = new Date().toISOString();
+  }
+
+  // Update KYC information with new document paths, reset status to PENDING
+  const sql = `
+    UPDATE users
+    SET
+      kyc_documents = $1,
+      kyc_status = 'PENDING',
+      updated_at = NOW()
+    WHERE id = $2
+    RETURNING id, full_name, email, kyc_status, kyc_documents, updated_at
+  `;
+
+  const result = await query(sql, [
+    JSON.stringify(kycDocuments),
+    id
+  ]);
+
+  const updatedUser = result.rows[0];
+
+  // Parse documents for response
+  let parsedDocs = kycDocuments;
+  try {
+    parsedDocs = typeof updatedUser.kyc_documents === 'string'
+      ? JSON.parse(updatedUser.kyc_documents)
+      : updatedUser.kyc_documents;
+  } catch (e) {
+    parsedDocs = updatedUser.kyc_documents;
+  }
+
+  // Format response
+  const formattedResponse = {
+    id: updatedUser.id,
+    fullName: updatedUser.full_name,
+    email: updatedUser.email,
+    kycStatus: updatedUser.kyc_status,
+    kycDocuments: parsedDocs,
+    updatedAt: updatedUser.updated_at
+  };
+
+  sendSuccess(res, formattedResponse, 'KYC documents updated successfully. Status reset to PENDING for re-verification');
+});
+
+/**
  * Get user KYC details (admin only)
  * GET /api/admin/users/:id/kyc
  */
