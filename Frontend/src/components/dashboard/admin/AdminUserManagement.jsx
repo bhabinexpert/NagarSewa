@@ -897,7 +897,7 @@ function AdminUserManagement() {
     try {
       if (type === "kyc") {
         // Backend: PATCH /api/admin/users/:id/kyc
-        await adminAPI.verifyKYC(userId, 'REJECTED');
+        await adminAPI.verifyKYC(userId, 'REJECTED', reason);
         toast.success(t.kycRejected, { position: "top-right", autoClose: 3000 });
       } else if (type === "disable") {
         // Backend: PATCH /api/admin/users/:id/disable
