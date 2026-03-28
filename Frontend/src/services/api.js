@@ -16,7 +16,7 @@ const apiClient = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
-  timeout: 30000, // 30 seconds
+  timeout: 30000, // 30 seconds for normal requests
 });
 
 let getMeInFlightPromise = null;
@@ -124,9 +124,14 @@ apiClient.interceptors.response.use(
 // =============================================================================
 
 export const authAPI = {
-  register: (userData) => apiClient.post('/auth/register', userData),
+  register: (userData) => apiClient.post('/auth/register', userData, {
+    timeout: 120000 // 120 seconds for first request cold start
+  }),
   login: async (credentials) => {
-    const response = await apiClient.post('/auth/login', credentials);
+    // Use 120 second timeout for login (free tier servers have slow cold starts)
+    const response = await apiClient.post('/auth/login', credentials, {
+      timeout: 120000 // 120 seconds for first request cold start
+    });
     clearGetMeCache();
     return response;
   },
