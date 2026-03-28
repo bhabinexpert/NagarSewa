@@ -4,6 +4,7 @@ import { User } from '../models/User.js';
 import { Issue } from '../models/Issue.js';
 import { Campaign } from '../models/Campaign.js';
 import { authMiddleware, adminOnly, superAdminOnly } from '../middleware/auth.js';
+import { uploadKYCDocuments, handleUploadError } from '../middleware/upload.js';
 import { query } from '../db.js';
 import bcrypt from 'bcrypt';
 
@@ -309,6 +310,97 @@ router.get('/users', authMiddleware, adminOnly, async (req, res) => {
   } catch (error) {
     console.error('Get users error:', error);
     res.status(500).json({ success: false, message: "Server error" });
+  }
+});
+
+// Admin: Upload/Update KYC documents for a user (admin only)
+router.patch('/users/:id/kyc-documents', authMiddleware, adminOnly, uploadKYCDocuments, handleUploadError, async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Check if files were uploaded
+    if (!req.files || (!req.files.citizenshipFront && !req.files.citizenshipBack)) {
+      return res.status(400).json({ message: "At least one citizenship document (front or back) is required" });
+    }
+
+    // Get user
+    const userResult = await query('SELECT * FROM users WHERE id = $1', [id]);
+    if (userResult.rows.length === 0) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    const user = userResult.rows[0];
+
+    // Parse existing documents if they exist
+    let existingDocs = {};
+    if (user.kyc_documents) {
+      try {
+        existingDocs = typeof user.kyc_documents === 'string'
+          ? JSON.parse(user.kyc_documents)
+          : user.kyc_documents;
+      } catch (e) {
+        existingDocs = {};
+      }
+    }
+
+    // Update documents with new files (overwrite old ones)
+    const kycDocuments = {
+      ...existingDocs,
+      ...(req.files.citizenshipFront && {
+        citizenshipFront: `/uploads/kyc/${req.files.citizenshipFront[0].filename}`
+      }),
+      ...(req.files.citizenshipBack && {
+        citizenshipBack: `/uploads/kyc/${req.files.citizenshipBack[0].filename}`
+      }),
+      lastUpdatedAt: new Date().toISOString(),
+      uploadedBy: 'admin'
+    };
+
+    // Keep original uploadedAt if exists
+    if (!existingDocs.uploadedAt) {
+      kycDocuments.uploadedAt = new Date().toISOString();
+    }
+
+    // Update user KYC documents
+    const sql = `
+      UPDATE users
+      SET
+        kyc_documents = $1,
+        updated_at = NOW()
+      WHERE id = $2
+      RETURNING id, full_name, email, phone, ward_number, kyc_status, kyc_documents, updated_at
+    `;
+
+    const result = await query(sql, [JSON.stringify(kycDocuments), id]);
+    const updatedUser = result.rows[0];
+
+    // Parse documents for response
+    let parsedDocs = kycDocuments;
+    try {
+      parsedDocs = typeof updatedUser.kyc_documents === 'string'
+        ? JSON.parse(updatedUser.kyc_documents)
+        : updatedUser.kyc_documents;
+    } catch (e) {
+      parsedDocs = updatedUser.kyc_documents;
+    }
+
+    res.json({
+      success: true,
+      message: "User KYC documents updated by admin",
+      data: {
+        id: updatedUser.id,
+        fullName: updatedUser.full_name,
+        email: updatedUser.email,
+        phone: updatedUser.phone,
+        wardNumber: updatedUser.ward_number,
+        kycStatus: updatedUser.kyc_status,
+        kycDocuments: parsedDocs,
+        updatedAt: updatedUser.updated_at
+      }
+    });
+  } catch (error) {
+    console.error('Update user KYC documents error:', error);
+    res.status(500).json({ message: "Server error" });
   }
 });
 
