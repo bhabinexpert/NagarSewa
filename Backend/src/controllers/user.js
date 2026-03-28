@@ -235,6 +235,112 @@ export const submitKYC = asyncHandler(async (req, res) => {
 });
 
 /**
+ * Get user KYC details (admin only)
+ * GET /api/admin/users/:id/kyc
+ */
+export const getUserKYC = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+
+  const user = await User.findById(id);
+
+  if (!user) {
+    return sendError(res, 'User not found', HTTP_STATUS.NOT_FOUND);
+  }
+
+  // Parse KYC documents if stored as JSON
+  let kycDocuments = null;
+  if (user.kyc_documents) {
+    try {
+      kycDocuments = typeof user.kyc_documents === 'string'
+        ? JSON.parse(user.kyc_documents)
+        : user.kyc_documents;
+    } catch (e) {
+      kycDocuments = user.kyc_documents;
+    }
+  }
+
+  const kycInfo = {
+    id: user.id,
+    fullName: user.full_name,
+    email: user.email,
+    phone: user.phone,
+    wardNumber: user.ward_number,
+    kycStatus: user.kyc_status,
+    kycDocuments: kycDocuments,
+    registeredAt: user.created_at,
+    updatedAt: user.updated_at
+  };
+
+  sendSuccess(res, { user: kycInfo });
+});
+
+/**
+ * Update user KYC status (admin only)
+ * PATCH /api/admin/users/:id/kyc-status
+ */
+export const updateUserKYCStatus = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const { status, rejectionReason } = req.body;
+
+  if (!['VERIFIED', 'REJECTED', 'PENDING'].includes(status)) {
+    return sendError(res, 'Invalid KYC status. Must be VERIFIED, REJECTED, or PENDING', HTTP_STATUS.BAD_REQUEST);
+  }
+
+  // Update status in database
+  const updateFields = ['kyc_status = $1', 'updated_at = NOW()'];
+  const params = [status];
+  let paramCount = 2;
+
+  if (status === 'REJECTED' && rejectionReason) {
+    updateFields.push(`kyc_rejection_reason = $${paramCount}`);
+    params.push(rejectionReason);
+    paramCount++;
+  }
+
+  const sql = `
+    UPDATE users
+    SET ${updateFields.join(', ')}
+    WHERE id = $${paramCount}
+    RETURNING id, full_name, email, phone, ward_number, kyc_status, kyc_documents, created_at, updated_at
+  `;
+
+  params.push(id);
+
+  const result = await query(sql, params);
+
+  if (result.rows.length === 0) {
+    return sendError(res, 'User not found', HTTP_STATUS.NOT_FOUND);
+  }
+
+  const updatedUser = result.rows[0];
+
+  // Parse KYC documents
+  let kycDocuments = null;
+  if (updatedUser.kyc_documents) {
+    try {
+      kycDocuments = typeof updatedUser.kyc_documents === 'string'
+        ? JSON.parse(updatedUser.kyc_documents)
+        : updatedUser.kyc_documents;
+    } catch (e) {
+      kycDocuments = updatedUser.kyc_documents;
+    }
+  }
+
+  const responseData = {
+    id: updatedUser.id,
+    fullName: updatedUser.full_name,
+    email: updatedUser.email,
+    phone: updatedUser.phone,
+    wardNumber: updatedUser.ward_number,
+    kycStatus: updatedUser.kyc_status,
+    kycDocuments: kycDocuments,
+    updatedAt: updatedUser.updated_at
+  };
+
+  sendSuccess(res, { user: responseData }, `KYC status updated to ${status}`);
+});
+
+/**
  * Get current user's profile
  * GET /api/users/me
  */
