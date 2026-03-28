@@ -249,7 +249,7 @@ router.get('/users', authMiddleware, adminOnly, async (req, res) => {
   try {
     const { role, wardNumber } = req.user;
     const { kycStatus, search, sort } = req.query;
-    
+
     let filters = { role: 'user' };
     if (role === 'ward_admin') {
       filters.ward = wardNumber;
@@ -262,21 +262,35 @@ router.get('/users', authMiddleware, adminOnly, async (req, res) => {
     }
 
     const allUsers = await User.findAll(filters);
-    
+
     // Format users for frontend
-    const formattedUsers = allUsers.map(user => ({
-      id: user.id,
-      name: user.full_name,
-      email: user.email,
-      phone: user.phone,
-      ward: user.ward_number,
-      wardNumber: user.ward_number,
-      role: user.role,
-      kycStatus: user.kyc_status?.toLowerCase() || 'pending',
-      enabled: !user.is_disabled,
-      registeredOn: user.created_at,
-      documents: user.kyc_documents || null
-    }));
+    const formattedUsers = allUsers.map(user => {
+      // Parse KYC documents if stored as JSON
+      let kycDocuments = null;
+      if (user.kyc_documents) {
+        try {
+          kycDocuments = typeof user.kyc_documents === 'string'
+            ? JSON.parse(user.kyc_documents)
+            : user.kyc_documents;
+        } catch (e) {
+          kycDocuments = user.kyc_documents;
+        }
+      }
+
+      return {
+        id: user.id,
+        name: user.full_name,
+        email: user.email,
+        phone: user.phone,
+        ward: user.ward_number,
+        wardNumber: user.ward_number,
+        role: user.role,
+        kycStatus: user.kyc_status?.toLowerCase() || 'pending',
+        enabled: !user.is_disabled,
+        registeredOn: user.created_at,
+        documents: kycDocuments
+      };
+    });
 
     // Calculate stats
     const stats = {
@@ -285,7 +299,7 @@ router.get('/users', authMiddleware, adminOnly, async (req, res) => {
       active: formattedUsers.filter(u => u.enabled && u.kycStatus === 'verified').length
     };
 
-    res.json({ 
+    res.json({
       success: true,
       data: {
         users: formattedUsers,
@@ -301,19 +315,67 @@ router.get('/users', authMiddleware, adminOnly, async (req, res) => {
 // Update user KYC status (admin only)
 router.patch('/users/:id/kyc', authMiddleware, adminOnly, async (req, res) => {
   try {
-    const { status } = req.body; // VERIFIED, REJECTED, PENDING
-    
+    const { status, rejectionReason } = req.body; // VERIFIED, REJECTED, PENDING
+
     if (!['VERIFIED', 'REJECTED', 'PENDING'].includes(status)) {
-      return res.status(400).json({ message: "Invalid KYC status" });
+      return res.status(400).json({ message: "Invalid KYC status. Must be VERIFIED, REJECTED, or PENDING" });
     }
 
-    // Update user (you'll need to add this method to User model)
-    await query(
-      'UPDATE users SET kyc_status = $1, updated_at = NOW() WHERE id = $2',
-      [status, req.params.id]
-    );
+    // Build update query
+    const updateFields = ['kyc_status = $1', 'updated_at = NOW()'];
+    const params = [status];
+    let paramCount = 2;
 
-    res.json({ message: "KYC status updated" });
+    if (status === 'REJECTED' && rejectionReason) {
+      updateFields.push(`kyc_rejection_reason = $${paramCount}`);
+      params.push(rejectionReason);
+      paramCount++;
+    }
+
+    // Update user and get updated data
+    const sql = `
+      UPDATE users
+      SET ${updateFields.join(', ')}
+      WHERE id = $${paramCount}
+      RETURNING id, full_name, email, phone, ward_number, kyc_status, kyc_documents, updated_at
+    `;
+
+    params.push(req.params.id);
+
+    const result = await query(sql, params);
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    const updatedUser = result.rows[0];
+
+    // Parse KYC documents if stored as JSON
+    let kycDocuments = null;
+    if (updatedUser.kyc_documents) {
+      try {
+        kycDocuments = typeof updatedUser.kyc_documents === 'string'
+          ? JSON.parse(updatedUser.kyc_documents)
+          : updatedUser.kyc_documents;
+      } catch (e) {
+        kycDocuments = updatedUser.kyc_documents;
+      }
+    }
+
+    res.json({
+      success: true,
+      message: `KYC status updated to ${status}`,
+      data: {
+        id: updatedUser.id,
+        fullName: updatedUser.full_name,
+        email: updatedUser.email,
+        phone: updatedUser.phone,
+        wardNumber: updatedUser.ward_number,
+        kycStatus: updatedUser.kyc_status,
+        kycDocuments: kycDocuments,
+        updatedAt: updatedUser.updated_at
+      }
+    });
   } catch (error) {
     console.error('Update KYC error:', error);
     res.status(500).json({ message: "Server error" });
