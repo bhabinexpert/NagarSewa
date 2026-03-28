@@ -9,7 +9,8 @@ import {
   submitKYC,
   getMyProfile,
   getUserKYC,
-  updateUserKYCStatus
+  updateUserKYCStatus,
+  updateKYC
 } from '../controllers/user.js';
 
 const router = express.Router();
@@ -31,6 +32,9 @@ router.patch('/:id/profile', authMiddleware, updateProfile);
 
 // Submit KYC documents (with file upload middleware)
 router.post('/:id/kyc', authMiddleware, uploadKYCDocuments, handleUploadError, submitKYC);
+
+// Update/Resubmit KYC documents (with file upload middleware)
+router.patch('/:id/kyc', authMiddleware, uploadKYCDocuments, handleUploadError, updateKYC);
 
 // Update user KYC status (admin only) - approve or reject
 router.patch('/:id/kyc-status', authMiddleware, adminOnly, updateUserKYCStatus);
