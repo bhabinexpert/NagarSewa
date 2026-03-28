@@ -21,12 +21,18 @@ import {
   MessageSquare,
   Hash,
 } from "lucide-react";
+import {
+  buildMediaCandidates,
+  toDataUrlFromRaw,
+  detectMimeFromBytes,
+  detectMimeFromBase64,
+  bytesToBase64
+} from "../../../utils/imageUtils";
 
 // Build a stable base URL from API URL so uploaded files load in all environments.
 const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:2026/api";
 const FILE_BASE_URL = API_BASE_URL.replace(/\/api\/?$/, "");
 const VIDEO_EXTENSIONS = /\.(mp4|mov|avi|webm|mkv)$/i;
-const BASE64_CHARS_REGEX = /^[A-Za-z0-9+/=\s]+$/;
 
 /**
  * Parse issue attachment field into a clean string array.
@@ -86,114 +92,6 @@ function parseIssuePhotos(photoField) {
 
   // 4) Single path fallback
   return [value];
-}
-
-function bytesToBase64(bytes) {
-  let binary = "";
-  const chunkSize = 0x8000;
-  for (let i = 0; i < bytes.length; i += chunkSize) {
-    const chunk = bytes.slice(i, i + chunkSize);
-    binary += String.fromCharCode(...chunk);
-  }
-  return btoa(binary);
-}
-
-function detectMimeFromBytes(bytes) {
-  if (!bytes || bytes.length < 4) return "image/jpeg";
-  if (bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4e && bytes[3] === 0x47) return "image/png";
-  if (bytes[0] === 0xff && bytes[1] === 0xd8) return "image/jpeg";
-  if (bytes[0] === 0x47 && bytes[1] === 0x49 && bytes[2] === 0x46) return "image/gif";
-  if (bytes[0] === 0x52 && bytes[1] === 0x49 && bytes[2] === 0x46 && bytes[3] === 0x46) return "image/webp";
-  return "image/jpeg";
-}
-
-function detectMimeFromBase64(base64Value) {
-  const compact = base64Value.replace(/\s/g, "");
-  if (compact.startsWith("iVBORw0KGgo")) return "image/png";
-  if (compact.startsWith("/9j/")) return "image/jpeg";
-  if (compact.startsWith("R0lGOD")) return "image/gif";
-  if (compact.startsWith("UklGR")) return "image/webp";
-  if (compact.startsWith("AAAAIGZ0eXA") || compact.startsWith("AAAAGGZ0eXA")) return "video/mp4";
-  return "image/jpeg";
-}
-
-function toDataUrlFromRaw(rawValue) {
-  if (!rawValue) return null;
-
-  // Buffer object serialized by JSON (common when binary is read from DB)
-  if (typeof rawValue === "object" && rawValue.type === "Buffer" && Array.isArray(rawValue.data)) {
-    try {
-      const bytes = Uint8Array.from(rawValue.data);
-      const mime = detectMimeFromBytes(bytes);
-      return `data:${mime};base64,${bytesToBase64(bytes)}`;
-    } catch {
-      return null;
-    }
-  }
-
-  if (typeof rawValue !== "string") {
-    return null;
-  }
-
-  const value = rawValue.trim();
-  if (!value) return null;
-
-  // Already a renderable data URI from DB
-  if (value.startsWith("data:")) {
-    return value;
-  }
-
-  // Raw base64 from DB (without data URI prefix)
-  const compact = value.replace(/\s/g, "");
-  if (compact.length > 120 && BASE64_CHARS_REGEX.test(value)) {
-    const mime = detectMimeFromBase64(compact);
-    return `data:${mime};base64,${compact}`;
-  }
-
-  return null;
-}
-
-/**
- * Build multiple URL candidates so media still loads if backend is served
- * from either /uploads or /api/uploads.
- */
-function buildMediaCandidates(rawPath) {
-  if (!rawPath || typeof rawPath !== "string") return [];
-
-  const cleaned = rawPath.replace(/\\/g, "/").trim();
-  if (!cleaned) return [];
-
-  if (cleaned.startsWith("http://") || cleaned.startsWith("https://")) {
-    return [cleaned];
-  }
-
-  // If backend accidentally stores filesystem path, extract uploads segment.
-  const uploadSegment = cleaned.includes("/uploads/")
-    ? cleaned.slice(cleaned.indexOf("/uploads/"))
-    : null;
-
-  const normalizedRaw = cleaned.startsWith("/") ? cleaned : `/${cleaned}`;
-  const normalizedUpload = uploadSegment
-    ? (uploadSegment.startsWith("/") ? uploadSegment : `/${uploadSegment}`)
-    : null;
-
-  // If value is only a filename, assume issues upload folder.
-  const filenameOnly = !cleaned.includes("/") ? `/uploads/issues/${cleaned}` : null;
-
-  const possiblePaths = [
-    normalizedRaw,
-    normalizedUpload,
-    filenameOnly,
-  ].filter(Boolean);
-
-  const candidates = possiblePaths.flatMap((pathValue) => ([
-    `${FILE_BASE_URL}${pathValue}`,
-    `${FILE_BASE_URL}/api${pathValue}`,
-    `${API_BASE_URL}${pathValue}`,
-  ]));
-
-  // Keep order but remove duplicates
-  return [...new Set(candidates)];
 }
 
 export function IssueCard({ issue, t, isSuperAdmin, onStatusUpdate, onPrioritySet, isSubmitting }) {

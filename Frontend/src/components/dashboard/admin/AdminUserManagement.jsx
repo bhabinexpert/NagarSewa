@@ -23,6 +23,7 @@ import { useAuth } from "../../../contexts/auth/useAuth";
 import { DAMAK_TOTAL_WARDS, ROLES } from "../../../contexts/auth/authConstants";
 import { useUsers } from "../../../hooks/useData";
 import { adminAPI } from "../../../services/api";
+import { normalizeImageUrl } from "../../../utils/imageUtils";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import {
@@ -329,45 +330,8 @@ function DocumentsModal(props) {
   }
 
   // Get document URLs from backend
-  const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:2026/api';
-  const BASE_URL = API_BASE_URL.replace('/api', '');
-  const BASE64_CHARS_REGEX = /^[A-Za-z0-9+/=\s]+$/;
-  
   let citizenshipFrontUrl = null;
   let citizenshipBackUrl = null;
-
-  function normalizeDocumentValue(value) {
-    if (!value) return null;
-
-    if (typeof value === 'object' && value.type === 'Buffer' && Array.isArray(value.data)) {
-      try {
-        const bytes = Uint8Array.from(value.data);
-        let binary = '';
-        const chunkSize = 0x8000;
-        for (let i = 0; i < bytes.length; i += chunkSize) {
-          binary += String.fromCharCode(...bytes.slice(i, i + chunkSize));
-        }
-        return `data:image/jpeg;base64,${btoa(binary)}`;
-      } catch {
-        return null;
-      }
-    }
-
-    const text = String(value).trim();
-    if (!text) return null;
-    if (text.startsWith('data:')) return text;
-    if (text.startsWith('http://') || text.startsWith('https://')) return text;
-
-    const compact = text.replace(/\s/g, '');
-    if (compact.length > 120 && BASE64_CHARS_REGEX.test(text)) {
-      return `data:image/jpeg;base64,${compact}`;
-    }
-
-    const normalizedPath = text.replace(/\\/g, '/');
-    const cleanBase = BASE_URL.endsWith('/') ? BASE_URL.slice(0, -1) : BASE_URL;
-    const cleanPath = normalizedPath.startsWith('/') ? normalizedPath : `/${normalizedPath}`;
-    return `${cleanBase}${cleanPath}`;
-  }
 
   // Parse documents if they exist (backend stores as JSON string)
   if (user.documents) {
@@ -382,12 +346,12 @@ function DocumentsModal(props) {
       }
     }
 
-    // Build full URLs for documents
+    // Build full URLs for documents using utility function
     if (docs && docs.citizenshipFront) {
-      citizenshipFrontUrl = normalizeDocumentValue(docs.citizenshipFront);
+      citizenshipFrontUrl = normalizeImageUrl(docs.citizenshipFront);
     }
     if (docs && docs.citizenshipBack) {
-      citizenshipBackUrl = normalizeDocumentValue(docs.citizenshipBack);
+      citizenshipBackUrl = normalizeImageUrl(docs.citizenshipBack);
     }
   }
 
@@ -601,8 +565,8 @@ function UserCard(props) {
   function renderActionButtons() {
     const buttons = [];
 
-    // View documents button (if pending or not submitted KYC)
-    if (normalizedKycStatus === "pending" || normalizedKycStatus === "not_submitted") {
+    // View documents button (always available if documents exist)
+    if (user.documents) {
       buttons.push(
         <button
           key="docs"
@@ -613,7 +577,10 @@ function UserCard(props) {
           {t.viewDocuments}
         </button>
       );
+    }
 
+    // Verify and Reject buttons (if pending KYC)
+    if (normalizedKycStatus === "pending" || normalizedKycStatus === "not_submitted") {
       buttons.push(
         <button
           key="verify"
