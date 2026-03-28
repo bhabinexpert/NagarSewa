@@ -211,12 +211,15 @@ router.get('/dashboard/stats', authMiddleware, adminOnly, async (req, res) => {
     if (role === 'ward_admin') {
       userFilters.ward = wardNumber;
     }
-    
+
     const users = await User.findAll(userFilters);
     const userStats = {
       total: users.length,
       verified: users.filter(u => (u.kyc_status || '').toUpperCase() === 'VERIFIED').length,
-      pendingKyc: users.filter(u => (u.kyc_status || '').toUpperCase() === 'PENDING').length
+      pendingKyc: users.filter(u => {
+        const status = (u.kyc_status || '').toUpperCase();
+        return status === 'PENDING' || status === 'NOT_SUBMITTED';
+      }).length
     };
 
     // Campaign stats
@@ -286,7 +289,7 @@ router.get('/users', authMiddleware, adminOnly, async (req, res) => {
         ward: user.ward_number,
         wardNumber: user.ward_number,
         role: user.role,
-        kycStatus: user.kyc_status?.toLowerCase() || 'pending',
+        kycStatus: (user.kyc_status === 'not_submitted' || !user.kyc_status) ? 'pending' : user.kyc_status?.toLowerCase(),
         enabled: !user.is_disabled,
         registeredOn: user.created_at,
         documents: kycDocuments
@@ -296,7 +299,7 @@ router.get('/users', authMiddleware, adminOnly, async (req, res) => {
     // Calculate stats
     const stats = {
       total: formattedUsers.length,
-      pendingKyc: formattedUsers.filter(u => u.kycStatus === 'pending').length,
+      pendingKyc: formattedUsers.filter(u => u.kycStatus === 'pending' || u.kycStatus === 'not_submitted').length,
       active: formattedUsers.filter(u => u.enabled && u.kycStatus === 'verified').length
     };
 

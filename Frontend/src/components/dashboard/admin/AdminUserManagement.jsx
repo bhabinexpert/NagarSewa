@@ -172,14 +172,26 @@ const userManagementText = {
 // ============================================================================
 
 /**
+ * Normalize KYC status to lowercase.
+ * @param {string} status - KYC status value
+ * @returns {string} Normalized status
+ */
+function normalizeKycStatus(status) {
+  const normalized = status ? status.toLowerCase() : 'pending';
+  // Treat not_submitted as pending
+  return normalized === 'not_submitted' ? 'pending' : normalized;
+}
+
+/**
  * Get KYC status icon.
  * @param {string} status - KYC status value
  * @returns {JSX.Element} Icon component
  */
 function getKycIcon(status) {
-  if (status === "verified") {
+  const normalized = normalizeKycStatus(status);
+  if (normalized === "verified") {
     return <CheckCircle className="text-green-500" size={16} />;
-  } else if (status === "rejected") {
+  } else if (normalized === "rejected") {
     return <XCircle className="text-red-500" size={16} />;
   } else {
     return <Clock className="text-yellow-500" size={16} />;
@@ -192,9 +204,10 @@ function getKycIcon(status) {
  * @returns {string} CSS classes
  */
 function getKycColor(status) {
-  if (status === "verified") {
+  const normalized = normalizeKycStatus(status);
+  if (normalized === "verified") {
     return "text-green-700 bg-green-100";
-  } else if (status === "rejected") {
+  } else if (normalized === "rejected") {
     return "text-red-700 bg-red-100";
   } else {
     return "text-yellow-700 bg-yellow-100";
@@ -267,6 +280,41 @@ function StatsCard(props) {
 }
 
 /**
+ * Image document component for rendering a single document image.
+ * @param {Object} props - Component props
+ * @returns {JSX.Element} Image element
+ */
+function ImageDocument({ url, label }) {
+  const [imageError, setImageError] = useState(false);
+
+  if (url && !imageError) {
+    return (
+      <div className="space-y-2">
+        <p className="text-sm font-medium text-gray-700">{label}</p>
+        <img
+          src={url}
+          alt={label}
+          className="w-full h-48 object-cover rounded-lg border border-gray-200"
+          onError={() => setImageError(true)}
+        />
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-2">
+      <p className="text-sm font-medium text-gray-700">{label}</p>
+      <div className="w-full h-48 bg-red-50 rounded-lg flex items-center justify-center">
+        <div className="text-center text-red-600">
+          <AlertCircle className="mx-auto mb-2" size={48} />
+          <p className="text-sm">Failed to load image</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/**
  * Documents modal component.
  * @param {Object} props - Component props
  * @returns {JSX.Element|null} Modal element or null
@@ -316,13 +364,15 @@ function DocumentsModal(props) {
     }
 
     const normalizedPath = text.replace(/\\/g, '/');
-    return normalizedPath.startsWith('/') ? `${BASE_URL}${normalizedPath}` : `${BASE_URL}/${normalizedPath}`;
+    const cleanBase = BASE_URL.endsWith('/') ? BASE_URL.slice(0, -1) : BASE_URL;
+    const cleanPath = normalizedPath.startsWith('/') ? normalizedPath : `/${normalizedPath}`;
+    return `${cleanBase}${cleanPath}`;
   }
 
   // Parse documents if they exist (backend stores as JSON string)
   if (user.documents) {
     let docs = user.documents;
-    
+
     // If documents is a string, parse it
     if (typeof docs === 'string') {
       try {
@@ -331,7 +381,7 @@ function DocumentsModal(props) {
         console.error('Failed to parse documents:', e);
       }
     }
-    
+
     // Build full URLs for documents
     if (docs && docs.citizenshipFront) {
       citizenshipFrontUrl = normalizeDocumentValue(docs.citizenshipFront);
@@ -348,35 +398,7 @@ function DocumentsModal(props) {
    * @returns {JSX.Element} Image element
    */
   function renderDocument(url, label) {
-    if (url) {
-      return (
-        <div className="space-y-2">
-          <p className="text-sm font-medium text-gray-700">{label}</p>
-          <img
-            src={url}
-            alt={label}
-            className="w-full h-48 object-cover rounded-lg border border-gray-200"
-            onError={(e) => {
-              e.target.src = '';
-              e.target.style.display = 'none';
-              e.target.parentElement.innerHTML = '<div class="w-full h-48 bg-red-50 rounded-lg flex items-center justify-center text-red-600 text-sm">Failed to load image</div>';
-            }}
-          />
-        </div>
-      );
-    } else {
-      return (
-        <div className="space-y-2">
-          <p className="text-sm font-medium text-gray-700">{label}</p>
-          <div className="w-full h-48 bg-gray-100 rounded-lg flex items-center justify-center">
-            <div className="text-center text-gray-500">
-              <FileText className="mx-auto mb-2" size={48} />
-              <p className="text-sm">No document uploaded</p>
-            </div>
-          </div>
-        </div>
-      );
-    }
+    return <ImageDocument url={url} label={label} />;
   }
 
   return (
@@ -400,7 +422,7 @@ function DocumentsModal(props) {
               <p className="text-sm text-gray-500 mt-1">Ward {user.wardNumber || user.ward}</p>
             </div>
             <div>
-              <span className={"px-3 py-1 rounded-full text-xs font-medium " + (user.kycStatus === 'verified' ? 'bg-green-100 text-green-700' : user.kycStatus === 'pending' ? 'bg-yellow-100 text-yellow-700' : 'bg-gray-100 text-gray-700')}>
+              <span className={"px-3 py-1 rounded-full text-xs font-medium " + ((normalizeKycStatus(user.kycStatus) === 'verified') ? 'bg-green-100 text-green-700' : (normalizeKycStatus(user.kycStatus) === 'rejected') ? 'bg-red-100 text-red-700' : 'bg-yellow-100 text-yellow-700')}>
                 {user.kycStatus?.toUpperCase() || 'NOT SUBMITTED'}
               </span>
             </div>
@@ -531,10 +553,11 @@ function UserCard(props) {
   const t = props.t;
 
   // Determine KYC status text
+  const normalizedKycStatus = normalizeKycStatus(user.kycStatus);
   let kycStatusText = t.pendingKyc;
-  if (user.kycStatus === "verified") {
+  if (normalizedKycStatus === "verified") {
     kycStatusText = t.verified;
-  } else if (user.kycStatus === "rejected") {
+  } else if (normalizedKycStatus === "rejected") {
     kycStatusText = t.rejected;
   }
 
@@ -578,8 +601,8 @@ function UserCard(props) {
   function renderActionButtons() {
     const buttons = [];
 
-    // View documents button (if pending KYC)
-    if (user.kycStatus === "pending") {
+    // View documents button (if pending or not submitted KYC)
+    if (normalizedKycStatus === "pending" || normalizedKycStatus === "not_submitted") {
       buttons.push(
         <button
           key="docs"
@@ -617,7 +640,7 @@ function UserCard(props) {
     }
 
     // Enable/disable button (if verified)
-    if (user.kycStatus === "verified") {
+    if (normalizedKycStatus === "verified") {
       let buttonClass;
       let buttonIcon;
       let buttonText;
