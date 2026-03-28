@@ -229,8 +229,11 @@ export const adminAPI = {
   
   enableUser: (id) => apiClient.patch(`/admin/users/${id}/enable`),
   
-  verifyKYC: (id, kyc_status) => 
-    apiClient.patch(`/admin/users/${id}/kyc`, { status: kyc_status }),
+  verifyKYC: (id, kyc_status, rejectionReason) =>
+    apiClient.patch(`/admin/users/${id}/kyc`, {
+      status: kyc_status,
+      ...(rejectionReason && { rejectionReason })
+    }),
   
   // Ward admin management
   getWardAdmins: () => apiClient.get('/admin/ward-admins'),
