@@ -292,6 +292,7 @@ router.get('/users', authMiddleware, adminOnly, async (req, res) => {
         kycStatus: (user.kyc_status === 'not_submitted' || !user.kyc_status) ? 'pending' : user.kyc_status?.toLowerCase(),
         enabled: !user.is_disabled,
         registeredOn: user.created_at,
+        profilePhoto: user.profile_photo,
         documents: kycDocuments
       };
     });

@@ -392,8 +392,12 @@ function DocumentsModal(props) {
         <div className="p-6 space-y-6">
           {/* User Info */}
           <div className="flex items-center gap-4 pb-4 border-b border-gray-100">
-            <div className="w-16 h-16 rounded-full bg-emerald-100 flex items-center justify-center">
-              <User className="text-emerald-600" size={32} />
+            <div className="w-16 h-16 rounded-full bg-emerald-100 flex items-center justify-center overflow-hidden shrink-0">
+              {user.profilePhoto ? (
+                <img src={user.profilePhoto} alt={user.name} className="w-full h-full object-cover" />
+              ) : (
+                <User className="text-emerald-600" size={32} />
+              )}
             </div>
             <div className="flex-1">
               <h4 className="font-semibold text-gray-800">{user.name}</h4>
@@ -683,8 +687,12 @@ function UserCard(props) {
       {/* User Header */}
       <div className="p-4 flex items-center justify-between cursor-pointer" onClick={onToggle}>
         <div className="flex items-center gap-4">
-          <div className="w-12 h-12 rounded-full bg-emerald-100 flex items-center justify-center">
-            <User className="text-emerald-600" size={24} />
+          <div className="w-12 h-12 rounded-full bg-emerald-100 flex items-center justify-center overflow-hidden shrink-0">
+            {user.profilePhoto ? (
+              <img src={user.profilePhoto} alt={user.name} className="w-full h-full object-cover" />
+            ) : (
+              <User className="text-emerald-600" size={24} />
+            )}
           </div>
           <div>
             <p className="font-medium text-gray-800">{user.name}</p>

@@ -83,7 +83,7 @@ export const User = {
 
   // Get all users (with filters)
   async findAll(filters = {}) {
-    let sql = 'SELECT id, full_name, email, phone, role, ward_number, kyc_status, is_disabled, created_at, kyc_documents FROM users WHERE 1=1';
+    let sql = 'SELECT id, full_name, email, phone, role, ward_number, kyc_status, is_disabled, created_at, kyc_documents, profile_photo FROM users WHERE 1=1';
     const values = [];
     let paramCount = 1;
 
