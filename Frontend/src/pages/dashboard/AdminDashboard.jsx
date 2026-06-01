@@ -175,6 +175,30 @@ function AdminDashboard() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [wardFilter, setWardFilter] = useState("all"); // For super admin filtering
 
+  // Sidebar notification badges clear once the admin opens the tab and only
+  // reappear when the pending count grows. Seen counts persist per-admin.
+  const badgeStorageKey = `admin_seen_badges_${currentUser?.id || "anonymous"}`;
+  const [seenBadges, setSeenBadges] = useState(function () {
+    try {
+      return JSON.parse(localStorage.getItem(badgeStorageKey)) || {};
+    } catch {
+      return {};
+    }
+  });
+
+  function markBadgeSeen(tabId, count) {
+    setSeenBadges(function (prev) {
+      if ((prev[tabId] || 0) === count) return prev;
+      const next = { ...prev, [tabId]: count };
+      try {
+        localStorage.setItem(badgeStorageKey, JSON.stringify(next));
+      } catch {
+        // ignore storage write failures
+      }
+      return next;
+    });
+  }
+
   // ============================================================
   // REAL DASHBOARD DATA FROM API (loaded on demand)
   // ============================================================
@@ -225,6 +249,17 @@ function AdminDashboard() {
     approvedCampaigns: dashboardStats.campaigns?.approved || 0,
   };
 
+  // Clear a tab's notification badge once it's active (and keep it cleared as
+  // counts change while the admin is viewing it).
+  React.useEffect(function () {
+    if (activeTab === "issues") {
+      markBadgeSeen("issues", stats.pending);
+    } else if (activeTab === "users") {
+      markBadgeSeen("users", stats.pendingKyc);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab, stats.pending, stats.pendingKyc]);
+
   // ============================================================
   // ADMIN INFO
   // ============================================================
@@ -269,14 +304,16 @@ function AdminDashboard() {
       items.push({ id: "wardManagement", icon: UserPlus, label: t.wardManagement });
     }
     
-    // Issues - available to all with badge
-    items.push({ id: "issues", icon: FileText, label: t.issues, badge: stats.pending > 0 ? stats.pending : null });
-    
+    // Issues - badge shows only while there are unseen pending issues
+    const unseenIssues = stats.pending > (seenBadges.issues || 0);
+    items.push({ id: "issues", icon: FileText, label: t.issues, badge: unseenIssues ? stats.pending : null });
+
     // Campaigns - available to all
     items.push({ id: "campaigns", icon: Megaphone, label: t.campaigns });
-    
-    // Users - available to all with badge
-    items.push({ id: "users", icon: Users, label: t.users, badge: stats.pendingKyc > 0 ? stats.pendingKyc : null });
+
+    // Users - badge shows only while there are unseen pending KYC submissions
+    const unseenKyc = stats.pendingKyc > (seenBadges.users || 0);
+    items.push({ id: "users", icon: Users, label: t.users, badge: unseenKyc ? stats.pendingKyc : null });
     
     // Analytics - available to all
     items.push({ id: "analytics", icon: BarChart3, label: t.analytics });
