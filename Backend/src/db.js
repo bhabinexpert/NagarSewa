@@ -6,18 +6,25 @@ dotenv.config({ quiet: true });
 
 const { Pool } = pg;
 
-// Create connection pool
-const pool = new Pool({
-  // user: process.env.PG_USER,
-  // host: process.env.PG_HOST,
-  // database: process.env.PG_DATABASE,
-  // password: process.env.PG_PASSWORD,
-  // port: process.env.PG_PORT || 5432,
-  connectionString: process.env.DATABASE_URL,
-  ssl:{
-    rejectUnauthorized: false,
-  }
-});
+// Create connection pool.
+// - If DATABASE_URL is set (e.g. Render/Neon in production), use it over SSL.
+// - Otherwise fall back to the individual PG_* vars (typical local Postgres,
+//   which usually doesn't support SSL).
+const connectionString = process.env.DATABASE_URL;
+
+const pool = connectionString
+  ? new Pool({
+      connectionString,
+      ssl: { rejectUnauthorized: false },
+    })
+  : new Pool({
+      user: process.env.PG_USER,
+      host: process.env.PG_HOST,
+      database: process.env.PG_DATABASE,
+      password: process.env.PG_PASSWORD,
+      port: process.env.PG_PORT || 5432,
+      ssl: process.env.PG_SSL === 'true' ? { rejectUnauthorized: false } : false,
+    });
 
 // Test database connection
 export async function testConnection() {
