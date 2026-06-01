@@ -12,11 +12,27 @@ const { Pool } = pg;
 //   which usually doesn't support SSL).
 const connectionString = process.env.DATABASE_URL;
 
+/**
+ * Build the pool config for a hosted connection string.
+ * We strip the `sslmode`/`channel_binding` query params and configure SSL
+ * explicitly via the `ssl` option. This keeps the connection encrypted while
+ * avoiding the driver's deprecated-`sslmode` security warning.
+ */
+function buildHostedConfig(rawUrl) {
+  let cleanUrl = rawUrl;
+  try {
+    const url = new URL(rawUrl);
+    url.searchParams.delete('sslmode');
+    url.searchParams.delete('channel_binding');
+    cleanUrl = url.toString();
+  } catch {
+    // Not a parseable URL — use the raw value as-is.
+  }
+  return { connectionString: cleanUrl, ssl: { rejectUnauthorized: false } };
+}
+
 const pool = connectionString
-  ? new Pool({
-      connectionString,
-      ssl: { rejectUnauthorized: false },
-    })
+  ? new Pool(buildHostedConfig(connectionString))
   : new Pool({
       user: process.env.PG_USER,
       host: process.env.PG_HOST,
