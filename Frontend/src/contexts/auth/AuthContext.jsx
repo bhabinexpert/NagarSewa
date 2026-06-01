@@ -78,10 +78,13 @@ export function AuthProvider({ children }) {
           
           try {
             const response = await Promise.race([validationPromise, timeoutPromise]);
-            
-            // Update with fresh data from backend if successful
-            if (response && response.user) {
-              setCurrentUser(response.user);
+
+            // The API envelope is { success, message, data: { user } }. Reading
+            // response.user directly silently dropped the fresh data (including
+            // kycDocuments), so fall back through both shapes.
+            const freshUser = response?.data?.user || response?.user;
+            if (freshUser) {
+              setCurrentUser(freshUser);
             }
           } catch (validationError) {
             // If validation times out or fails, it's not blocking - user stays logged in
@@ -236,10 +239,11 @@ export function AuthProvider({ children }) {
   async function refreshUser() {
     try {
       const response = await api.auth.getMe();
-      if (response && response.user) {
-        setCurrentUser(response.user);
-        sessionStorage.setItem("nagarsewa_user", JSON.stringify(response.user));
-        return response.user;
+      const freshUser = response?.data?.user || response?.user;
+      if (freshUser) {
+        setCurrentUser(freshUser);
+        sessionStorage.setItem("nagarsewa_user", JSON.stringify(freshUser));
+        return freshUser;
       }
     } catch (error) {
       console.error('Error refreshing user data:', error);

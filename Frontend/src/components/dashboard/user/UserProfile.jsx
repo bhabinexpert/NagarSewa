@@ -513,9 +513,14 @@ function UserProfile() {
   React.useEffect(function fetchFreshUserData() {
     async function refreshUserData() {
       if (currentUser && currentUser.id) {
-        // Check if we're missing critical fields
-        const missingFields = !currentUser.fullName || !currentUser.gender || !currentUser.address;
-        
+        // Refresh if core fields are missing, or if KYC documents haven't been
+        // loaded yet (they only come from GET /me, not from login).
+        const missingFields =
+          !currentUser.fullName ||
+          !currentUser.gender ||
+          !currentUser.address ||
+          currentUser.kycDocuments === undefined;
+
         if (missingFields) {
           setLoading(true);
           try {
