@@ -312,7 +312,7 @@ function Login() {
         {/* Logo and Header Section */}
         <div className="text-center mb-3 sm:mb-4">
           <img
-            src="/nagarsewa.jpg"
+            src="/nagarsewalogo.jpeg"
             alt="NagarSewa Logo"
             className="w-16 h-16 sm:w-20 sm:h-20 rounded-full object-cover ring-4 ring-white/30 shadow-xl mx-auto mb-2 sm:mb-3"
           />

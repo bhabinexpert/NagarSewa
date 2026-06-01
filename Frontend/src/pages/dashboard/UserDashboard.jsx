@@ -411,7 +411,7 @@ function UserDashboard() {
             {mobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
           </button>
           <img 
-            src="/nagarsewa.jpg" 
+            src="/nagarsewalogo.jpeg" 
             alt="NagarSewa" 
             className="w-8 h-8 rounded-lg object-cover"
           />
@@ -444,7 +444,7 @@ function UserDashboard() {
         <div className="p-6 border-b border-gray-100">
           <div className="flex items-center gap-3">
             <img 
-              src="/nagarsewa.jpg" 
+              src="/nagarsewalogo.jpeg" 
               alt="NagarSewa Logo" 
               className="w-10 h-10 rounded-lg object-cover shadow-sm"
             />

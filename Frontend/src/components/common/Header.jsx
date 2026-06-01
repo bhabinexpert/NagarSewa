@@ -210,7 +210,7 @@ export default function Header() {
         {/* Logo */}
         <div className="flex items-center gap-2 sm:gap-3">
           <img
-            src="/nagarsewa.jpg"
+            src="/nagarsewalogo.jpeg"
             alt="NagarSewa logo"
             className="h-9 w-9 sm:h-11 sm:w-11 rounded-full object-cover ring-2 ring-emerald-200 shadow transition-transform duration-300 hover:scale-110"
           />

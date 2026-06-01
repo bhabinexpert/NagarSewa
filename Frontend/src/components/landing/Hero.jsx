@@ -87,7 +87,7 @@ export default function Hero() {
             {/* Logo Badge */}
             <div className="mb-6 inline-flex items-center gap-3 rounded-full bg-white/15 px-5 py-2 backdrop-blur">
               <img
-                src="/nagarsewa.jpg"
+                src="/nagarsewalogo.jpeg"
                 alt="NagarSewa logo"
                 className="h-9 w-9 rounded-full object-cover ring-2 ring-white/60"
               />
@@ -127,7 +127,7 @@ export default function Hero() {
               {/* Card Header */}
               <div className="flex items-center gap-4 mb-5">
                 <img
-                  src="/nagarsewa.jpg"
+                  src="/nagarsewalogo.jpeg"
                   alt="NagarSewa logo"
                   className="h-16 w-16 rounded-2xl object-cover ring-2 ring-white/60"
                 />

@@ -1043,7 +1043,7 @@ export default function Signup() {
         <div className="text-center mb-2">
           <div className="inline-flex items-center gap-3">
             <img
-              src="/nagarsewa.jpg"
+              src="/nagarsewalogo.jpeg"
               alt="NagarSewa Logo"
               className="w-12 h-12 md:w-14 md:h-14 rounded-full object-cover ring-3 ring-white/30 shadow-xl"
             />
