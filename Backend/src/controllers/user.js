@@ -187,8 +187,12 @@ export const updateProfile = asyncHandler(async (req, res) => {
 export const submitKYC = asyncHandler(async (req, res) => {
   const { id } = req.params;
 
-  // Check if files were uploaded
-  if (!req.files || !req.files.citizenshipFront || !req.files.citizenshipBack) {
+  // Documents arrive as base64 data URLs in the JSON body. Storing them in the
+  // database (instead of on disk) keeps them available on hosts with an
+  // ephemeral filesystem and matches how profile photos are stored.
+  const { citizenshipFront, citizenshipBack } = req.body;
+
+  if (!citizenshipFront || !citizenshipBack) {
     return sendError(res, 'Both citizenship documents (front and back) are required', HTTP_STATUS.BAD_REQUEST);
   }
 
@@ -203,10 +207,10 @@ export const submitKYC = asyncHandler(async (req, res) => {
     return sendError(res, 'Unauthorized', HTTP_STATUS.FORBIDDEN);
   }
 
-  // Build document paths object
+  // Build document object with the base64 images
   const kycDocuments = {
-    citizenshipFront: `/uploads/kyc/${req.files.citizenshipFront[0].filename}`,
-    citizenshipBack: `/uploads/kyc/${req.files.citizenshipBack[0].filename}`,
+    citizenshipFront,
+    citizenshipBack,
     uploadedAt: new Date().toISOString()
   };
 
@@ -248,8 +252,10 @@ export const submitKYC = asyncHandler(async (req, res) => {
 export const updateKYC = asyncHandler(async (req, res) => {
   const { id } = req.params;
 
-  // Check if files were uploaded
-  if (!req.files || (!req.files.citizenshipFront && !req.files.citizenshipBack)) {
+  // New documents arrive as base64 data URLs in the JSON body.
+  const { citizenshipFront, citizenshipBack } = req.body;
+
+  if (!citizenshipFront && !citizenshipBack) {
     return sendError(res, 'At least one citizenship document (front or back) is required', HTTP_STATUS.BAD_REQUEST);
   }
 
@@ -276,15 +282,11 @@ export const updateKYC = asyncHandler(async (req, res) => {
     }
   }
 
-  // Update documents with new files (overwrite old ones)
+  // Update documents with new base64 images (overwrite only the ones provided)
   const kycDocuments = {
     ...existingDocs,
-    ...(req.files.citizenshipFront && {
-      citizenshipFront: `/uploads/kyc/${req.files.citizenshipFront[0].filename}`
-    }),
-    ...(req.files.citizenshipBack && {
-      citizenshipBack: `/uploads/kyc/${req.files.citizenshipBack[0].filename}`
-    }),
+    ...(citizenshipFront && { citizenshipFront }),
+    ...(citizenshipBack && { citizenshipBack }),
     lastUpdatedAt: new Date().toISOString()
   };
 

@@ -282,24 +282,11 @@ export const usersAPI = {
     apiClient.patch(`/users/${id}/profile`, profileData),
 
   // Submit KYC documents
-  submitKYC: (id, kycData) => {
-    // kycData should be a FormData object with files
-    return apiClient.post(`/users/${id}/kyc`, kycData, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
-    });
-  },
+  // kycData = { citizenshipFront, citizenshipBack } as base64 data URLs
+  submitKYC: (id, kycData) => apiClient.post(`/users/${id}/kyc`, kycData),
 
-  // Update/Resubmit KYC documents
-  updateKYC: (id, kycData) => {
-    // kycData should be a FormData object with files
-    return apiClient.patch(`/users/${id}/kyc`, kycData, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
-    });
-  },
+  // Update/Resubmit KYC documents (base64 data URLs)
+  updateKYC: (id, kycData) => apiClient.patch(`/users/${id}/kyc`, kycData),
 };
 
 // =============================================================================

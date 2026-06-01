@@ -126,6 +126,18 @@ export const getMe = asyncHandler(async (req, res) => {
     return sendError(res, 'User not found', HTTP_STATUS.NOT_FOUND);
   }
 
+  // Parse stored KYC documents (JSON) so the user can view/replace them
+  let kycDocuments = null;
+  if (user.kyc_documents) {
+    try {
+      kycDocuments = typeof user.kyc_documents === 'string'
+        ? JSON.parse(user.kyc_documents)
+        : user.kyc_documents;
+    } catch {
+      kycDocuments = null;
+    }
+  }
+
   // Format user response to match frontend expectations (camelCase)
   const userResponse = {
     id: user.id,
@@ -140,6 +152,7 @@ export const getMe = asyncHandler(async (req, res) => {
     profilePhoto: user.profile_photo,
     kycVerified: user.kyc_status === 'VERIFIED',
     kycStatus: user.kyc_status,
+    kycDocuments: kycDocuments,
     isDisabled: user.is_disabled,
     createdAt: user.created_at,
     updatedAt: user.updated_at,

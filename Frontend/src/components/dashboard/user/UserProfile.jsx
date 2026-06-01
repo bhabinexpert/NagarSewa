@@ -39,6 +39,7 @@ import { useLanguage } from "../../../contexts/language/useLanguage";
 import { useAuth } from "../../../contexts/auth/useAuth";
 import { usersAPI } from "../../../services/api";
 import { resizeImageToDataUrl } from "../../../utils/imageResize";
+import { normalizeImageUrl } from "../../../utils/imageUtils";
 import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import {
@@ -55,6 +56,8 @@ import {
   Edit,
   Save,
   X,
+  Eye,
+  RefreshCw,
   Loader,
 } from "lucide-react";
 
@@ -102,6 +105,12 @@ const profileText = {
     kycUpdateMsg: "You can update your documents and resubmit them for review.",
     uploadPhoto: "Upload Photo",
     changePhoto: "Change Photo",
+    photoSaved: "Profile photo updated!",
+    submittedDocuments: "Submitted Documents",
+    viewDocument: "View",
+    updateDocuments: "Update Documents",
+    updateNotice: "Updating your documents will reset your status to pending until an admin re-verifies them.",
+    documentUnavailable: "Preview unavailable",
     loading: "Loading profile...",
     error: "Failed to load profile",
     retry: "Retry",
@@ -153,6 +162,12 @@ const profileText = {
     kycUpdateMsg: "तपाईं आफ्नो कागजातहरू अपडेट गर्न र पुन: पेश गर्न सक्नुहुन्छ।",
     uploadPhoto: "फोटो अपलोड गर्नुहोस्",
     changePhoto: "फोटो परिवर्तन गर्नुहोस्",
+    photoSaved: "प्रोफाइल फोटो अपडेट भयो!",
+    submittedDocuments: "पेश गरिएका कागजातहरू",
+    viewDocument: "हेर्नुहोस्",
+    updateDocuments: "कागजात अपडेट गर्नुहोस्",
+    updateNotice: "कागजात अपडेट गर्दा प्रशासकले पुन: प्रमाणित नगरेसम्म तपाईंको स्थिति पेन्डिङमा फर्किनेछ।",
+    documentUnavailable: "पूर्वावलोकन उपलब्ध छैन",
     loading: "प्रोफाइल लोड हुँदैछ...",
     error: "प्रोफाइल लोड गर्न असफल",
     retry: "पुन: प्रयास",
@@ -260,13 +275,13 @@ function formatDateForDisplay(dateString) {
  */
 function ProfilePhoto(props) {
   const photo = props.photo;
-  const isEditing = props.isEditing;
   const onUpload = props.onUpload;
+  const isBusy = props.isBusy;
   const t = props.t;
-  
+
   // Reference to hidden file input
   const photoRef = useRef(null);
-  
+
   /**
    * Open file picker when camera button is clicked.
    */
@@ -278,57 +293,56 @@ function ProfilePhoto(props) {
 
   // Determine what to show inside the photo circle
   let photoContent;
-  if (photo) {
+  if (isBusy) {
+    photoContent = <Loader className="text-emerald-600 animate-spin" size={40} />;
+  } else if (photo) {
     photoContent = <img src={photo} alt="Profile" className="w-full h-full object-cover" />;
   } else {
     photoContent = <User className="text-emerald-600" size={48} />;
   }
 
   // Determine button text for upload link
-  let uploadText;
-  if (photo) {
-    uploadText = t.changePhoto;
-  } else {
-    uploadText = t.uploadPhoto;
-  }
+  const uploadText = photo ? t.changePhoto : t.uploadPhoto;
 
   return (
     <div className="flex flex-col items-center">
       <div className="relative">
         {/* Photo Circle */}
-        <div className="w-32 h-32 rounded-full bg-emerald-100 flex items-center justify-center overflow-hidden">
+        <div className="w-32 h-32 rounded-full bg-emerald-100 flex items-center justify-center overflow-hidden ring-2 ring-emerald-100">
           {photoContent}
         </div>
-        
-        {/* Camera Button - Only visible when editing */}
-        {isEditing && (
-          <button 
-            onClick={handleButtonClick} 
-            className="absolute bottom-0 right-0 p-2 bg-emerald-600 text-white rounded-full hover:bg-emerald-700 transition"
-          >
-            <Camera size={16} />
-          </button>
-        )}
-        
+
+        {/* Camera Button - always available */}
+        <button
+          type="button"
+          onClick={handleButtonClick}
+          disabled={isBusy}
+          className="absolute bottom-0 right-0 p-2 bg-emerald-600 text-white rounded-full hover:bg-emerald-700 transition shadow disabled:opacity-50"
+          aria-label={uploadText}
+          title={uploadText}
+        >
+          <Camera size={16} />
+        </button>
+
         {/* Hidden File Input */}
-        <input 
-          ref={photoRef} 
-          type="file" 
-          accept="image/*" 
-          className="hidden" 
-          onChange={onUpload} 
+        <input
+          ref={photoRef}
+          type="file"
+          accept="image/*"
+          className="hidden"
+          onChange={onUpload}
         />
       </div>
-      
-      {/* Upload Link - Only visible when editing */}
-      {isEditing && (
-        <button 
-          onClick={handleButtonClick} 
-          className="mt-3 text-sm text-emerald-600 hover:underline"
-        >
-          {uploadText}
-        </button>
-      )}
+
+      {/* Upload / Change link - always available */}
+      <button
+        type="button"
+        onClick={handleButtonClick}
+        disabled={isBusy}
+        className="mt-3 text-sm text-emerald-600 hover:underline disabled:opacity-50"
+      >
+        {uploadText}
+      </button>
     </div>
   );
 }
@@ -399,8 +413,54 @@ function KYCUploadBox(props) {
 }
 
 /**
+ * SubmittedDocument Component
+ *
+ * Read-only preview of an already-submitted KYC document with a button to
+ * open the image full-size in the viewer.
+ *
+ * @param {Object} props - Component properties
+ * @param {string} props.label - Document label (front/back)
+ * @param {string|null} props.url - Renderable image URL (or null if missing)
+ * @param {Function} props.onView - Called with the URL to open the viewer
+ * @param {Object} props.t - Translation object
+ */
+function SubmittedDocument(props) {
+  const label = props.label;
+  const url = props.url;
+  const onView = props.onView;
+  const t = props.t;
+
+  return (
+    <div className="border border-gray-200 rounded-xl overflow-hidden">
+      <div className="px-3 py-2 bg-gray-50 border-b border-gray-100">
+        <p className="text-sm font-medium text-gray-700">{label}</p>
+      </div>
+      {url ? (
+        <button
+          type="button"
+          onClick={function() { onView(url); }}
+          className="group relative block w-full"
+        >
+          <img src={url} alt={label} className="w-full h-40 object-cover" />
+          <span className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition flex items-center justify-center opacity-0 group-hover:opacity-100">
+            <span className="flex items-center gap-1 text-white text-sm font-medium">
+              <Eye size={16} />
+              {t.viewDocument}
+            </span>
+          </span>
+        </button>
+      ) : (
+        <div className="h-40 flex items-center justify-center text-sm text-gray-400">
+          {t.documentUnavailable}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/**
  * LoadingState Component
- * 
+ *
  * Displays a loading spinner while profile data is being fetched.
  * 
  * @param {Object} props - Component properties
@@ -485,7 +545,16 @@ function UserProfile() {
   
   // Track if KYC was just submitted successfully
   const [kycSubmitted, setKycSubmitted] = useState(false);
-  
+
+  // Whether the user is replacing already-submitted KYC documents
+  const [kycUpdating, setKycUpdating] = useState(false);
+
+  // Whether a profile photo is currently being saved (quick upload)
+  const [photoSaving, setPhotoSaving] = useState(false);
+
+  // Document currently open in the full-size viewer (data URL/URL) or null
+  const [viewerImage, setViewerImage] = useState(null);
+
   // Temporary storage for edited profile data
   const [editData, setEditData] = useState({});
   
@@ -656,16 +725,39 @@ function UserProfile() {
    */
   async function handleProfilePhotoUpload(e) {
     const file = e.target.files[0];
+    // Reset the input so selecting the same file again still fires onChange
+    e.target.value = "";
     if (!file) return;
 
+    let dataUrl;
     try {
-      // Downscale to a small JPEG data URL (stored in the DB on save)
-      const dataUrl = await resizeImageToDataUrl(file, 256, 0.8);
+      // Downscale to a small JPEG data URL (stored in the DB)
+      dataUrl = await resizeImageToDataUrl(file, 256, 0.8);
+    } catch (err) {
+      toast.error(err.message || "Could not process the image.", { position: "top-right", autoClose: 3000 });
+      return;
+    }
+
+    // While editing, just stage the photo; it's saved with the rest on "Save".
+    if (isEditing) {
       setEditData(function (prev) {
         return { ...prev, profilePhoto: dataUrl };
       });
+      return;
+    }
+
+    // Outside edit mode, save the photo immediately for a one-click experience.
+    setPhotoSaving(true);
+    try {
+      const response = await usersAPI.updateProfile(currentUser.id, { profile_photo: dataUrl });
+      if (response && response.data) {
+        authContext.updateProfile(response.data);
+      }
+      toast.success(t.photoSaved, { position: "top-right", autoClose: 2500 });
     } catch (err) {
-      toast.error(err.message || "Could not process the image.", { position: "top-right", autoClose: 3000 });
+      toast.error(err.message || t.saveError, { position: "top-right", autoClose: 3000 });
+    } finally {
+      setPhotoSaving(false);
     }
   }
 
@@ -676,29 +768,23 @@ function UserProfile() {
    * @param {string} field - Which document ('citizenshipFront' or 'citizenshipBack')
    * @param {Event} e - File input change event
    */
-  function handleKycUpload(field, e) {
+  async function handleKycUpload(field, e) {
     const file = e.target.files[0];
-    
-    if (file) {
-      // Store the actual file for upload
-      const newKycFiles = {
-        citizenshipFront: kycFiles.citizenshipFront,
-        citizenshipBack: kycFiles.citizenshipBack
-      };
-      newKycFiles[field] = file;
-      setKycFiles(newKycFiles);
-      
-      // Create preview URL
-      const reader = new FileReader();
-      reader.onloadend = function() {
-        const newKycDocuments = {
-          citizenshipFront: kycDocuments.citizenshipFront,
-          citizenshipBack: kycDocuments.citizenshipBack
-        };
-        newKycDocuments[field] = reader.result;
-        setKycDocuments(newKycDocuments);
-      };
-      reader.readAsDataURL(file);
+    e.target.value = "";
+    if (!file) return;
+
+    try {
+      // Downscale to a legible JPEG data URL stored in the DB (no disk files).
+      const dataUrl = await resizeImageToDataUrl(file, 1280, 0.85);
+      // The base64 string is both the preview and the upload payload.
+      setKycFiles(function (prev) {
+        return { ...prev, [field]: dataUrl };
+      });
+      setKycDocuments(function (prev) {
+        return { ...prev, [field]: dataUrl };
+      });
+    } catch (err) {
+      toast.error(err.message || "Could not process the image.", { position: "top-right", autoClose: 3000 });
     }
   }
 
@@ -713,22 +799,22 @@ function UserProfile() {
       e.preventDefault();
     }
 
-    // Check if KYC is already verified
-    if (kycStatus === "verified") {
-      toast.info(t.alreadyVerified, { position: "top-right", autoClose: 4000 });
-      return;
-    }
+    // An update/resubmission happens for rejected docs or when the user
+    // explicitly chose to replace already-submitted/verified documents.
+    const isResubmission = kycStatus === "rejected" || kycUpdating;
 
-    // Check if KYC is already pending
-    if (kycStatus === "pending") {
-      toast.warning(t.alreadyPending, { position: "top-right", autoClose: 4000 });
-      return;
-    }
-
-    // Validate that both documents are uploaded
-    if (!kycFiles.citizenshipFront || !kycFiles.citizenshipBack) {
-      toast.warning(t.selectFiles, { position: "top-right", autoClose: 3000 });
-      return;
+    // For a brand-new submission both sides are required; for a resubmission
+    // the user may replace just one side.
+    if (isResubmission) {
+      if (!kycFiles.citizenshipFront && !kycFiles.citizenshipBack) {
+        toast.warning(t.selectFiles, { position: "top-right", autoClose: 3000 });
+        return;
+      }
+    } else {
+      if (!kycFiles.citizenshipFront || !kycFiles.citizenshipBack) {
+        toast.warning(t.selectFiles, { position: "top-right", autoClose: 3000 });
+        return;
+      }
     }
 
     // Ensure user ID is available
@@ -740,21 +826,20 @@ function UserProfile() {
     setIsSubmitting(true);
 
     try {
-      // Build FormData with both document files
-      const formData = new FormData();
-      formData.append("citizenshipFront", kycFiles.citizenshipFront);
-      formData.append("citizenshipBack", kycFiles.citizenshipBack);
+      // Send only the provided base64 documents as JSON.
+      const payload = {};
+      if (kycFiles.citizenshipFront) payload.citizenshipFront = kycFiles.citizenshipFront;
+      if (kycFiles.citizenshipBack) payload.citizenshipBack = kycFiles.citizenshipBack;
 
-      // Determine if this is a resubmission (rejected) or initial submission
-      if (kycStatus === "rejected") {
-        // Use PATCH for resubmission of rejected documents
-        await usersAPI.updateKYC(user.id, formData);
+      if (isResubmission) {
+        // PATCH to replace documents — backend resets status to PENDING.
+        await usersAPI.updateKYC(user.id, payload);
       } else {
-        // Use POST for initial submission
-        await usersAPI.submitKYC(user.id, formData);
+        // POST for the initial submission.
+        await usersAPI.submitKYC(user.id, payload);
       }
 
-      // Clear the file inputs after successful submission
+      // Clear the staged documents after successful submission
       setKycFiles({
         citizenshipFront: null,
         citizenshipBack: null
@@ -763,6 +848,7 @@ function UserProfile() {
         citizenshipFront: null,
         citizenshipBack: null
       });
+      setKycUpdating(false);
 
       // Mark KYC as submitted to immediately update UI
       setKycSubmitted(true);
@@ -845,6 +931,21 @@ function UserProfile() {
   const statusStyle = getStatusStyle(kycStatus, t);
   const StatusIcon = statusStyle.icon;
 
+  // Previously submitted documents saved on the user record (for viewing)
+  const savedDocs = (user && user.kycDocuments) || {};
+  const savedFrontUrl = normalizeImageUrl(savedDocs.citizenshipFront);
+  const savedBackUrl = normalizeImageUrl(savedDocs.citizenshipBack);
+  const hasSavedDocs = Boolean(savedFrontUrl || savedBackUrl);
+
+  // Show the upload boxes for: first-time submission, rejected resubmission,
+  // or when the user explicitly chose to update verified/pending documents.
+  const showUploadBoxes =
+    kycStatus === "notSubmitted" || kycStatus === "rejected" || kycUpdating;
+
+  // Offer an "Update Documents" action once docs exist and aren't being edited.
+  const canUpdateDocs =
+    (kycStatus === "verified" || kycStatus === "pending") && !kycUpdating;
+
   // ----------------------------------------
   // RENDER: Loading State
   // ----------------------------------------
@@ -913,11 +1014,11 @@ function UserProfile() {
       <div className="bg-white rounded-2xl shadow-sm p-6">
         <div className="flex flex-col md:flex-row items-start gap-6">
           {/* Profile Photo */}
-          <ProfilePhoto 
-            photo={displayData.profilePhoto} 
-            isEditing={isEditing} 
-            onUpload={handleProfilePhotoUpload} 
-            t={t} 
+          <ProfilePhoto
+            photo={displayData.profilePhoto}
+            onUpload={handleProfilePhotoUpload}
+            isBusy={photoSaving}
+            t={t}
           />
 
           <div className="flex-1">
@@ -1121,48 +1222,122 @@ function UserProfile() {
           </div>
         )}
 
-        {/* Document Upload - Show if not verified and not pending, OR if rejected */}
-        {((kycStatus !== "verified" && kycStatus !== "pending") || kycStatus === "rejected") && (
+        {/* Submitted documents (view) - shown when docs exist and not re-uploading */}
+        {hasSavedDocs && !showUploadBoxes && (
           <>
+            <p className="text-sm font-medium text-gray-700 mb-3">{t.submittedDocuments}</p>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+              <SubmittedDocument label={t.citizenshipFront} url={savedFrontUrl} onView={setViewerImage} t={t} />
+              <SubmittedDocument label={t.citizenshipBack} url={savedBackUrl} onView={setViewerImage} t={t} />
+            </div>
+            {canUpdateDocs && (
+              <button
+                type="button"
+                onClick={function() { setKycUpdating(true); }}
+                className="w-full py-3 border border-emerald-600 text-emerald-700 rounded-xl font-medium hover:bg-emerald-50 transition flex items-center justify-center gap-2"
+              >
+                <RefreshCw size={18} />
+                {t.updateDocuments}
+              </button>
+            )}
+          </>
+        )}
+
+        {/* Document Upload - first submission, rejected resubmission, or update */}
+        {showUploadBoxes && (
+          <>
+            {/* Notice when replacing already-submitted documents */}
+            {kycUpdating && (
+              <div className="p-3 rounded-xl mb-4 bg-amber-50 border border-amber-100">
+                <p className="text-sm text-amber-700">{t.updateNotice}</p>
+              </div>
+            )}
+
             {/* Upload Boxes for Citizenship Documents */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
               <KYCUploadBox
                 label={t.citizenshipFront}
-                document={kycDocuments.citizenshipFront}
+                document={kycDocuments.citizenshipFront || (kycUpdating ? savedFrontUrl : null)}
                 onUpload={function(e) { handleKycUpload("citizenshipFront", e); }}
               />
               <KYCUploadBox
                 label={t.citizenshipBack}
-                document={kycDocuments.citizenshipBack}
+                document={kycDocuments.citizenshipBack || (kycUpdating ? savedBackUrl : null)}
                 onUpload={function(e) { handleKycUpload("citizenshipBack", e); }}
               />
             </div>
-            
+
             {/* File Type Information */}
             <p className="text-xs text-gray-500 text-center mb-4">{t.fileTypes}</p>
-            
-            {/* Submit Button */}
-            <button
-              type="button"
-              onClick={handleSubmitKyc}
-              disabled={isSubmitting || !kycFiles.citizenshipFront || !kycFiles.citizenshipBack}
-              className="w-full py-3 bg-emerald-600 text-white rounded-xl font-medium hover:bg-emerald-700 transition flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {isSubmitting ? (
-                <>
-                  <Loader className="animate-spin" size={18} />
-                  {t.submitting}
-                </>
-              ) : (
-                <>
-                  <Shield size={18} />
-                  {kycStatus === "rejected" ? t.resubmitKyc : t.submitKyc}
-                </>
+
+            <div className="flex flex-col sm:flex-row gap-3">
+              {/* Cancel update and go back to the document view */}
+              {kycUpdating && (
+                <button
+                  type="button"
+                  onClick={function() {
+                    setKycUpdating(false);
+                    setKycDocuments({ citizenshipFront: null, citizenshipBack: null });
+                    setKycFiles({ citizenshipFront: null, citizenshipBack: null });
+                  }}
+                  className="sm:w-40 py-3 border border-gray-300 text-gray-600 rounded-xl font-medium hover:bg-gray-50 transition flex items-center justify-center gap-2"
+                >
+                  <X size={18} />
+                  {t.cancel}
+                </button>
               )}
-            </button>
+
+              {/* Submit Button */}
+              <button
+                type="button"
+                onClick={handleSubmitKyc}
+                disabled={
+                  isSubmitting ||
+                  ((kycStatus === "rejected" || kycUpdating)
+                    ? !(kycFiles.citizenshipFront || kycFiles.citizenshipBack)
+                    : !(kycFiles.citizenshipFront && kycFiles.citizenshipBack))
+                }
+                className="flex-1 py-3 bg-emerald-600 text-white rounded-xl font-medium hover:bg-emerald-700 transition flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isSubmitting ? (
+                  <>
+                    <Loader className="animate-spin" size={18} />
+                    {t.submitting}
+                  </>
+                ) : (
+                  <>
+                    <Shield size={18} />
+                    {(kycStatus === "rejected" || kycUpdating) ? t.resubmitKyc : t.submitKyc}
+                  </>
+                )}
+              </button>
+            </div>
           </>
         )}
       </div>
+
+      {/* Full-size document viewer */}
+      {viewerImage && (
+        <div
+          className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4"
+          onClick={function() { setViewerImage(null); }}
+        >
+          <button
+            type="button"
+            onClick={function() { setViewerImage(null); }}
+            className="absolute top-4 right-4 p-2 bg-white/90 rounded-full text-gray-800 hover:bg-white"
+            aria-label="Close"
+          >
+            <X size={20} />
+          </button>
+          <img
+            src={viewerImage}
+            alt="Document"
+            className="max-h-[85vh] max-w-[90vw] rounded-lg shadow-2xl object-contain"
+            onClick={function(e) { e.stopPropagation(); }}
+          />
+        </div>
+      )}
     </div>
   );
 }

@@ -1113,7 +1113,7 @@ export default function Signup() {
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                   {/* Full Name */}
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-0.5">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
                       <User className="inline w-4 h-4 mr-1 text-gray-400" />
                       {t.fullName} <span className="text-red-500">*</span>
                     </label>
@@ -1122,14 +1122,14 @@ export default function Signup() {
                       name="fullName"
                       value={formData.fullName}
                       onChange={handleInputChange}
-                      className="w-full px-2 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all"
+                      className="w-full px-3 py-2.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent hover:border-gray-400 transition-all"
                       placeholder={t.fullNamePlaceholder}
                     />
                   </div>
 
                   {/* Email */}
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-0.5">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
                       <Mail className="inline w-4 h-4 mr-1 text-gray-400" />
                       {t.email} <span className="text-red-500">*</span>
                     </label>
@@ -1138,14 +1138,14 @@ export default function Signup() {
                       name="email"
                       value={formData.email}
                       onChange={handleInputChange}
-                      className="w-full px-2 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all"
+                      className="w-full px-3 py-2.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all"
                       placeholder={t.emailPlaceholder}
                     />
                   </div>
 
                   {/* Phone */}
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-0.5">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
                       <Phone className="inline w-4 h-4 mr-1 text-gray-400" />
                       {t.phone} <span className="text-red-500">*</span>
                     </label>
@@ -1154,7 +1154,7 @@ export default function Signup() {
                       name="phone"
                       value={formData.phone}
                       onChange={handleInputChange}
-                      className="w-full px-2 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all"
+                      className="w-full px-3 py-2.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all"
                       placeholder={t.phonePlaceholder}
                     />
                   </div>
@@ -1190,14 +1190,14 @@ export default function Signup() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                   {/* Province */}
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-0.5">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
                       {t.province} <span className="text-red-500">*</span>
                     </label>
                     <select
                       name="province"
                       value={formData.province}
                       onChange={handleInputChange}
-                      className="w-full px-2 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all bg-white"
+                      className="w-full px-3 py-2.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all bg-white"
                     >
                       <option value="">{t.provincePlaceholder}</option>
                       {provinces.map((province) => (
@@ -1212,7 +1212,7 @@ export default function Signup() {
 
                   {/* District */}
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-0.5">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
                       {t.district} <span className="text-red-500">*</span>
                     </label>
                     <select
@@ -1220,7 +1220,7 @@ export default function Signup() {
                       value={formData.district}
                       onChange={handleInputChange}
                       disabled={!formData.province}
-                      className="w-full px-2 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all bg-white disabled:bg-gray-100 disabled:cursor-not-allowed"
+                      className="w-full px-3 py-2.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all bg-white disabled:bg-gray-100 disabled:cursor-not-allowed"
                     >
                       <option value="">{t.districtPlaceholder}</option>
                       {districts.map((district) => (
@@ -1235,7 +1235,7 @@ export default function Signup() {
 
                   {/* Municipality */}
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-0.5">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
                       {t.municipality} <span className="text-red-500">*</span>
                     </label>
                     <select
@@ -1243,7 +1243,7 @@ export default function Signup() {
                       value={formData.municipality}
                       onChange={handleInputChange}
                       disabled={!formData.district}
-                      className="w-full px-2 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all bg-white disabled:bg-gray-100 disabled:cursor-not-allowed"
+                      className="w-full px-3 py-2.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all bg-white disabled:bg-gray-100 disabled:cursor-not-allowed"
                     >
                       <option value="">{t.municipalityPlaceholder}</option>
                       {municipalities.map((municipality) => (
@@ -1258,7 +1258,7 @@ export default function Signup() {
 
                   {/* Ward Number Dropdown */}
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-0.5">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
                       {t.wardNumber} <span className="text-red-500">*</span>
                     </label>
                     <select
@@ -1268,7 +1268,7 @@ export default function Signup() {
                       disabled={
                         !formData.municipality || wardOptions.length === 0
                       }
-                      className="w-full px-2 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all bg-white disabled:bg-gray-100 disabled:cursor-not-allowed"
+                      className="w-full px-3 py-2.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all bg-white disabled:bg-gray-100 disabled:cursor-not-allowed"
                     >
                       <option value="">{t.wardNumberPlaceholder}</option>
                       {wardOptions.map((ward) => (
@@ -1286,14 +1286,14 @@ export default function Signup() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   {/* Gender Dropdown */}
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-0.5">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
                       {t.gender} <span className="text-red-500">*</span>
                     </label>
                     <select
                       name="gender"
                       value={formData.gender}
                       onChange={handleInputChange}
-                      className="w-full px-2 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all bg-white"
+                      className="w-full px-3 py-2.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all bg-white"
                     >
                       <option value="">{t.genderPlaceholder}</option>
                       <option value="male">{t.male}</option>
@@ -1304,7 +1304,7 @@ export default function Signup() {
 
                   {/* Date of Birth */}
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-0.5">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
                       {t.dateOfBirth} <span className="text-red-500">*</span>
                     </label>
                     <input
@@ -1313,7 +1313,7 @@ export default function Signup() {
                       value={formData.dateOfBirth}
                       onChange={handleInputChange}
                       max={new Date().toISOString().split('T')[0]}
-                      className="w-full px-2 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all"
+                      className="w-full px-3 py-2.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all"
                       placeholder={t.dateOfBirthPlaceholder}
                     />
                   </div>
@@ -1321,7 +1321,7 @@ export default function Signup() {
 
                 {/* Row 4: Address */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-0.5">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
                     {t.address} <span className="text-red-500">*</span>
                   </label>
                   <input
@@ -1329,7 +1329,7 @@ export default function Signup() {
                     name="address"
                     value={formData.address}
                     onChange={handleInputChange}
-                    className="w-full px-2 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all"
+                    className="w-full px-3 py-2.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all"
                     placeholder={t.addressPlaceholder}
                   />
                 </div>
@@ -1338,7 +1338,7 @@ export default function Signup() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   {/* Password */}
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-0.5">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
                       <Lock className="inline w-4 h-4 mr-1 text-gray-400" />
                       {t.password} <span className="text-red-500">*</span>
                     </label>
@@ -1348,7 +1348,7 @@ export default function Signup() {
                         name="password"
                         value={formData.password}
                         onChange={handleInputChange}
-                        className="w-full px-2 py-2 pr-9 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all"
+                        className="w-full px-3 py-2.5 pr-9 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all"
                         placeholder={t.passwordPlaceholder}
                       />
                       <button
@@ -1401,7 +1401,7 @@ export default function Signup() {
 
                   {/* Confirm Password */}
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-0.5">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
                       <Lock className="inline w-4 h-4 mr-1 text-gray-400" />
                       {t.confirmPassword}{" "}
                       <span className="text-red-500">*</span>
@@ -1412,7 +1412,7 @@ export default function Signup() {
                         name="confirmPassword"
                         value={formData.confirmPassword}
                         onChange={handleInputChange}
-                        className="w-full px-2 py-2 pr-9 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all"
+                        className="w-full px-3 py-2.5 pr-9 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all"
                         placeholder={t.confirmPasswordPlaceholder}
                       />
                       <button
