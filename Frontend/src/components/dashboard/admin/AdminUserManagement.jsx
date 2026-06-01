@@ -285,19 +285,31 @@ function StatsCard(props) {
  * @param {Object} props - Component props
  * @returns {JSX.Element} Image element
  */
-function ImageDocument({ url, label }) {
+function ImageDocument({ url, label, onView }) {
   const [imageError, setImageError] = useState(false);
 
   if (url && !imageError) {
     return (
       <div className="space-y-2">
         <p className="text-sm font-medium text-gray-700">{label}</p>
-        <img
-          src={url}
-          alt={label}
-          className="w-full h-48 object-cover rounded-lg border border-gray-200"
-          onError={() => setImageError(true)}
-        />
+        <button
+          type="button"
+          onClick={() => onView && onView(url)}
+          className="group relative block w-full"
+        >
+          <img
+            src={url}
+            alt={label}
+            className="w-full h-48 object-cover rounded-lg border border-gray-200"
+            onError={() => setImageError(true)}
+          />
+          <span className="absolute inset-0 rounded-lg bg-black/0 group-hover:bg-black/40 transition flex items-center justify-center opacity-0 group-hover:opacity-100">
+            <span className="flex items-center gap-1 text-white text-sm font-medium">
+              <Eye size={16} />
+              View
+            </span>
+          </span>
+        </button>
       </div>
     );
   }
@@ -324,6 +336,9 @@ function DocumentsModal(props) {
   const user = props.user;
   const t = props.t;
   const onClose = props.onClose;
+
+  // Document currently open in the full-size viewer (data URL/URL) or null
+  const [viewerImage, setViewerImage] = useState(null);
 
   if (!user) {
     return null;
@@ -362,7 +377,7 @@ function DocumentsModal(props) {
    * @returns {JSX.Element} Image element
    */
   function renderDocument(url, label) {
-    return <ImageDocument url={url} label={label} />;
+    return <ImageDocument url={url} label={label} onView={setViewerImage} />;
   }
 
   return (
@@ -410,6 +425,29 @@ function DocumentsModal(props) {
           </button>
         </div>
       </div>
+
+      {/* Full-size document viewer (same experience as the citizen side) */}
+      {viewerImage && (
+        <div
+          className="fixed inset-0 z-60 bg-black/70 flex items-center justify-center p-4"
+          onClick={() => setViewerImage(null)}
+        >
+          <button
+            type="button"
+            onClick={() => setViewerImage(null)}
+            className="absolute top-4 right-4 p-2 bg-white/90 rounded-full text-gray-800 hover:bg-white"
+            aria-label="Close"
+          >
+            <X size={20} />
+          </button>
+          <img
+            src={viewerImage}
+            alt="Document"
+            className="max-h-[85vh] max-w-[90vw] rounded-lg shadow-2xl object-contain"
+            onClick={(e) => e.stopPropagation()}
+          />
+        </div>
+      )}
     </div>
   );
 }
