@@ -901,9 +901,9 @@ export default function Signup() {
           }
         };
         
-        // Store token
-        localStorage.setItem('authToken', token);
-        localStorage.setItem('nagarsewa_user', JSON.stringify(formattedUser));
+        // Store token (sessionStorage = per-tab, so roles don't overwrite each other)
+        sessionStorage.setItem('authToken', token);
+        sessionStorage.setItem('nagarsewa_user', JSON.stringify(formattedUser));
         
         // Show success message
         toast.success(t.alerts.success, { position: "top-right", autoClose: 2000 });

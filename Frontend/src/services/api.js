@@ -80,7 +80,7 @@ async function getMeWithGuard(options = {}) {
 // Request interceptor - Add auth token to all requests
 apiClient.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem('authToken');
+    const token = sessionStorage.getItem('authToken');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }

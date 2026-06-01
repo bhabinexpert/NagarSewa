@@ -8,7 +8,7 @@
  * - Real-time state updates with useEffect
  * 
  * HOW IT WORKS:
- * 1. When app loads, it checks if there's a saved token in localStorage
+ * 1. When app loads, it checks if there's a saved token in sessionStorage
  * 2. When user logs in, it calls the backend API and stores the token
  * 3. When user logs out, it clears the session
  * 4. All components can access user info through the useAuth() hook
@@ -50,8 +50,8 @@ export function AuthProvider({ children }) {
    */
   useEffect(function() {
     async function checkAuth() {
-      const token = localStorage.getItem("authToken");
-      const savedUser = localStorage.getItem("nagarsewa_user");
+      const token = sessionStorage.getItem("authToken");
+      const savedUser = sessionStorage.getItem("nagarsewa_user");
       
       if (token && savedUser) {
         try {
@@ -87,8 +87,8 @@ export function AuthProvider({ children }) {
             // If validation times out or fails, it's not blocking - user stays logged in
             // Only clear session for actual auth failures (401/403)
             if (validationError?.status === 401 || validationError?.status === 403) {
-              localStorage.removeItem("authToken");
-              localStorage.removeItem("nagarsewa_user");
+              sessionStorage.removeItem("authToken");
+              sessionStorage.removeItem("nagarsewa_user");
               setCurrentUser(null);
             }
             // For network errors or timeouts, silently continue - user stays logged in with cached data
@@ -98,8 +98,8 @@ export function AuthProvider({ children }) {
 
           // Clear session only for actual auth failures
           if (error?.status === 401 || error?.status === 403) {
-            localStorage.removeItem("authToken");
-            localStorage.removeItem("nagarsewa_user");
+            sessionStorage.removeItem("authToken");
+            sessionStorage.removeItem("nagarsewa_user");
             setCurrentUser(null);
           }
         } finally {
@@ -116,13 +116,13 @@ export function AuthProvider({ children }) {
   }, []);
   
   /**
-   * Save user to localStorage whenever it changes.
+   * Save user to sessionStorage whenever it changes.
    */
   useEffect(function() {
     if (currentUser) {
-      localStorage.setItem("nagarsewa_user", JSON.stringify(currentUser));
+      sessionStorage.setItem("nagarsewa_user", JSON.stringify(currentUser));
     } else {
-      localStorage.removeItem("nagarsewa_user");
+      sessionStorage.removeItem("nagarsewa_user");
     }
   }, [currentUser]);
   
@@ -177,7 +177,7 @@ export function AuthProvider({ children }) {
       const { token, user, redirectTo } = response.data || response;
       
       // Store token
-      localStorage.setItem("authToken", token);
+      sessionStorage.setItem("authToken", token);
       
       // Set user in state
       setCurrentUser(user);
@@ -210,13 +210,13 @@ export function AuthProvider({ children }) {
    */
   function logout() {
     setCurrentUser(null);
-    localStorage.removeItem("authToken");
-    localStorage.removeItem("nagarsewa_user");
+    sessionStorage.removeItem("authToken");
+    sessionStorage.removeItem("nagarsewa_user");
   }
   
   /**
    * Update current user's profile information.
-   * Updates both state and localStorage.
+   * Updates both state and sessionStorage.
    * @param {Object} updates - Profile fields to update (fullName, phone, etc.)
    */
   function updateProfile(updates) {
@@ -227,7 +227,7 @@ export function AuthProvider({ children }) {
       fullName: updates.full_name || updates.fullName || currentUser.fullName
     };
     setCurrentUser(updatedUser);
-    localStorage.setItem("nagarsewa_user", JSON.stringify(updatedUser));
+    sessionStorage.setItem("nagarsewa_user", JSON.stringify(updatedUser));
   }  
   /**
    * Refresh current user data from backend.
@@ -238,7 +238,7 @@ export function AuthProvider({ children }) {
       const response = await api.auth.getMe();
       if (response && response.user) {
         setCurrentUser(response.user);
-        localStorage.setItem("nagarsewa_user", JSON.stringify(response.user));
+        sessionStorage.setItem("nagarsewa_user", JSON.stringify(response.user));
         return response.user;
       }
     } catch (error) {
