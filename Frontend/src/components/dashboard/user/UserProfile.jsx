@@ -1230,17 +1230,20 @@ function UserProfile() {
               <SubmittedDocument label={t.citizenshipFront} url={savedFrontUrl} onView={setViewerImage} t={t} />
               <SubmittedDocument label={t.citizenshipBack} url={savedBackUrl} onView={setViewerImage} t={t} />
             </div>
-            {canUpdateDocs && (
-              <button
-                type="button"
-                onClick={function() { setKycUpdating(true); }}
-                className="w-full py-3 border border-emerald-600 text-emerald-700 rounded-xl font-medium hover:bg-emerald-50 transition flex items-center justify-center gap-2"
-              >
-                <RefreshCw size={18} />
-                {t.updateDocuments}
-              </button>
-            )}
           </>
+        )}
+
+        {/* Update action - always available once verified/pending, even if the
+            saved documents can't be previewed (e.g. legacy uploads). */}
+        {canUpdateDocs && (
+          <button
+            type="button"
+            onClick={function() { setKycUpdating(true); }}
+            className="w-full py-3 border border-emerald-600 text-emerald-700 rounded-xl font-medium hover:bg-emerald-50 transition flex items-center justify-center gap-2"
+          >
+            <RefreshCw size={18} />
+            {t.updateDocuments}
+          </button>
         )}
 
         {/* Document Upload - first submission, rejected resubmission, or update */}
