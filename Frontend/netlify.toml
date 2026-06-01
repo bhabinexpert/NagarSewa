@@ -2,6 +2,13 @@
   command = "npm run build"
   publish = "dist"
 
+# Production build environment.
+# Points the deployed frontend at the Render backend. This is a public URL
+# baked into the client bundle, so it is safe to commit.
+[build.environment]
+  VITE_API_URL = "https://nagarsewa.onrender.com/api"
+
+# SPA fallback so client-side routes (/login, /admin, ...) don't 404 on refresh
 [[redirects]]
   from = "/*"
   to = "/index.html"

@@ -2,264 +2,180 @@
 
 <div align="center">
 
-**Digital Public Service Platform for Nepalese Municipalities**
+**Digital Public Service Platform for Damak Municipality, Nepal**
 
-[![Node.js](https://img.shields.io/badge/Node.js-v24.12.0-green.svg)](https://nodejs.org/)
-[![React](https://img.shields.io/badge/React-18-blue.svg)](https://reactjs.org/)
-[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-blue.svg)](https://www.postgresql.org/)
+[![React](https://img.shields.io/badge/React-19-blue.svg)](https://react.dev/)
+[![Vite](https://img.shields.io/badge/Vite-7-646CFF.svg)](https://vite.dev/)
+[![Express](https://img.shields.io/badge/Express-5-black.svg)](https://expressjs.com/)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-Neon-336791.svg)](https://neon.tech/)
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+
+🌐 **Live:** [nagar-sewa.netlify.app](https://nagar-sewa.netlify.app) · **API:** [nagarsewa.onrender.com](https://nagarsewa.onrender.com)
 
 </div>
 
+---
+
 ## 📖 Overview
 
-NagarSewa is a comprehensive civic engagement platform designed specifically for Nepalese municipalities. It bridges the gap between citizens and local government by providing a digital infrastructure for:
+**NagarSewa** is a civic‑engagement platform that connects citizens of **Damak Municipality (Jhapa, Nepal)** with their local government. Citizens report issues, request community campaigns, and verify their identity (KYC); municipal staff manage and respond — all in one bilingual (English / नेपाली) web app.
 
-- 🏛️ **Ward-based Administration** - Multi-tier admin system with super admin and ward-specific administrators
-- 📋 **Issue Reporting & Tracking** - Citizens can report civic issues with real-time status updates
-- 🎯 **Community Campaigns** - Request and participate in community development initiatives
-- 📊 **Analytics Dashboard** - Data-driven insights for municipal decision-making
-- 🔔 **Notification System** - Real-time updates for citizens and administrators
-- 🌐 **Bilingual Support** - Full English and Nepali language support
+| Role | Capabilities |
+|------|--------------|
+| **Citizen** | Report issues (photo + GPS), request campaigns, submit & manage KYC, read the community feed, receive broadcasts |
+| **Ward Admin** | Manage issues & campaigns in their ward, verify KYC, manage users, view analytics, send broadcasts |
+| **Super Admin** | All of the above across **every ward** + create/manage ward‑admin accounts |
 
-## 🏗️ Architecture
+> 📐 For a full walkthrough of how the code fits together (great for a demo), see **[ARCHITECTURE.md](ARCHITECTURE.md)**.
 
-## 🏗️ Architecture
+---
+
+## ✨ Features
+
+- 🔐 **JWT auth** with bcrypt password hashing and **role‑based access** (Citizen / Ward Admin / Super Admin), enforced server‑side
+- 🗂️ **Per‑tab sessions** (`sessionStorage`) — run an admin and a citizen in two tabs without clashing
+- 📋 **Issue reporting** with camera/file photo upload and automatic GPS location
+- 🪪 **KYC verification** — citizens upload citizenship documents, view/replace them, admins approve or reject
+- 🎯 **Campaign requests** with admin approval workflow
+- 📣 **Broadcasts & community feed** with unseen‑notification badges
+- 📊 **Analytics dashboard** for issues, users, and campaigns
+- 🌐 **Bilingual UI** (English / Nepali) and Nepal‑specific location data
+- ⚡ **Optimized** — route‑level code‑splitting and cacheable vendor chunks
+
+---
+
+## 🏗️ Project Structure
 
 ```
 NagarSewa/
-├── Backend/                           # Node.js/Express REST API
-│   ├── src/
-│   │   ├── api/                       # Third-party API integrations
-│   │   │   └── api.location.js        # Nepal location services
-│   │   ├── controllers/               # Business logic layer
-│   │   │   └── Authorization.controllers.js
-│   │   ├── middleware/                # Request processing
-│   │   │   └── auth.js                # JWT authentication & authorization
-│   │   ├── models/                    # Data access layer
-│   │   │   ├── User.js                # User & admin management
-│   │   │   ├── Issue.js               # Issue tracking
-│   │   │   └── Campaign.js            # Campaign management
-│   │   ├── routes/                    # API endpoints
-│   │   │   ├── adminRoutes.js         # Admin operations
-│   │   │   ├── campaigns.js           # Campaign routes
-│   │   │   └── userRoute.js           # User operations
-│   │   ├── db.js                      # PostgreSQL connection
-│   │   ├── app.js                     # Express configuration
-│   │   └── server.js                  # Application entry point
-│   ├── .env                           # Environment variables
-│   └── package.json
+├── Frontend/                     # React 19 + Vite SPA
+│   └── src/
+│       ├── pages/                # landing, auth (login/signup), dashboards
+│       ├── components/           # common, landing, dashboard/{user,admin}
+│       ├── contexts/             # auth + language providers
+│       ├── hooks/useData.js      # data-fetching hooks
+│       ├── services/api.js       # Axios client + all endpoints
+│       └── utils/                # image + location helpers
 │
-├── Frontend/                          # React/Vite SPA
-│   ├── src/
-│   │   ├── components/                # Reusable UI components
-│   │   │   ├── common/                # Header, Footer, etc.
-│   │   │   ├── dashboard/             # Dashboard components
-│   │   │   │   ├── admin/             # Admin panel components
-│   │   │   │   └── user/              # User dashboard components
-│   │   │   └── landing/               # Landing page sections
-│   │   ├── contexts/                  # React Context providers
-│   │   │   ├── auth/                  # Authentication state
-│   │   │   └── language/              # i18n state management
-│   │   ├── pages/                     # Route pages
-│   │   │   ├── auth/                  # Login/Signup
-│   │   │   └── dashboard/             # Dashboard views
-│   │   ├── services/                  # API client
-│   │   │   └── api.js                 # HTTP service layer
-│   │   ├── utils/                     # Helper functions
-│   │   │   └── nepalLocation.js       # Nepal geographic data
-│   │   ├── App.jsx                    # Root component
-│   │   └── main.jsx                   # Application entry
-│   ├── vite.config.js
-│   └── package.json
-│
-└── README.md
+└── Backend/                      # Express 5 REST API
+    └── src/
+        ├── routes/               # auth, admin, users, issues, campaigns, feed, broadcasts
+        ├── controllers/          # business logic
+        ├── models/               # parameterised SQL (User, Issue, Campaign, Broadcast)
+        ├── middleware/           # JWT auth, multer upload, rate limiting, logging
+        ├── db.js                 # Postgres pool (DATABASE_URL+SSL or local PG_*)
+        ├── app.js                # Express app + middleware + routes
+        └── server.js             # entry point
 ```
 
-## ✨ Key Features
+---
 
-### 🔐 Authentication & Authorization
-- **JWT-based Authentication** - Secure token-based authentication
-- **Role-based Access Control** - Three-tier system (Super Admin, Ward Admin, User)
-- **Password Security** - bcrypt hashing with salt rounds
-- **Session Management** - 24-hour token expiry with auto-validation
+## 🛠️ Tech Stack
 
-### 👥 User Management
-- **Self-registration** - Citizens can create accounts independently
-- **KYC Verification** - Admin-approved identity verification
-- **Profile Management** - Update personal information and preferences
-- **Ward Assignment** - Automatic ward-based data segregation
+**Frontend:** React 19 · Vite 7 · React Router 7 · Tailwind CSS 4 · Axios · lucide‑react · react‑toastify
 
-### 🛡️ Admin System
-- **Super Admin** - Full system access across all 10 wards
-  - Create and manage ward administrators
-  - View system-wide analytics
-  - Deactivate/Reactivate admin accounts
-- **Ward Admin** - Ward-specific administrative access
-  - Manage issues within their ward
-  - Approve campaign requests
-  - KYC verification for ward residents
-  - Ward-specific dashboard and reports
+**Backend:** Node.js · Express 5 · PostgreSQL (`pg`) · JWT · bcrypt · Multer · CORS · Morgan
 
-### 📱 User Features
-- **Issue Reporting** - Report civic issues with photos and location
-- **Campaign Requests** - Request community development campaigns
-- **Real-time Tracking** - Monitor issue status and resolution
-- **Notifications** - Stay updated on issue progress
-- **News Feed** - Community updates and announcements
+**Hosting:** Netlify (frontend) · Render (backend) · Neon (Postgres)
 
-### 🌍 Localization
-- **Bilingual Interface** - Seamless English/Nepali switching
-- **Nepal-specific Data** - Province, district, and ward information
-- **Culturally Relevant** - Designed for Nepalese civic processes
+---
 
-## 🚀 Quick Start
+## 🚀 Getting Started
 
 ### Prerequisites
+- Node.js 18+
+- PostgreSQL 14+ (local) **or** a hosted Postgres connection string (Neon/Render)
 
-- Node.js (v16 or higher)
-- PostgreSQL (v12 or higher)
-- npm or yarn
+### 1. Backend
 
-### Backend Setup
-
-1. **Navigate to backend directory:**
-   ```bash
-   cd Backend
-   ```
-
-2. **Install dependencies:**
-   ```bash
-   npm install
-   ```
-
-3. **Set up environment variables:**
-   ```bash
-   cp .env.example .env
-   # Edit .env with your database credentials and JWT secret
-   ```
-
-4. **Set up PostgreSQL database:**
-   ```sql
-   CREATE DATABASE nagar_sewa;
-   -- Run migrations when implemented
-   ```
-
-5. **Start the development server:**
-   ```bash
-   npm run dev
-   ```
-
-The backend will be available at `http://localhost:5000`
-
-### Frontend Setup
-
-1. **Navigate to frontend directory:**
-   ```bash
-   cd Frontend
-   ```
-
-2. **Install dependencies:**
-   ```bash
-   npm install
-   ```
-
-3. **Start the development server:**
-   ```bash
-   npm run dev
-   ```
-
-The frontend will be available at `http://localhost:5173`
-
-## 📚 Documentation
-
-- **[Backend Integration Guide](Backend/docs/integration.md)** - Complete API documentation and frontend integration examples
-- **[Backend Setup Guide](Backend/BACKEND_SETUP_GUIDE.txt)** - Detailed backend setup instructions
-
-## 🛠️ Technology Stack
-
-### Backend
-- **Runtime:** Node.js
-- **Framework:** Express.js
-- **Database:** PostgreSQL
-- **Authentication:** JWT (JSON Web Tokens)
-- **Password Hashing:** bcrypt
-- **Validation:** Custom middleware
-- **File Upload:** Multer (planned)
-
-### Frontend
-- **Framework:** React 18
-- **Build Tool:** Vite
-- **Styling:** CSS Modules / Tailwind CSS (planned)
-- **State Management:** React Context
-- **Routing:** React Router (planned)
-- **HTTP Client:** Fetch API
-
-## 🔧 Development
-
-### Available Scripts
-
-#### Backend
 ```bash
-npm run dev      # Start development server with hot reload
-npm start        # Start production server
-npm test         # Run tests (when implemented)
-npm run lint     # Run ESLint
+cd Backend
+npm install
+cp .env.example .env      # then edit values
+npm run dev               # http://localhost:2026
 ```
 
-#### Frontend
-```bash
-npm run dev      # Start development server
-npm run build    # Build for production
-npm run preview  # Preview production build
-```
-
-### Environment Variables
-
-Copy `.env.example` to `.env` and configure:
+Configure `Backend/.env`:
 
 ```env
-# Database
-PG_USER=your_db_user
+PORT=2026
+
+# Local Postgres…
 PG_HOST=localhost
-PG_DATABASE=nagar_sewa
-PG_PASSWORD=your_db_password
+PG_PORT=5432
+PG_DATABASE=NagarSewa
+PG_USER=postgres
+PG_PASSWORD=your_password
+PG_SSL=false
 
-# JWT
-JWT_SECRET=your_super_secret_jwt_key
+# …or a hosted DB (overrides the PG_* vars, connects over SSL)
+# DATABASE_URL=postgresql://user:pass@host.neon.tech/neondb?sslmode=require
 
-# Server
-PORT=5000
+JWT_SECRET=change_this_to_a_long_random_secret_min_32_chars
 NODE_ENV=development
 ```
 
-## 🤝 Contributing
+> `db.js` automatically uses `DATABASE_URL` (with SSL) when set, otherwise the individual `PG_*` variables — so the same code runs locally and in production.
 
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
+### 2. Frontend
+
+```bash
+cd Frontend
+npm install
+cp .env.example .env      # VITE_API_URL=http://localhost:2026/api
+npm run dev               # http://localhost:5173
+```
+
+---
+
+## 📜 Scripts
+
+**Backend**
+```bash
+npm run dev      # nodemon (hot reload)
+npm start        # production
+```
+
+**Frontend**
+```bash
+npm run dev      # dev server
+npm run build    # production build
+npm run preview  # preview the build
+npm run lint     # ESLint (0 errors)
+```
+
+---
+
+## 🔌 API Summary
+
+Base URL: `/api` · all responses are `{ success, message, data }`.
+
+| Mount | Purpose |
+|-------|---------|
+| `/api/auth` | register, login, logout, current user |
+| `/api/users` | profile, KYC submit/update/view |
+| `/api/issues` | create / list / update status & priority |
+| `/api/campaigns` | request / list / approve‑reject |
+| `/api/feed` | community feed |
+| `/api/broadcasts` | list / send announcements |
+| `/api/admin` | dashboard stats, analytics, user & ward‑admin management |
+
+Full endpoint list and request flow: **[ARCHITECTURE.md](ARCHITECTURE.md)**.
+
+---
+
+## ☁️ Deployment
+
+| Component | Host | Notes |
+|-----------|------|-------|
+| Frontend | **Netlify** | `VITE_API_URL` set in `Frontend/netlify.toml`; SPA redirect for deep links |
+| Backend | **Render** | env vars in dashboard; `trust proxy` enabled for HTTPS |
+| Database | **Neon** | `DATABASE_URL` with SSL |
+
+Pushing to `main` triggers the Netlify and Render deploys.
+
+---
 
 ## 📝 License
 
-This project is licensed under the MIT License - see the LICENSE file for details.
-
-## 👥 Team
-
-- **Development Team:** NagarSewa Contributors
-- **Contact:** [contact@nagar-sewa.com](mailto:contact@nagar-sewa.com)
-
-## 🎯 Roadmap
-
-- [ ] Complete user authentication system
-- [ ] Implement issue reporting and tracking
-- [ ] Add campaign management features
-- [ ] Admin dashboard with analytics
-- [ ] Notification system
-- [ ] File upload functionality
-- [ ] Mobile-responsive design
-- [ ] Multi-language support (Nepali/English)
-- [ ] API documentation with Swagger
-- [ ] Unit and integration tests
-- [ ] Docker containerization
+MIT — see [LICENSE](LICENSE).
