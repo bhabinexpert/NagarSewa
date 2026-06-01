@@ -36,6 +36,7 @@
 - 🗂️ **Per‑tab sessions** (`sessionStorage`) — run an admin and a citizen in two tabs without clashing
 - 📋 **Issue reporting** with camera/file photo upload and automatic GPS location
 - 🪪 **KYC verification** — citizens upload citizenship documents, view/replace them, admins approve or reject
+- 🖼️ **Profile photos** — citizens add a picture at signup or from their profile; images are downscaled client-side and stored compactly in the database
 - 🎯 **Campaign requests** with admin approval workflow
 - 📣 **Broadcasts & community feed** with unseen‑notification badges
 - 📊 **Analytics dashboard** for issues, users, and campaigns
