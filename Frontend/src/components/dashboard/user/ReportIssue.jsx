@@ -395,7 +395,7 @@ function ReportIssue(props) {
       setStream(mediaStream);
       setShowCamera(true);
       
-    } catch (error) {
+    } catch {
       // Show error if camera access fails
       toast.error(t.cameraError, { position: "top-right", autoClose: 3000 });
     } finally {
@@ -577,7 +577,7 @@ function ReportIssue(props) {
         setGettingLocation(false);
       },
       // Error callback
-      function(error) {
+      function() {
         toast.error(t.locationError, { position: "top-right", autoClose: 3000 });
         setGettingLocation(false);
       }

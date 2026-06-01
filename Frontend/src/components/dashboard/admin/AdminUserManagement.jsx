@@ -911,9 +911,8 @@ function AdminUserManagement() {
    * Submit account toggle.
    * @param {string} userId - User ID
    * @param {boolean} enabled - New enabled state
-   * @param {string} reason - Reason (if disabling)
    */
-  async function submitAccountToggle(userId, enabled, reason) {
+  async function submitAccountToggle(userId, enabled) {
     setIsSubmitting(true);
 
     try {

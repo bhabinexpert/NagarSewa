@@ -37,7 +37,6 @@
 import React, { useState, useRef } from "react";
 import { useLanguage } from "../../../contexts/language/useLanguage";
 import { useAuth } from "../../../contexts/auth/useAuth";
-import { useUser } from "../../../hooks/useData";
 import { usersAPI } from "../../../services/api";
 import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
@@ -237,7 +236,7 @@ function formatDateForDisplay(dateString) {
     const month = String(date.getMonth() + 1).padStart(2, '0');
     const day = String(date.getDate()).padStart(2, '0');
     return `${year}-${month}-${day}`;
-  } catch (e) {
+  } catch {
     return dateString;
   }
 }
@@ -349,8 +348,10 @@ function KYCUploadBox(props) {
   const label = props.label;
   const document = props.document;
   const onUpload = props.onUpload;
-  const inputRef = props.inputRef;
-  
+
+  // Ref for the hidden file input, owned by this component.
+  const inputRef = useRef(null);
+
   /**
    * Open file picker when box is clicked.
    */
@@ -468,6 +469,7 @@ function UserProfile() {
       }
     }
     refreshUserData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentUser]);
 
   // ----------------------------------------
@@ -497,10 +499,6 @@ function UserProfile() {
     citizenshipFront: null,
     citizenshipBack: null
   });
-
-  // References for file inputs
-  const citizenshipFrontRef = useRef(null);
-  const citizenshipBackRef = useRef(null);
 
   // ----------------------------------------
   // EFFECTS
@@ -757,13 +755,12 @@ function UserProfile() {
       formData.append("citizenshipBack", kycFiles.citizenshipBack);
 
       // Determine if this is a resubmission (rejected) or initial submission
-      let response;
       if (kycStatus === "rejected") {
         // Use PATCH for resubmission of rejected documents
-        response = await usersAPI.updateKYC(user.id, formData);
+        await usersAPI.updateKYC(user.id, formData);
       } else {
         // Use POST for initial submission
-        response = await usersAPI.submitKYC(user.id, formData);
+        await usersAPI.submitKYC(user.id, formData);
       }
 
       // Clear the file inputs after successful submission
@@ -1138,17 +1135,15 @@ function UserProfile() {
           <>
             {/* Upload Boxes for Citizenship Documents */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-              <KYCUploadBox 
-                label={t.citizenshipFront} 
-                document={kycDocuments.citizenshipFront} 
-                onUpload={function(e) { handleKycUpload("citizenshipFront", e); }} 
-                inputRef={citizenshipFrontRef} 
+              <KYCUploadBox
+                label={t.citizenshipFront}
+                document={kycDocuments.citizenshipFront}
+                onUpload={function(e) { handleKycUpload("citizenshipFront", e); }}
               />
-              <KYCUploadBox 
-                label={t.citizenshipBack} 
-                document={kycDocuments.citizenshipBack} 
-                onUpload={function(e) { handleKycUpload("citizenshipBack", e); }} 
-                inputRef={citizenshipBackRef} 
+              <KYCUploadBox
+                label={t.citizenshipBack}
+                document={kycDocuments.citizenshipBack}
+                onUpload={function(e) { handleKycUpload("citizenshipBack", e); }}
               />
             </div>
             

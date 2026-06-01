@@ -296,8 +296,8 @@ export default function RequestCampaign() {
   const { currentUser, getUserWard, DAMAK_TOTAL_WARDS } = useAuth();
   const t = campaignText[language];
   
-  // Load user's campaigns
-  const { campaigns, loading: campaignsLoading, error: campaignsError, refetch } = useCampaigns();
+  // Load user's campaigns (only refetch is needed here, to refresh after submit)
+  const { refetch } = useCampaigns();
 
   // Form state
   const [formData, setFormData] = useState({

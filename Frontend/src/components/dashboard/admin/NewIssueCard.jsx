@@ -24,9 +24,6 @@ import {
 import {
   buildMediaCandidates,
   toDataUrlFromRaw,
-  detectMimeFromBytes,
-  detectMimeFromBase64,
-  bytesToBase64
 } from "../../../utils/imageUtils";
 
 // Build a stable base URL from API URL so uploaded files load in all environments.

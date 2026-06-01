@@ -155,10 +155,6 @@ function AdminDashboard() {
   const normalizedRole = String(currentUser?.role || "").toLowerCase();
   const canAccessAdminDashboard = normalizedRole === "super_admin" || normalizedRole === "ward_admin";
 
-  if (currentUser && !canAccessAdminDashboard) {
-    return <Navigate to="/user" replace />;
-  }
-  
   // ============================================================
   // STATE VARIABLES
   // ============================================================
@@ -259,6 +255,12 @@ function AdminDashboard() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab, stats.pending, stats.pendingKyc]);
+
+  // Redirect non-admin users away. Placed after all hooks so the Rules of Hooks
+  // are never violated by an early return.
+  if (currentUser && !canAccessAdminDashboard) {
+    return <Navigate to="/user" replace />;
+  }
 
   // ============================================================
   // ADMIN INFO
