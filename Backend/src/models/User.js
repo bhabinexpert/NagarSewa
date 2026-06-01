@@ -6,9 +6,9 @@ export const User = {
   // Create new user
   async create(userData) {
     const sql = `
-      INSERT INTO users (full_name, email, password, phone, role, ward_number, gender, date_of_birth, address, is_disabled)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, false)
-      RETURNING id, full_name, email, phone, role, ward_number, gender, date_of_birth, address, kyc_status, is_disabled, created_at
+      INSERT INTO users (full_name, email, password, phone, role, ward_number, gender, date_of_birth, address, profile_photo, is_disabled)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, false)
+      RETURNING id, full_name, email, phone, role, ward_number, gender, date_of_birth, address, profile_photo, kyc_status, is_disabled, created_at
     `;
     const values = [
       userData.full_name,
@@ -19,7 +19,8 @@ export const User = {
       userData.ward_number || null,
       userData.gender || null,
       userData.date_of_birth || null,
-      userData.address || null
+      userData.address || null,
+      userData.profile_photo || null
     ];
     const result = await query(sql, values);
     return result.rows[0];

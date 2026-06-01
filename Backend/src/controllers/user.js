@@ -82,7 +82,7 @@ export const getUserById = asyncHandler(async (req, res) => {
  */
 export const updateProfile = asyncHandler(async (req, res) => {
   const { id } = req.params;
-  const { full_name, phone, address, gender, date_of_birth } = req.body;
+  const { full_name, phone, address, gender, date_of_birth, profile_photo } = req.body;
 
   // Check if user exists
   const user = await User.findById(id);
@@ -130,6 +130,12 @@ export const updateProfile = asyncHandler(async (req, res) => {
     paramCount++;
   }
 
+  if (profile_photo !== undefined) {
+    updates.push(`profile_photo = $${paramCount}`);
+    params.push(profile_photo);
+    paramCount++;
+  }
+
   if (updates.length === 0) {
     return sendError(res, 'No fields to update', HTTP_STATUS.BAD_REQUEST);
   }
@@ -141,7 +147,7 @@ export const updateProfile = asyncHandler(async (req, res) => {
     UPDATE users 
     SET ${updates.join(', ')}
     WHERE id = $${paramCount}
-    RETURNING id, full_name, email, phone, address, ward_number, role, gender, date_of_birth, kyc_status, is_disabled, created_at, updated_at
+    RETURNING id, full_name, email, phone, address, ward_number, role, gender, date_of_birth, profile_photo, kyc_status, is_disabled, created_at, updated_at
   `;
 
   const result = await query(sql, params);
@@ -158,6 +164,7 @@ export const updateProfile = asyncHandler(async (req, res) => {
     role: updatedUser.role,
     gender: updatedUser.gender,
     dateOfBirth: updatedUser.date_of_birth,
+    profilePhoto: updatedUser.profile_photo,
     kycStatus: updatedUser.kyc_status,
     kycVerified: updatedUser.kyc_status === 'VERIFIED',
     isDisabled: updatedUser.is_disabled,

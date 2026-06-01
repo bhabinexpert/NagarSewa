@@ -38,6 +38,7 @@ import React, { useState, useRef } from "react";
 import { useLanguage } from "../../../contexts/language/useLanguage";
 import { useAuth } from "../../../contexts/auth/useAuth";
 import { usersAPI } from "../../../services/api";
+import { resizeImageToDataUrl } from "../../../utils/imageResize";
 import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import {
@@ -596,7 +597,8 @@ function UserProfile() {
         phone: editData.phone,
         address: editData.address,
         gender: editData.gender,
-        date_of_birth: editData.dob || editData.dateOfBirth
+        date_of_birth: editData.dob || editData.dateOfBirth,
+        profile_photo: editData.profilePhoto || null
       };
       
       console.log('Sending update data:', updateData);
@@ -652,29 +654,18 @@ function UserProfile() {
    * 
    * @param {Event} e - File input change event
    */
-  function handleProfilePhotoUpload(e) {
+  async function handleProfilePhotoUpload(e) {
     const file = e.target.files[0];
-    
-    if (file) {
-      // Create a FileReader to convert file to base64
-      const reader = new FileReader();
-      
-      // When file is loaded, update editData
-      reader.onloadend = function() {
-        const newEditData = {};
-        newEditData.fullName = editData.fullName;
-        newEditData.email = editData.email;
-        newEditData.phone = editData.phone;
-        newEditData.address = editData.address;
-        newEditData.dob = editData.dob;
-        newEditData.gender = editData.gender;
-        newEditData.dateOfBirth = editData.dateOfBirth;
-        newEditData.profilePhoto = reader.result;
-        setEditData(newEditData);
-      };
-      
-      // Read file as base64 data URL
-      reader.readAsDataURL(file);
+    if (!file) return;
+
+    try {
+      // Downscale to a small JPEG data URL (stored in the DB on save)
+      const dataUrl = await resizeImageToDataUrl(file, 256, 0.8);
+      setEditData(function (prev) {
+        return { ...prev, profilePhoto: dataUrl };
+      });
+    } catch (err) {
+      toast.error(err.message || "Could not process the image.", { position: "top-right", autoClose: 3000 });
     }
   }
 

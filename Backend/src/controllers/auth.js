@@ -7,7 +7,7 @@ import { validateRequiredFields, isValidEmail, validatePassword } from '../utils
 
 // Register new user
 export const register = asyncHandler(async (req, res) => {
-  const { full_name, email, password, phone, ward_number, gender, date_of_birth, address } = req.body;
+  const { full_name, email, password, phone, ward_number, gender, date_of_birth, address, profile_photo } = req.body;
 
   // Validate required fields
   const requiredFields = validateRequiredFields({ full_name, email, password });
@@ -44,7 +44,8 @@ export const register = asyncHandler(async (req, res) => {
     ward_number,
     gender,
     date_of_birth,
-    address
+    address,
+    profile_photo
   });
 
   // Generate token
@@ -101,6 +102,7 @@ export const login = asyncHandler(async (req, res) => {
     gender: user.gender,
     dateOfBirth: user.date_of_birth,
     address: user.address,
+    profilePhoto: user.profile_photo,
     kycVerified: user.kyc_status === 'VERIFIED',
     kycStatus: user.kyc_status,
     jurisdiction: {
@@ -135,6 +137,7 @@ export const getMe = asyncHandler(async (req, res) => {
     gender: user.gender,
     dateOfBirth: user.date_of_birth,
     address: user.address,
+    profilePhoto: user.profile_photo,
     kycVerified: user.kyc_status === 'VERIFIED',
     kycStatus: user.kyc_status,
     isDisabled: user.is_disabled,

@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useRef } from "react";
 import {
   User,
   Mail,
@@ -14,11 +14,13 @@ import {
   Phone,
   Crosshair,
   Loader2,
+  Camera,
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useLanguage } from "../../contexts/language/useLanguage";
 import { toast, ToastContainer } from "react-toastify";
 import { authAPI } from "../../services/api";
+import { resizeImageToDataUrl } from "../../utils/imageResize";
 import axios from "axios";
 import "react-toastify/dist/ReactToastify.css";
 import {
@@ -40,6 +42,7 @@ const signupText = {
     formSubtitle: "Join thousands of citizens using digital services",
     fullName: "Full Name",
     fullNamePlaceholder: "As per citizenship certificate",
+    profilePhoto: "Profile Photo (optional)",
     email: "Email Address",
     emailPlaceholder: "citizen@example.com",
     phone: "Phone Number",
@@ -137,6 +140,7 @@ const signupText = {
     formSubtitle: "डिजिटल सेवा प्रयोग गर्ने हजारौं नागरिकमा सामेल हुनुहोस्",
     fullName: "पुरा नाम",
     fullNamePlaceholder: "नागरिकता प्रमाणपत्र अनुसार",
+    profilePhoto: "प्रोफाइल फोटो (वैकल्पिक)",
     email: "इमेल ठेगाना",
     emailPlaceholder: "citizen@example.com",
     phone: "फोन नम्बर",
@@ -296,6 +300,7 @@ export default function Signup() {
     gender: "",
     dateOfBirth: "",
     address: "",
+    profilePhoto: "",
     password: "",
     confirmPassword: "",
     acceptTerms: false,
@@ -310,6 +315,26 @@ export default function Signup() {
   
   // Form submission state
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Profile photo upload
+  const photoInputRef = useRef(null);
+
+  /**
+   * Handle profile photo selection: downscale to a small JPEG data URL
+   * and store it in form state (it is sent to the backend on submit).
+   */
+  async function handlePhotoSelect(event) {
+    const file = event.target.files && event.target.files[0];
+    if (!file) return;
+    try {
+      const dataUrl = await resizeImageToDataUrl(file, 256, 0.8);
+      setFormData(function (prev) {
+        return { ...prev, profilePhoto: dataUrl };
+      });
+    } catch (err) {
+      toast.error(err.message || "Could not process the image.", { position: "top-right", autoClose: 3000 });
+    }
+  }
 
   // ============================================================
   // DERIVED DATA (using useMemo for expensive computations)
@@ -867,7 +892,8 @@ export default function Signup() {
         ward_number: parseInt(formData.wardNumber, 10),
         gender: formData.gender,
         date_of_birth: formData.dateOfBirth,
-        address: formData.address.trim()
+        address: formData.address.trim(),
+        profile_photo: formData.profilePhoto || null
       };
       
       // Call registration API
@@ -893,6 +919,7 @@ export default function Signup() {
           gender: user.gender,
           dateOfBirth: user.date_of_birth,
           address: user.address,
+          profilePhoto: user.profile_photo,
           kycVerified: user.kyc_status === 'VERIFIED',
           jurisdiction: {
             district: 'Jhapa',
@@ -1053,6 +1080,35 @@ export default function Signup() {
             {/* Form Content */}
             <div className="p-3 md:p-4">
               <div className="space-y-3">
+                {/* Profile photo (optional) */}
+                <div className="flex flex-col items-center gap-1.5 pb-1">
+                  <div className="relative">
+                    <div className="w-20 h-20 rounded-full bg-emerald-100 ring-2 ring-emerald-200 overflow-hidden flex items-center justify-center">
+                      {formData.profilePhoto ? (
+                        <img src={formData.profilePhoto} alt="Profile preview" className="w-full h-full object-cover" />
+                      ) : (
+                        <User className="w-9 h-9 text-emerald-500" />
+                      )}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => photoInputRef.current && photoInputRef.current.click()}
+                      className="absolute -bottom-1 -right-1 p-1.5 bg-emerald-600 text-white rounded-full hover:bg-emerald-700 shadow"
+                      aria-label="Upload profile photo"
+                    >
+                      <Camera className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                  <span className="text-xs text-gray-500">{t.profilePhoto}</span>
+                  <input
+                    ref={photoInputRef}
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={handlePhotoSelect}
+                  />
+                </div>
+
                 {/* Row 1: Full Name, Email, Phone */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                   {/* Full Name */}
