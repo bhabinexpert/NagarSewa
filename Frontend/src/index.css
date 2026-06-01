@@ -27,21 +27,15 @@ body {
   transition: opacity 200ms ease-in;
 }
 
-/* Custom scrollbar */
+/* Invisible scrollbars everywhere (scrolling still works) */
 ::-webkit-scrollbar {
-  width: 8px;
+  width: 0;
+  height: 0;
 }
 
-::-webkit-scrollbar-track {
-  @apply bg-emerald-50;
-}
-
-::-webkit-scrollbar-thumb {
-  @apply bg-emerald-400 rounded-full;
-}
-
-::-webkit-scrollbar-thumb:hover {
-  @apply bg-emerald-500;
+html {
+  scrollbar-width: none;      /* Firefox */
+  -ms-overflow-style: none;   /* legacy Edge/IE */
 }
 
 /* Unified card styling */
