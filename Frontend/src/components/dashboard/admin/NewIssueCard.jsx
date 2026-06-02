@@ -368,7 +368,7 @@ export function IssueCard({ issue, t, isSuperAdmin, onStatusUpdate, onPrioritySe
                     <img
                       src={attachment.sources[0]}
                       alt={`Issue evidence ${idx + 1}`}
-                      className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
+                      className="w-full h-full object-cover"
                       onError={(e) => {
                         const currentIndex = Number(e.currentTarget.dataset.srcIndex || "0");
                         const nextIndex = currentIndex + 1;
@@ -381,10 +381,11 @@ export function IssueCard({ issue, t, isSuperAdmin, onStatusUpdate, onPrioritySe
                       }}
                     />
                   )}
-                  <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-40 transition-all flex items-center justify-center">
-                    <Eye className="text-white opacity-0 group-hover:opacity-100 transition-opacity drop-shadow-lg" size={32} />
+                  {/* Small, non-covering hint that the image opens full-size */}
+                  <div className="absolute bottom-2 right-2 bg-white/85 text-gray-700 rounded-full p-1.5 shadow opacity-0 group-hover:opacity-100 transition-opacity">
+                    <Eye size={16} />
                   </div>
-                  <div className="absolute top-2 right-2 bg-black bg-opacity-70 text-white text-xs px-2 py-1 rounded">
+                  <div className="absolute top-2 left-2 bg-white/85 text-gray-700 text-xs px-2 py-0.5 rounded shadow">
                     File {idx + 1}
                   </div>
                 </div>

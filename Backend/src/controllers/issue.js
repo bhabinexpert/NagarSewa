@@ -5,8 +5,8 @@ import { validateRequiredFields, isValidWardNumber } from '../utils/validation.j
 
 // Create issue
 export const createIssue = asyncHandler(async (req, res) => {
-  const { description, type, location, ward } = req.body;
-  
+  const { description, type, location, ward, photos } = req.body;
+
   // Validate required fields
   const requiredFields = validateRequiredFields({ description, type, location, ward });
   if (!requiredFields.isValid) {
@@ -18,10 +18,12 @@ export const createIssue = asyncHandler(async (req, res) => {
     return sendError(res, 'Invalid ward number (must be 1-9)', HTTP_STATUS.BAD_REQUEST);
   }
 
-  // Handle uploaded files (if any)
+  // Photos arrive as an array of base64 data URLs in the JSON body and are
+  // stored directly in the DB (no disk files), so they persist on hosts with
+  // an ephemeral filesystem — the same approach used for profile photos and KYC.
   let photoUrls = [];
-  if (req.files && req.files.length > 0) {
-    photoUrls = req.files.map(file => `/uploads/issues/${file.filename}`);
+  if (Array.isArray(photos)) {
+    photoUrls = photos.filter((p) => typeof p === 'string' && p.length > 0);
   }
 
   const issue = await Issue.create({

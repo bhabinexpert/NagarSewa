@@ -25,6 +25,7 @@ import React, { useState, useRef, useEffect } from "react";
 import { useLanguage } from "../../../contexts/language/useLanguage";
 import { useAuth } from "../../../contexts/auth/useAuth";
 import { issuesAPI } from "../../../services/api";
+import { resizeImageToDataUrl } from "../../../utils/imageResize";
 import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import {
@@ -70,10 +71,12 @@ const reportText = {
     success: "Report submitted successfully!",
     successDesc: "Your report has been submitted and will be reviewed by the authorities.",
     remove: "Remove",
-    addPhotos: "Add Photos/Videos",
+    addPhotos: "Add Photos",
     required: "Required",
     fillAllFields: "Please fill all required fields",
     uploadError: "Failed to upload. Please try again.",
+    mediaTooLarge: "An image is too large. Please upload a smaller or compressed version (under ~15 MB each).",
+    videoNotAllowed: "Videos are not allowed. Please upload images only.",
     cameraError: "Unable to access camera",
     locationError: "Unable to get location",
     issueTypes: ["Road Damage", "Water Supply", "Electricity", "Garbage/Sanitation", "Street Light", "Drainage", "Public Safety", "Other"],
@@ -103,10 +106,12 @@ const reportText = {
     success: "रिपोर्ट सफलतापूर्वक पठाइयो!",
     successDesc: "तपाईंको रिपोर्ट पठाइएको छ र अधिकारीहरूद्वारा समीक्षा गरिनेछ।",
     remove: "हटाउनुहोस्",
-    addPhotos: "फोटो/भिडियो थप्नुहोस्",
+    addPhotos: "फोटो थप्नुहोस्",
     required: "आवश्यक",
     fillAllFields: "कृपया सबै आवश्यक फिल्डहरू भर्नुहोस्",
     uploadError: "अपलोड असफल। कृपया पुन: प्रयास गर्नुहोस्।",
+    mediaTooLarge: "तस्बिर धेरै ठूलो छ। कृपया सानो वा कम्प्रेस गरिएको संस्करण अपलोड गर्नुहोस् (प्रति ~१५ MB भन्दा कम)।",
+    videoNotAllowed: "भिडियो अनुमति छैन। कृपया तस्बिर मात्र अपलोड गर्नुहोस्।",
     cameraError: "क्यामेरा पहुँच गर्न असमर्थ",
     locationError: "स्थान प्राप्त गर्न असमर्थ",
     issueTypes: ["सडक क्षति", "पानी आपूर्ति", "बिजुली", "फोहोर/सरसफाई", "सडक बत्ती", "ढल निकास", "सार्वजनिक सुरक्षा", "अन्य"],
@@ -182,8 +187,8 @@ function SuccessScreen(props) {
 
 /**
  * MediaPreview Component
- * 
- * Displays a grid of uploaded images/videos with remove buttons.
+ *
+ * Displays a grid of uploaded images with remove buttons.
  * 
  * @param {Object} props - Component properties
  * @param {Array} props.media - Array of media objects with id, type, and preview
@@ -495,31 +500,39 @@ function ReportIssue(props) {
    */
   function handleFileUpload(event) {
     const files = event.target.files;
-    
-    // Process each selected file using Array.from and forEach
+
+    // Only images are allowed for issue evidence.
+    let rejectedVideo = false;
+
     Array.from(files).forEach(function(file) {
-      // Determine if it's a video or image
-      let mediaType = "image";
       if (file.type.startsWith("video")) {
-        mediaType = "video";
+        rejectedVideo = true;
+        return;
       }
-      
+
       // Create preview URL
       const previewUrl = URL.createObjectURL(file);
-      
+
       // Create media item object
       const newMediaItem = {
         id: Date.now() + Math.random(),  // Unique ID
-        type: mediaType,
+        type: "image",
         file: file,
         preview: previewUrl
       };
-      
+
       // Add to media list
       setMedia(function(previousMedia) {
         return previousMedia.concat([newMediaItem]);
       });
     });
+
+    if (rejectedVideo) {
+      toast.error(t.videoNotAllowed, { position: "top-right", autoClose: 4000 });
+    }
+
+    // Reset the input so re-selecting the same file fires onChange again
+    event.target.value = "";
   }
 
   /**
@@ -617,30 +630,50 @@ function ReportIssue(props) {
     setIsSubmitting(true);
     
     try {
-      // Step 4: Build FormData object for multipart upload
-      const submitData = new FormData();
-      
-      // Add text fields with backend model-expected field names
-      submitData.append("type", formData.issueType); // For controller validation
-      submitData.append("ward", userWardNumber); // For controller validation
-      submitData.append("category", formData.issueType); // For database insert
-      submitData.append("ward_number", userWardNumber); // For database insert
-      submitData.append("description", formData.description);
-      submitData.append("location", formData.location);
-      submitData.append("priority", formData.priority.toUpperCase());
-      
+      // Step 4: Downscale each image to a base64 data URL so it is stored in
+      // the DB (persistent on hosts with an ephemeral filesystem). Guard the
+      // total size so the request stays within the server's body limit.
+      const MAX_TOTAL_BYTES = 20 * 1024 * 1024; // ~20 MB across all images
+      let totalBytes = 0;
+      const photos = [];
+      for (const item of media) {
+        let dataUrl;
+        try {
+          dataUrl = await resizeImageToDataUrl(item.file, 1280, 0.8);
+        } catch (err) {
+          console.error("Failed to process image:", err);
+          continue;
+        }
+
+        // Approximate decoded size from the base64 length (~3/4 of the chars).
+        totalBytes += Math.ceil(dataUrl.length * 0.75);
+        if (totalBytes > MAX_TOTAL_BYTES) {
+          toast.error(t.mediaTooLarge, { position: "top-right", autoClose: 5000 });
+          setIsSubmitting(false);
+          return;
+        }
+        photos.push(dataUrl);
+      }
+
+      // Step 5: Build the JSON payload with backend-expected field names
+      const submitData = {
+        type: formData.issueType, // For controller validation
+        ward: userWardNumber, // For controller validation
+        category: formData.issueType, // For database insert
+        ward_number: userWardNumber, // For database insert
+        description: formData.description,
+        location: formData.location,
+        priority: formData.priority.toUpperCase(),
+        photos,
+      };
+
       // Add coordinates if available
       if (formData.coordinates) {
-        submitData.append("latitude", formData.coordinates.latitude);
-        submitData.append("longitude", formData.coordinates.longitude);
+        submitData.latitude = formData.coordinates.latitude;
+        submitData.longitude = formData.coordinates.longitude;
       }
-      
-      // Add media files using forEach
-      media.forEach(function(item) {
-        submitData.append("media", item.file);
-      });
 
-      // Step 5: Send to backend API
+      // Step 6: Send to backend API
       await issuesAPI.create(submitData);
       
       // Step 6: Call callback to refresh dashboard stats
@@ -667,9 +700,12 @@ function ReportIssue(props) {
       
     } catch (error) {
       console.error("Issue submission error:", error);
-      // Show error message with details
-      const errorMessage = error.message || t.uploadError;
-      toast.error(errorMessage, { position: "top-right", autoClose: 4000 });
+      // A 413 from the server means the payload exceeded the body limit — surface
+      // the same "too large" guidance as the client-side guard.
+      const isTooLarge =
+        error.status === 413 || /large|payload|entity too/i.test(error.message || "");
+      const errorMessage = isTooLarge ? t.mediaTooLarge : (error.message || t.uploadError);
+      toast.error(errorMessage, { position: "top-right", autoClose: 5000 });
     } finally {
       // Always reset submitting state
       setIsSubmitting(false);
@@ -817,13 +853,13 @@ function ReportIssue(props) {
             </button>
             
             {/* Hidden file input */}
-            <input 
-              ref={fileInputRef} 
-              type="file" 
-              accept="image/*,video/*" 
-              multiple 
-              className="hidden" 
-              onChange={handleFileUpload} 
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              multiple
+              className="hidden"
+              onChange={handleFileUpload}
             />
           </div>
         </div>

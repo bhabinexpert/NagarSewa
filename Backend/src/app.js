@@ -33,10 +33,10 @@ const corsOptions = {
 
 // Middleware
 app.use(cors(corsOptions));
-// Larger limit so base64 profile photos and KYC documents (stored in the DB)
-// fit in the JSON body.
-app.use(express.json({ limit: '6mb' }));
-app.use(express.urlencoded({ extended: true, limit: '6mb' }));
+// Larger limit so base64 media stored in the DB — profile photos, KYC
+// documents, and issue photos — fits in the JSON body.
+app.use(express.json({ limit: '25mb' }));
+app.use(express.urlencoded({ extended: true, limit: '25mb' }));
 app.use(globalRateLimiter);
 
 // Serve uploaded files statically
