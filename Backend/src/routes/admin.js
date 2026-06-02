@@ -190,13 +190,24 @@ router.patch('/ward-admins/:id/reactivate', authMiddleware, superAdminOnly, asyn
 router.get('/dashboard/stats', authMiddleware, adminOnly, async (req, res) => {
   try {
     const { role, wardNumber } = req.user;
-    
+
+    // Determine which ward to scope stats to:
+    // - ward admins are always locked to their own ward
+    // - super admins may pass ?ward=<n> to focus a single ward, or omit it
+    //   (or 'all') to see municipality-wide totals
+    let effectiveWard = null;
+    if (role === 'ward_admin') {
+      effectiveWard = wardNumber;
+    } else if (req.query.ward && req.query.ward !== 'all') {
+      effectiveWard = req.query.ward;
+    }
+
     // Issue stats
     let issueFilters = {};
-    if (role === 'ward_admin') {
-      issueFilters.ward = wardNumber;
+    if (effectiveWard) {
+      issueFilters.ward = effectiveWard;
     }
-    
+
     const issues = await Issue.findAll(issueFilters);
     const issueStats = {
       total: issues.length,
@@ -208,8 +219,8 @@ router.get('/dashboard/stats', authMiddleware, adminOnly, async (req, res) => {
 
     // User stats
     let userFilters = { role: 'user' };
-    if (role === 'ward_admin') {
-      userFilters.ward = wardNumber;
+    if (effectiveWard) {
+      userFilters.ward = effectiveWard;
     }
 
     const users = await User.findAll(userFilters);
@@ -224,10 +235,10 @@ router.get('/dashboard/stats', authMiddleware, adminOnly, async (req, res) => {
 
     // Campaign stats
     let campaignFilters = {};
-    if (role === 'ward_admin') {
-      campaignFilters.ward = wardNumber;
+    if (effectiveWard) {
+      campaignFilters.ward = effectiveWard;
     }
-    
+
     const campaigns = await Campaign.findAll(campaignFilters);
     const campaignStats = {
       total: campaigns.length,

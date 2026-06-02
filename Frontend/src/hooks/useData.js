@@ -277,16 +277,18 @@ export const useAnalytics = (params = {}) => {
  * Automatically filtered by ward for ward admins
  * BACKEND API: GET /api/admin/dashboard/stats
  */
-export const useDashboardStats = () => {
+export const useDashboardStats = (filters = {}) => {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+
+  const ward = filters.ward;
 
   const fetchStats = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const response = await adminAPI.getDashboardStats();
+      const response = await adminAPI.getDashboardStats({ ward });
       setData(response.data || response);
     } catch (err) {
       // Silently fail for non-admin users - return dummy data instead of showing error
@@ -300,7 +302,7 @@ export const useDashboardStats = () => {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [ward]);
   
   return {
     stats: data || {

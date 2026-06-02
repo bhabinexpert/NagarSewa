@@ -210,7 +210,14 @@ export const campaignsAPI = {
 
 export const adminAPI = {
   // Dashboard stats
-  getDashboardStats: () => apiClient.get('/admin/dashboard/stats'),
+  getDashboardStats: (filters = {}) => {
+    const params = new URLSearchParams();
+    if (filters.ward && filters.ward !== 'all') {
+      params.append('ward', filters.ward);
+    }
+    const qs = params.toString();
+    return apiClient.get(`/admin/dashboard/stats${qs ? `?${qs}` : ''}`);
+  },
   
   // Analytics
   getAnalyticsOverview: () => apiClient.get('/admin/analytics/overview'),

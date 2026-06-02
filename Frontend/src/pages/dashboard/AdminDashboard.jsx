@@ -198,8 +198,11 @@ function AdminDashboard() {
   // ============================================================
   // REAL DASHBOARD DATA FROM API (loaded on demand)
   // ============================================================
-  const { stats: dashboardStats, loading: statsLoading, refetch: refetchStats } = useDashboardStats();
-  
+  // Super admins can scope the Overview to a single ward; ward admins are
+  // always scoped to their own ward by the backend.
+  const statsWardFilter = isSuperAdmin() && wardFilter !== "all" ? wardFilter : undefined;
+  const { stats: dashboardStats, loading: statsLoading, refetch: refetchStats } = useDashboardStats({ ward: statsWardFilter });
+
   // Get recent issues for dashboard preview (loaded on demand)
   const wardFilterParams = isSuperAdmin() && wardFilter !== "all" ? { ward: wardFilter } : {};
   const { issues: recentIssuesList, loading: issuesLoading, refetch: refetchIssues } = useIssues({ 
