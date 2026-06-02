@@ -108,6 +108,7 @@ const userManagementText = {
     citizenshipFront: "Citizenship Front",
     citizenshipBack: "Citizenship Back",
     photo: "Photo",
+    noDocuments: "No documents uploaded",
     closeModal: "Close",
   },
   np: {
@@ -164,6 +165,7 @@ const userManagementText = {
     citizenshipFront: "नागरिकता अगाडि",
     citizenshipBack: "नागरिकता पछाडि",
     photo: "फोटो",
+    noDocuments: "कुनै कागजात अपलोड गरिएको छैन",
     closeModal: "बन्द गर्नुहोस्",
   },
 };
@@ -414,10 +416,17 @@ function DocumentsModal(props) {
           {/* KYC Documents */}
           <div>
             <h5 className="font-medium text-gray-800 mb-4">KYC Documents</h5>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {renderDocument(citizenshipFrontUrl, t.citizenshipFront)}
-              {renderDocument(citizenshipBackUrl, t.citizenshipBack)}
-            </div>
+            {citizenshipFrontUrl || citizenshipBackUrl ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {renderDocument(citizenshipFrontUrl, t.citizenshipFront)}
+                {renderDocument(citizenshipBackUrl, t.citizenshipBack)}
+              </div>
+            ) : (
+              <div className="flex flex-col items-center justify-center py-10 text-center border border-dashed border-gray-200 rounded-xl">
+                <FileText className="text-gray-300 mb-3" size={48} />
+                <p className="text-sm text-gray-500">{t.noDocuments}</p>
+              </div>
+            )}
           </div>
         </div>
         <div className="p-6 border-t border-gray-100">
@@ -607,19 +616,18 @@ function UserCard(props) {
   function renderActionButtons() {
     const buttons = [];
 
-    // View documents button (always available if documents exist)
-    if (user.documents) {
-      buttons.push(
-        <button
-          key="docs"
-          onClick={handleViewDocs}
-          className="flex items-center gap-2 px-3 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 text-sm"
-        >
-          <FileText size={16} />
-          {t.viewDocuments}
-        </button>
-      );
-    }
+    // View documents button — always available; the modal shows an empty
+    // state when the user hasn't uploaded any documents yet.
+    buttons.push(
+      <button
+        key="docs"
+        onClick={handleViewDocs}
+        className="flex items-center gap-2 px-3 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 text-sm"
+      >
+        <FileText size={16} />
+        {t.viewDocuments}
+      </button>
+    );
 
     // Verify and Reject buttons (if pending KYC)
     if (normalizedKycStatus === "pending" || normalizedKycStatus === "not_submitted") {
