@@ -242,17 +242,6 @@ export const getFeed = asyncHandler(async (req, res) => {
   const formattedFeed = feedItems.map(item => {
     const issuePhotos = item.type === 'issue' ? parseIssuePhotos(item.photo_url) : [];
 
-    // Debug logging
-    if (item.type === 'issue' && item.photo_url) {
-      console.log('[Feed] Photo parsing:', {
-        raw: item.photo_url,
-        type: typeof item.photo_url,
-        parsed: issuePhotos,
-        hasImage: issuePhotos.length > 0,
-        imageUrl: issuePhotos[0] || null
-      });
-    }
-
     return {
       id: item.id,
       type: item.type,
