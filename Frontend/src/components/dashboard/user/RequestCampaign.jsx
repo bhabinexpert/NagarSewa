@@ -314,8 +314,11 @@ export default function RequestCampaign() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitSuccess, setSubmitSuccess] = useState(false);
 
-  // Check KYC status
-  const isKycVerified = currentUser?.kycStatus === "VERIFIED";
+  // Check KYC status. Prefer the normalized boolean (set from the backend),
+  // and fall back to the status string in any casing for safety.
+  const isKycVerified =
+    Boolean(currentUser?.kycVerified) ||
+    String(currentUser?.kycStatus || "").toUpperCase() === "VERIFIED";
 
   // ============================================================================
   // EVENT HANDLERS

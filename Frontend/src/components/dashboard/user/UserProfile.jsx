@@ -926,8 +926,11 @@ function UserProfile() {
   if (kycSubmitted) {
     kycStatus = "pending";
   } else if (user && user.kycStatus) {
-    // Normalize to lowercase for comparison (backend returns UPPERCASE)
-    kycStatus = user.kycStatus.toLowerCase();
+    // Backend returns UPPERCASE snake_case (e.g. NOT_SUBMITTED). Normalize to
+    // the canonical camelCase values used throughout this component so the
+    // upload boxes and badges render correctly.
+    const raw = user.kycStatus.toLowerCase();
+    kycStatus = raw === "not_submitted" ? "notSubmitted" : raw;
   } else if (isKycVerified && isKycVerified()) {
     kycStatus = "verified";
   }
