@@ -80,7 +80,14 @@ export const getFeed = asyncHandler(async (req, res) => {
   const { type, ward, search, limit = 20 } = req.query;
   const role = (req.user?.role || '').toLowerCase();
   const isAdmin = role === 'super_admin' || role === 'ward_admin';
+  const isSuperAdmin = role === 'super_admin';
   const userWard = req.user?.wardNumber || null;
+
+  // Ward scoping for the feed: only a super admin sees every ward (and may
+  // narrow to one via ?ward). Ward admins and citizens are locked to their own
+  // ward, so issues/campaigns reported in their ward and notices targeted at
+  // it are all they see — enforced on the server, not the client.
+  const effectiveWard = isSuperAdmin ? (ward ? parseInt(ward) : null) : userWard;
 
   // Build query to fetch issues and campaigns
   let feedItems = [];
@@ -111,10 +118,10 @@ export const getFeed = asyncHandler(async (req, res) => {
     const issueParams = [];
     let paramCount = 1;
 
-    // Filter by ward
-    if (ward) {
-      issuesSql += ` AND u.ward_number = $${paramCount}`;
-      issueParams.push(parseInt(ward));
+    // Filter by the issue's ward (server-enforced; null = all wards for super admin)
+    if (effectiveWard) {
+      issuesSql += ` AND i.ward_number = $${paramCount}`;
+      issueParams.push(effectiveWard);
       paramCount++;
     }
 
@@ -161,10 +168,10 @@ export const getFeed = asyncHandler(async (req, res) => {
     const campaignParams = [];
     let paramCount = 1;
 
-    // Filter by ward
-    if (ward) {
-      campaignsSql += ` AND u.ward_number = $${paramCount}`;
-      campaignParams.push(parseInt(ward));
+    // Filter by the campaign's target ward (server-enforced)
+    if (effectiveWard) {
+      campaignsSql += ` AND c.target_ward = $${paramCount}`;
+      campaignParams.push(effectiveWard);
       paramCount++;
     }
 
@@ -204,7 +211,8 @@ export const getFeed = asyncHandler(async (req, res) => {
     const broadcastParams = [];
     let paramCount = 1;
 
-    const effectiveWard = ward ? parseInt(ward) : userWard;
+    // A citizen sees municipality-wide (super_admin) notices plus the
+    // ward_admin notices targeted at their own ward.
     if (effectiveWard) {
       broadcastsSql += ` AND (b.type = 'super_admin' OR (b.type = 'ward_admin' AND b.target_ward = $${paramCount}))`;
       broadcastParams.push(effectiveWard);

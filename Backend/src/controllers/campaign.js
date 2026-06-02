@@ -41,7 +41,15 @@ export const getCampaigns = asyncHandler(async (req, res) => {
     ward: req.query.ward,
     user_id: req.query.user_id
   };
-  
+
+  // A ward admin may only ever see campaigns targeted at their own ward.
+  // Enforce it on the server regardless of any ward sent by the client.
+  // Super admins keep full visibility (and can filter via ?ward).
+  const role = String(req.user.role || '').toLowerCase();
+  if (role === 'ward_admin') {
+    filters.ward = req.user.wardNumber;
+  }
+
   const campaigns = await Campaign.findAll(filters);
   sendSuccess(res, { campaigns });
 });
