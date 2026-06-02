@@ -47,7 +47,16 @@ export const getIssues = asyncHandler(async (req, res) => {
     priority: req.query.priority,
     user_id: req.query.user_id
   };
-  
+
+  // A ward admin may only ever see issues from their own ward. Enforce this on
+  // the server regardless of any `ward` the client sends, so it applies to the
+  // dashboard's recent issues, the management tab, and any direct API call
+  // alike. Super admins keep full visibility (and can filter via ?ward).
+  const role = String(req.user.role || '').toLowerCase();
+  if (role === 'ward_admin') {
+    filters.ward = req.user.wardNumber;
+  }
+
   const issues = await Issue.findAll(filters);
   sendSuccess(res, { issues });
 });

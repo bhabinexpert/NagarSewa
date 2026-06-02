@@ -107,7 +107,8 @@ export default function AdminIssueManagement() {
   const t = issueManagementText[language];
   const { currentUser } = useAuth();
 
-  const isSuperAdmin = currentUser?.role === ROLES.SUPER_ADMIN;
+  // Roles are stored lowercase in the DB/JWT, so compare case-insensitively.
+  const isSuperAdmin = String(currentUser?.role || "").toUpperCase() === ROLES.SUPER_ADMIN;
   const userWard = currentUser?.wardNumber || null;
 
   const [statusFilter, setStatusFilter] = useState("all");
