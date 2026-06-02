@@ -100,9 +100,16 @@ export const User = {
     }
 
     if (filters.kycStatus) {
-      sql += ` AND kyc_status = $${paramCount}`;
-      values.push(filters.kycStatus.toUpperCase());
-      paramCount++;
+      const status = filters.kycStatus.toUpperCase();
+      if (status === 'PENDING') {
+        // The admin UI shows users who have not submitted documents yet as
+        // "Pending KYC" too, so the pending filter must include both states.
+        sql += ` AND kyc_status IN ('PENDING', 'NOT_SUBMITTED')`;
+      } else {
+        sql += ` AND kyc_status = $${paramCount}`;
+        values.push(status);
+        paramCount++;
+      }
     }
 
     if (filters.search) {
@@ -111,7 +118,9 @@ export const User = {
       paramCount++;
     }
 
-    sql += ' ORDER BY created_at DESC';
+    // Sort by registration date; default to newest first.
+    const direction = filters.sort === 'oldest' ? 'ASC' : 'DESC';
+    sql += ` ORDER BY created_at ${direction}`;
 
     const result = await query(sql, values);
     return result.rows;

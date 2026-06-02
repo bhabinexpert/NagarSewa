@@ -275,6 +275,9 @@ router.get('/users', authMiddleware, adminOnly, async (req, res) => {
     if (search) {
       filters.search = search;
     }
+    if (sort) {
+      filters.sort = sort;
+    }
 
     const allUsers = await User.findAll(filters);
 
@@ -308,11 +311,18 @@ router.get('/users', authMiddleware, adminOnly, async (req, res) => {
       };
     });
 
-    // Calculate stats
+    // Summary cards are global metrics, so compute them from the full set in
+    // scope (role + ward), independent of the KYC/search/sort list filters.
+    const statsBase = await User.findAll(
+      role === 'ward_admin' ? { role: 'user', ward: wardNumber } : { role: 'user' }
+    );
     const stats = {
-      total: formattedUsers.length,
-      pendingKyc: formattedUsers.filter(u => u.kycStatus === 'pending' || u.kycStatus === 'not_submitted').length,
-      active: formattedUsers.filter(u => u.enabled && u.kycStatus === 'verified').length
+      total: statsBase.length,
+      pendingKyc: statsBase.filter(u => {
+        const s = (u.kyc_status || '').toUpperCase();
+        return s === 'PENDING' || s === 'NOT_SUBMITTED' || !u.kyc_status;
+      }).length,
+      active: statsBase.filter(u => !u.is_disabled && (u.kyc_status || '').toUpperCase() === 'VERIFIED').length
     };
 
     res.json({
