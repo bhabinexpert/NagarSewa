@@ -61,6 +61,10 @@ function parseIssuePhotos(photoField) {
   const value = photoField.trim();
   if (!value) return [];
 
+  // A base64 data URL is a single value and contains a comma after the
+  // "...;base64," header — never split or re-parse it.
+  if (value.startsWith("data:")) return [value];
+
   // 1) JSON format (including double-encoded JSON strings)
   try {
     const parsed = JSON.parse(value);
