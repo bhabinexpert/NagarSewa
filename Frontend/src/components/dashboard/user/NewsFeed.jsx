@@ -633,7 +633,6 @@ function NewsFeed() {
     { id: "all", label: t.all },
     { id: "issues", label: t.issues },
     { id: "campaigns", label: t.campaigns },
-    { id: "programs", label: t.programs },
     { id: "notices", label: t.notices },
   ];
 
